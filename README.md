@@ -10,12 +10,24 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kingenious0/ProjectACK/stargazers"><img src="https://img.shields.io/github/stars/kingenious0/ProjectACK?style=for-the-badge&color=00FF66&logo=github&label=Stars" alt="GitHub Stars"></a>
+  <a href="https://github.com/kingenious0/ProjectACK/network/members"><img src="https://img.shields.io/github/forks/kingenious0/ProjectACK?style=for-the-badge&color=FFB800&logo=github&label=Forks" alt="GitHub Forks"></a>
   <img src="https://img.shields.io/badge/Theme-Obsidian_%26_Cyber--Emerald-00FF66?style=for-the-badge&logo=visual-studio-code&logoColor=black" alt="Obsidian & Cyber-Emerald">
   <img src="https://img.shields.io/badge/Local_DB-op--sqlite_C%2B%2B-131B22?style=for-the-badge&logo=sqlite&logoColor=00FF66" alt="op-sqlite">
   <img src="https://img.shields.io/badge/Runtime-React_Native_Bare_CLI-0B0F12?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
-  <img src="https://img.shields.io/badge/Security-AES--GCM_Client_Encrypted-FFB800?style=for-the-badge&logo=shield&logoColor=black" alt="AES-GCM Vault">
   <a href="https://paystack.shop/pay/project-ack"><img src="https://img.shields.io/badge/Sponsor_ACK-Paystack-00C3F7?style=for-the-badge&logo=paystack&logoColor=white" alt="Sponsor Project ACK via Paystack"></a>
 </p>
+
+<p align="center">
+  <a href="https://github.com/topics/developer-tools"><img src="https://img.shields.io/badge/topic-developer--tools-131B22?style=flat-square&logo=github&logoColor=00FF66" alt="developer-tools"></a>
+  <a href="https://github.com/topics/react-native"><img src="https://img.shields.io/badge/topic-react--native-131B22?style=flat-square&logo=react&logoColor=61DAFB" alt="react-native"></a>
+  <a href="https://github.com/topics/sqlite"><img src="https://img.shields.io/badge/topic-op--sqlite-131B22?style=flat-square&logo=sqlite&logoColor=00FF66" alt="op-sqlite"></a>
+  <a href="https://github.com/topics/zero-trust"><img src="https://img.shields.io/badge/topic-zero--trust-131B22?style=flat-square&logo=shield&logoColor=FFB800" alt="zero-trust"></a>
+  <a href="https://github.com/topics/indiehackers"><img src="https://img.shields.io/badge/topic-indiehackers-131B22?style=flat-square&logo=producthunt&logoColor=FFB800" alt="indiehackers"></a>
+  <a href="https://github.com/topics/supabase"><img src="https://img.shields.io/badge/topic-supabase-131B22?style=flat-square&logo=supabase&logoColor=3ECF8E" alt="supabase"></a>
+</p>
+
+> 🌟 **Trending on GitHub:** If you like what we're building with **Project ACK**, drop a ⭐ **Star** on this repository! It fuels open-source development and pushes ACK into GitHub Trending lists worldwide.
 
 ---
 
@@ -173,3 +185,10 @@ Project ACK is an open-source, developer-first communication tool. If you'd like
   - WebSocket broadcast with immediate zero-retention ACK receipt purge
 - [ ] **Phase 4: Play Store Production APK**
   - Release keystore signing, Gradle production bundle, and Play Store publishing
+
+---
+
+## 🏷️ Trending Topics & Discovery Tags
+
+`#developer-tools` `#react-native` `#op-sqlite` `#zero-trust` `#encryption` `#cybersecurity` `#indiehackers` `#supabase` `#code-review` `#devtools` `#privacy` `#realtime` `#typescript` `#open-source` `#mobile-app` `#chat` `#messenger` `#android` `#github-actions` `#sqlite`
+

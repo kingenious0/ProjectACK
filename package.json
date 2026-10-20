@@ -6,6 +6,25 @@
     "type": "git",
     "url": "https://github.com/kingenious0/ProjectACK.git"
   },
+  "description": "Project ACK: Developer Messenger built with Bare React Native, op-sqlite, Obsidian & Cyber-Emerald UI, Burn-After-Reading .env vaults, and line-by-line PR reviews.",
+  "keywords": [
+    "developer-tools",
+    "react-native",
+    "op-sqlite",
+    "chat",
+    "messenger",
+    "zero-trust",
+    "encryption",
+    "indiehackers",
+    "supabase",
+    "code-review",
+    "sqlite",
+    "typescript",
+    "devtools",
+    "android",
+    "realtime",
+    "open-source"
+  ],
   "homepage": "https://github.com/kingenious0/ProjectACK#readme",
   "private": true,
   "scripts": {
