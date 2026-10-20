@@ -1,6 +1,12 @@
 {
   "name": "com.projectack.app",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kingenious0/ProjectACK.git"
+  },
+  "homepage": "https://github.com/kingenious0/ProjectACK#readme",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

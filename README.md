@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.jpg" alt="Project ACK Logo" width="520" style="border-radius: 12px; max-width: 100%;">
+</p>
+
 # Project ACK (The Developer Messenger)
 
 <p align="center">

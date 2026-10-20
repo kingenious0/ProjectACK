@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Image,
 } from 'react-native';
 import { COLORS } from '../theme/colors';
 import dbManager from '../db/client';
@@ -51,6 +52,19 @@ export const VaultSettingsScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Brand Hero Card */}
+      <View style={styles.heroCard}>
+        <Image
+          source={require('../assets/logo.jpg')}
+          style={styles.heroLogo}
+          resizeMode="contain"
+        />
+        <View style={styles.heroTextBox}>
+          <Text style={styles.heroTitle}>PROJECT ACK</Text>
+          <Text style={styles.heroTagline}>The Developer Messenger • v1.0.0-alpha</Text>
+        </View>
+      </View>
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>VAULT & ENGINE SETTINGS</Text>
@@ -165,6 +179,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0E141B',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E2936',
+    gap: 14,
+  },
+  heroLogo: {
+    width: 54,
+    height: 54,
+    borderRadius: 8,
+  },
+  heroTextBox: {
+    flex: 1,
+  },
+  heroTitle: {
+    color: COLORS.primary,
+    fontFamily: 'monospace',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  heroTagline: {
+    color: COLORS.textMuted,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    marginTop: 2,
   },
   header: {
     paddingHorizontal: 16,

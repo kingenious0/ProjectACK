@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💖 Sponsor Project ACK
+    url: https://paystack.shop/pay/project-ack
+    about: Support active development, infrastructure, and Play Store releases.
+  - name: 💬 Developer Discussions
+    url: https://github.com/kingenious0/ProjectACK/discussions
+    about: Ask questions, share ideas, and discuss Project ACK features.

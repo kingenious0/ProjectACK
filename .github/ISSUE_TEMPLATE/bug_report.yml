@@ -1,0 +1,53 @@
+name: 🐛 Bug Report
+description: Create a report to help us fix a bug in Project ACK
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue in **Project ACK**!
+  - type: input
+    id: version
+    attributes:
+      label: Project ACK Version
+      description: What version or commit hash are you running?
+      placeholder: e.g. v1.0.0-alpha / commit 1111729
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating System / Target Device
+      options:
+        - Android 14 / 15 (Bare CLI)
+        - Android Emulator
+        - Desktop / Web Preview
+        - iOS Simulator / Device
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open chat with Dan
+        2. Tap </> to send code snippet
+        3. Tap line 8 to reply
+        4. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal / Metro Logs
+      description: Paste any error messages or op-sqlite logs here.
+      render: shell

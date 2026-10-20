@@ -126,7 +126,11 @@ export const ChatListScreen: React.FC = () => {
       {/* Top Terminal Branding Bar */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.terminalPrompt}>&gt;_</Text>
+          <Image
+            source={require('../assets/logo.jpg')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.brandTitle}>PROJECT ACK</Text>
           <View style={styles.activeDot} />
         </View>
@@ -206,6 +210,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  logoImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
   },
   terminalPrompt: {
     color: COLORS.primary,
