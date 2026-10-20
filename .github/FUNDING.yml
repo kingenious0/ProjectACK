@@ -1,0 +1,5 @@
+# GitHub Sponsorship Configuration for Project ACK
+# Displays the "Sponsor this project" button on GitHub
+
+custom:
+  - 'https://paystack.shop/pay/project-ack'

@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/Local_DB-op--sqlite_C%2B%2B-131B22?style=for-the-badge&logo=sqlite&logoColor=00FF66" alt="op-sqlite">
   <img src="https://img.shields.io/badge/Runtime-React_Native_Bare_CLI-0B0F12?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
   <img src="https://img.shields.io/badge/Security-AES--GCM_Client_Encrypted-FFB800?style=for-the-badge&logo=shield&logoColor=black" alt="AES-GCM Vault">
+  <a href="https://paystack.shop/pay/project-ack"><img src="https://img.shields.io/badge/Sponsor_ACK-Paystack-00C3F7?style=for-the-badge&logo=paystack&logoColor=white" alt="Sponsor Project ACK via Paystack"></a>
 </p>
 
 ---
@@ -141,6 +142,14 @@ npm test
 ```bash
 npx react-native run-android
 ```
+
+---
+
+## 💖 Support & Sponsorship
+
+Project ACK is an open-source, developer-first communication tool. If you'd like to support active development, infrastructure, and Play Store releases:
+
+👉 **[Sponsor Project ACK via Paystack (https://paystack.shop/pay/project-ack)](https://paystack.shop/pay/project-ack)**
 
 ---
 
