@@ -34,6 +34,10 @@ local.properties
 *.keystore
 !debug.keystore
 .kotlin/
+*.apk
+*.aab
+hs_err_pid*
+replay_pid*
 
 # node.js
 #

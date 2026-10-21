@@ -10,9 +10,16 @@ import {
   Image,
 } from 'react-native';
 import { COLORS } from '../theme/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dbManager from '../db/client';
 
+import {
+  SettingsGearIcon,
+  LockIcon,
+} from '../components/MaterialIcons';
+
 export const VaultSettingsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [autoMaskOnCopy, setAutoMaskOnCopy] = useState<boolean>(true);
   const [hardwareKeystore, setHardwareKeystore] = useState<boolean>(true);
   const [ephemeralRelayEnabled, setEphemeralRelayEnabled] = useState<boolean>(true);
@@ -52,25 +59,27 @@ export const VaultSettingsScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Brand Hero Card */}
-      <View style={styles.heroCard}>
-        <Image
-          source={require('../assets/logo.jpg')}
-          style={styles.heroLogo}
-          resizeMode="contain"
-        />
-        <View style={styles.heroTextBox}>
-          <Text style={styles.heroTitle}>PROJECT ACK</Text>
-          <Text style={styles.heroTagline}>The Developer Messenger • v1.0.0-alpha</Text>
-        </View>
+      {/* WhatsApp Settings App Bar */}
+      <View style={[styles.appBar, { paddingTop: Math.max(insets.top, 14) }]}>
+        <Text style={styles.appBarTitle}>Settings</Text>
       </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>VAULT & ENGINE SETTINGS</Text>
-        <Text style={styles.headerSubtitle}>
-          Cryptographic security & op-sqlite local store telemetry
-        </Text>
+      {/* WhatsApp Profile Hero Row */}
+      <View style={styles.profileRow}>
+        <View style={styles.profileAvatarBox}>
+          <Image
+            source={require('../assets/logo.jpg')}
+            style={styles.profileAvatar}
+            resizeMode="cover"
+          />
+        </View>
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName}>WhatsDev Master</Text>
+          <Text style={styles.profileStatus}>Developer • Local op-sqlite Engine</Text>
+        </View>
+        <TouchableOpacity style={styles.qrCodeBtn}>
+          <Text style={styles.qrCodeIcon}>⚏</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Security Section */}
@@ -87,8 +96,8 @@ export const VaultSettingsScreen: React.FC = () => {
           <Switch
             value={autoMaskOnCopy}
             onValueChange={setAutoMaskOnCopy}
-            thumbColor={autoMaskOnCopy ? COLORS.warning : '#6E7681'}
-            trackColor={{ true: 'rgba(255, 184, 0, 0.4)', false: '#21262D' }}
+            thumbColor={autoMaskOnCopy ? COLORS.primary : '#6E7681'}
+            trackColor={{ true: 'rgba(0, 168, 132, 0.4)', false: '#21262D' }}
           />
         </View>
 
@@ -103,7 +112,7 @@ export const VaultSettingsScreen: React.FC = () => {
             value={hardwareKeystore}
             onValueChange={setHardwareKeystore}
             thumbColor={hardwareKeystore ? COLORS.primary : '#6E7681'}
-            trackColor={{ true: 'rgba(0, 255, 102, 0.3)', false: '#21262D' }}
+            trackColor={{ true: 'rgba(0, 168, 132, 0.4)', false: '#21262D' }}
           />
         </View>
 
@@ -180,61 +189,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  heroCard: {
+  appBar: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  appBarTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0E141B',
-    padding: 16,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E2936',
-    gap: 14,
+    borderBottomColor: COLORS.borderLight,
   },
-  heroLogo: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
+  profileAvatarBox: {
+    marginRight: 14,
   },
-  heroTextBox: {
+  profileAvatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#2A3942',
+  },
+  profileInfo: {
     flex: 1,
   },
-  heroTitle: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  heroTagline: {
-    color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: {
+  profileName: {
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 17,
+    fontWeight: '600',
   },
-  headerSubtitle: {
+  profileStatus: {
     color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  qrCodeBtn: {
+    padding: 8,
+  },
+  qrCodeIcon: {
+    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: 'bold',
   },
   section: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderLight,
   },
   sectionTitle: {
     color: COLORS.textSecondary,

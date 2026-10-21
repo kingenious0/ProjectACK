@@ -8,7 +8,12 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
+
+import {
+  CommunitiesIcon,
+} from '../components/MaterialIcons';
 
 interface RepoLink {
   id: string;
@@ -20,6 +25,7 @@ interface RepoLink {
 }
 
 export const RepoLinkScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [links, setLinks] = useState<RepoLink[]>([
     {
       id: 'link_1',
@@ -72,11 +78,13 @@ export const RepoLinkScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>REPO-LINKED TEAM CHATS</Text>
+      {/* Header with WhatsApp Communities style and safe top */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14) }]}>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.headerTitle}>Communities & Repos</Text>
+        </View>
         <Text style={styles.headerSubtitle}>
-          Real-time GitHub Webhook dispatch & interactive PR controls
+          GitHub Repository webhooks & interactive PR discussion channels
         </Text>
       </View>
 
@@ -160,24 +168,26 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingBottom: 12,
+    elevation: 2,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderLight,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: '700',
   },
   headerSubtitle: {
     color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 4,
   },
   card: {
     backgroundColor: COLORS.surface,

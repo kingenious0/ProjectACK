@@ -8,11 +8,20 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
 import dbManager from '../db/client';
 import { StatusPostRow, UserRow } from '../db/types';
 
+import {
+  SearchIcon,
+  MoreVertIcon,
+  CameraIcon,
+  StatusCircleIcon,
+} from '../components/MaterialIcons';
+
 export const ShipLogsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<(StatusPostRow & { user?: UserRow })[]>([]);
 
   useEffect(() => {
@@ -42,16 +51,18 @@ export const ShipLogsScreen: React.FC = () => {
 
     return (
       <View style={styles.card}>
-        {/* User Info Header */}
+        {/* User Info Header with WhatsApp Green Status Circle Border */}
         <View style={styles.cardHeader}>
           <View style={styles.userRow}>
-            {user?.avatar_url ? (
-              <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarLetter}>{user?.display_name?.charAt(0) || 'U'}</Text>
-              </View>
-            )}
+            <View style={styles.statusBorderRing}>
+              {user?.avatar_url ? (
+                <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarLetter}>{user?.display_name?.charAt(0) || 'U'}</Text>
+                </View>
+              )}
+            </View>
             <View>
               <Text style={styles.displayName}>{user?.display_name || 'Developer'}</Text>
               <Text style={styles.githubUser}>@{user?.github_username || 'octocat'}</Text>
@@ -81,25 +92,62 @@ export const ShipLogsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>SHIP LOGS (24H STATUS)</Text>
-          <Text style={styles.headerSubtitle}>Teammate release pulses & active builds</Text>
+      {/* WhatsApp Updates Header with Safe Padding and Vector Icons */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14) }]}>
+        <Text style={styles.headerTitle}>Updates</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+            <SearchIcon size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+            <MoreVertIcon size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.postBtn} onPress={handlePostShipLog}>
-          <Text style={styles.postBtnText}>+ SHIP LOG</Text>
-        </TouchableOpacity>
       </View>
 
+      {/* WhatsApp Status Section Header */}
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.statusHeaderBlock}>
+            <Text style={styles.statusSectionHeading}>Status</Text>
+            {/* My Status Row */}
+            <TouchableOpacity
+              style={styles.myStatusRow}
+              activeOpacity={0.7}
+              onPress={handlePostShipLog}
+            >
+              <View style={styles.myStatusAvatarWrapper}>
+                <View style={[styles.avatar, styles.myAvatar]}>
+                  <Text style={styles.myAvatarText}>ME</Text>
+                </View>
+                <View style={styles.addStatusBadge}>
+                  <Text style={styles.addStatusPlus}>+</Text>
+                </View>
+              </View>
+              <View style={styles.myStatusTextCol}>
+                <Text style={styles.myStatusTitle}>My status</Text>
+                <Text style={styles.myStatusSubtitle}>Tap to add dev ship log update</Text>
+              </View>
+            </TouchableOpacity>
+
+            <Text style={[styles.statusSectionHeading, { marginTop: 18 }]}>Recent updates</Text>
+          </View>
+        }
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />
+
+      {/* Floating Action Button for New Status (WhatsApp camera icon) */}
+      <TouchableOpacity
+        style={[styles.statusFab, { bottom: Math.max(insets.bottom + 16, 24) }]}
+        onPress={handlePostShipLog}
+        activeOpacity={0.8}
+      >
+        <CameraIcon size={22} color="#0B141A" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -107,36 +155,51 @@ export const ShipLogsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.backgroundAlt,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: 12,
+    elevation: 2,
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: '700',
   },
-  headerSubtitle: {
-    color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 10,
-    marginTop: 2,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  postBtn: {
+  iconBtn: {
+    padding: 6,
+  },
+  iconBtnText: {
+    fontSize: 18,
+    color: COLORS.textSecondary,
+  },
+  statusFab: {
+    position: 'absolute',
+    right: 18,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  statusFabText: {
+    fontSize: 22,
+    color: '#FFFFFF',
   },
   postBtnText: {
     color: '#0B0F12',
@@ -146,6 +209,73 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  statusHeaderBlock: {
+    marginBottom: 10,
+  },
+  statusSectionHeading: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  myStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  myStatusAvatarWrapper: {
+    position: 'relative',
+    marginRight: 14,
+  },
+  myAvatar: {
+    backgroundColor: '#2A3942',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  myAvatarText: {
+    color: '#00A884',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'monospace',
+  },
+  addStatusBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.backgroundAlt,
+  },
+  addStatusPlus: {
+    color: '#0B141A',
+    fontSize: 12,
+    fontWeight: 'bold',
+    top: -1,
+  },
+  myStatusTextCol: {
+    flex: 1,
+  },
+  myStatusTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  myStatusSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  statusBorderRing: {
+    padding: 2,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
   },
   card: {
     backgroundColor: COLORS.surface,

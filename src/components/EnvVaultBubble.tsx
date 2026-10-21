@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { COLORS } from '../theme/colors';
 import { maskSecretLines } from '../utils/crypto';
 
+import { LockIcon } from './MaterialIcons';
+
 interface Props {
   messageId: string;
   secretContent: string;
@@ -48,8 +50,6 @@ export const EnvVaultBubble: React.FC<Props> = ({
   const handleCopyAll = () => {
     if (isBurned) return;
 
-    // Blueprint Requirement: Once the recipient taps "Copy All", the UI instantly masks
-    // the text with asterisks and triggers an API call/wipe payload permanently.
     setCopiedStatus('COPIED & WIPED FROM RELAY');
     handleBurn();
 
@@ -66,7 +66,7 @@ export const EnvVaultBubble: React.FC<Props> = ({
       {/* Vault Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.lockIcon}>🔐</Text>
+          <LockIcon size={16} color={COLORS.warning} />
           <View>
             <Text style={styles.titleText}>BURN-AFTER-READING .ENV VAULT</Text>
             <Text style={styles.subText}>AES-GCM CLIENT ENCRYPTED</Text>

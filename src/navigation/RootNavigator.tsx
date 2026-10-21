@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { COLORS } from '../theme/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MainTabParamList } from './types';
 
 import ChatListScreen from '../screens/ChatListScreen';
@@ -12,6 +13,12 @@ import ChatDetailScreen from '../screens/ChatDetailScreen';
 import ShipLogsScreen from '../screens/ShipLogsScreen';
 import RepoLinkScreen from '../screens/RepoLinkScreen';
 import VaultSettingsScreen from '../screens/VaultSettingsScreen';
+import {
+  ChatBubbleIcon,
+  StatusCircleIcon,
+  CommunitiesIcon,
+  SettingsGearIcon,
+} from '../components/MaterialIcons';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,12 +38,17 @@ const AckDarkTheme = {
 };
 
 function MainTabsNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.primary,
+        tabBarStyle: [
+          styles.tabBar,
+          { height: 64 + insets.bottom, paddingBottom: Math.max(insets.bottom, 8) },
+        ],
+        tabBarActiveTintColor: COLORS.textPrimary,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: styles.tabBarLabel,
       }}
@@ -45,10 +57,13 @@ function MainTabsNavigator() {
         name="Chats"
         component={ChatListScreen}
         options={{
-          tabBarLabel: 'CHATS',
+          tabBarLabel: 'Chats',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconBox, focused && styles.tabIconBoxActive]}>
-              <Text style={[styles.tabIconText, { color }]}>&gt;_</Text>
+              <ChatBubbleIcon
+                size={22}
+                color={focused ? COLORS.textPrimary : COLORS.textMuted}
+              />
             </View>
           ),
         }}
@@ -58,10 +73,13 @@ function MainTabsNavigator() {
         name="ShipLogs"
         component={ShipLogsScreen}
         options={{
-          tabBarLabel: 'SHIP LOGS',
+          tabBarLabel: 'Updates',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconBox, focused && styles.tabIconBoxActive]}>
-              <Text style={[styles.tabIconText, { color }]}>⚡</Text>
+              <StatusCircleIcon
+                size={22}
+                color={focused ? COLORS.textPrimary : COLORS.textMuted}
+              />
             </View>
           ),
         }}
@@ -71,10 +89,13 @@ function MainTabsNavigator() {
         name="Repos"
         component={RepoLinkScreen}
         options={{
-          tabBarLabel: 'REPOS',
+          tabBarLabel: 'Communities',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconBox, focused && styles.tabIconBoxActive]}>
-              <Text style={[styles.tabIconText, { color }]}>🐙</Text>
+              <CommunitiesIcon
+                size={22}
+                color={focused ? COLORS.textPrimary : COLORS.textMuted}
+              />
             </View>
           ),
         }}
@@ -84,10 +105,13 @@ function MainTabsNavigator() {
         name="Vault"
         component={VaultSettingsScreen}
         options={{
-          tabBarLabel: 'VAULT',
+          tabBarLabel: 'Settings',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconBox, focused && styles.tabIconBoxActive]}>
-              <Text style={[styles.tabIconText, { color }]}>🔐</Text>
+              <SettingsGearIcon
+                size={22}
+                color={focused ? COLORS.textPrimary : COLORS.textMuted}
+              />
             </View>
           ),
         }}
@@ -115,33 +139,26 @@ export const RootNavigator: React.FC = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#0F161E',
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: '#1E2834',
-    height: 56,
-    paddingBottom: 6,
-    paddingTop: 6,
+    borderTopColor: COLORS.borderLight,
+    paddingTop: 8,
+    elevation: 8,
   },
   tabBarLabel: {
-    fontFamily: 'monospace',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
   tabIconBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 28,
-    height: 22,
-    borderRadius: 4,
+    width: 56,
+    height: 30,
+    borderRadius: 15,
   },
   tabIconBoxActive: {
-    backgroundColor: 'rgba(0, 255, 102, 0.12)',
-  },
-  tabIconText: {
-    fontSize: 14,
-    fontFamily: 'monospace',
-    fontWeight: '800',
+    backgroundColor: 'rgba(0, 168, 132, 0.28)',
   },
 });
 

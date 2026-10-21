@@ -5,64 +5,66 @@
  */
 
 export const COLORS = {
-  // App Canvas
-  background: '#0B0F12', // Deep Obsidian / Void Black
-  backgroundAlt: '#080C0E',
+  // App Canvas - Authentic WhatsApp Dark Mode
+  background: '#0B141A', // Deep WhatsApp Dark Canvas
+  backgroundAlt: '#111B21', // WhatsApp Chat background
+  chatWallpaper: '#0B141A',
 
-  // Surfaces & Cards
-  surface: '#131B22', // Dark Slate Gray
-  surfaceLight: '#1C252E', // Lighter hover / active card
-  surfaceBorder: '#232D38', // Card stroke
-  inputBackground: '#10161D', // Input bars
+  // Surfaces & AppBars
+  surface: '#1F2C34', // WhatsApp AppBar / Header background
+  surfaceLight: '#233138', // WhatsApp Card / hover
+  surfaceBorder: '#2A3942', // WhatsApp Divider / Border
+  inputBackground: '#202C33', // WhatsApp Pill Input Bar
 
-  // Primary Accent (Cyber Emerald)
-  primary: '#00FF66', // Terminal Green
-  primaryGlow: 'rgba(0, 255, 102, 0.15)',
-  primaryMuted: '#00B347',
+  // Primary Accent (WhatsApp Green)
+  primary: '#00A884', // Authentic WhatsApp Teal Green
+  primaryDark: '#008069', // Top Tab Active / Header Green
+  primaryGlow: 'rgba(0, 168, 132, 0.2)',
+  primaryMuted: '#00A884',
 
-  // Secondary Accent (Dev Gold / Amber)
-  warning: '#FFB800', // Dev Gold / Amber (.env vaults, alerts)
+  // Secondary Accent (Dev Gold / Amber for .env vaults)
+  warning: '#FFB800', 
   warningGlow: 'rgba(255, 184, 0, 0.18)',
 
   // Text Hierarchy
-  textPrimary: '#F0F6FC', // High Contrast
-  textSecondary: '#C9D1D9',
-  textMuted: '#8B949E', // Timestamps / Metadata
-  textDim: '#57606A',
+  textPrimary: '#E9EDEF', // WhatsApp High-contrast Text
+  textSecondary: '#D1D7DB',
+  textMuted: '#8696A0', // WhatsApp Timestamps & subtle labels
+  textDim: '#667781',
 
-  // Chat Bubbles
-  bubbleSent: '#003B1F', // Dark Emerald tint
-  bubbleSentBorder: '#00FF66', // 1px stroke
-  bubbleReceived: '#161B22', // Dark Slate
-  bubbleReceivedBorder: '#28323E',
+  // Chat Bubbles - Authentic WhatsApp Dark Mode
+  bubbleSent: '#005C4B', // Classic WhatsApp Sent Bubble Dark Green
+  bubbleSentBorder: 'transparent',
+  bubbleReceived: '#202C33', // WhatsApp Received Slate Bubble
+  bubbleReceivedBorder: 'transparent',
 
   // Syntax Highlighting Tokens
-  codeBlockBg: '#080C0E',
-  codeBlockBorder: '#212B36',
-  codeLineNumber: '#484F58',
-  codeLineHighlight: 'rgba(0, 255, 102, 0.08)',
+  codeBlockBg: '#111B21',
+  codeBlockBorder: '#2A3942',
+  codeLineNumber: '#667781',
+  codeLineHighlight: 'rgba(0, 168, 132, 0.15)',
   syntaxKeyword: '#FF7B72',
-  syntaxString: '#A5D6FF',
-  syntaxFunction: '#7EE787',
-  syntaxComment: '#8B949E',
-  syntaxNumber: '#79C0FF',
+  syntaxString: '#7EE787',
+  syntaxFunction: '#79C0FF',
+  syntaxComment: '#8696A0',
+  syntaxNumber: '#FFA657',
 
   // Git / Status Badges
-  gitGreen: '#238636',
-  gitRed: '#DA3633',
-  gitPurple: '#8957E5',
-  gitCyan: '#388BFD',
+  gitGreen: '#00A884',
+  gitRed: '#F15C6D',
+  gitPurple: '#A371F7',
+  gitCyan: '#53BDEB',
 
   // Message Status Indicators
-  statusPending: '#8B949E', // Clock icon
-  statusSent: '#8B949E', // 1 gray tick
-  statusDelivered: '#8B949E', // 2 gray ticks
-  statusRead: '#00FF66', // 2 Cyber-Emerald ticks
+  statusPending: '#8696A0', // Clock icon
+  statusSent: '#8696A0', // 1 gray tick
+  statusDelivered: '#8696A0', // 2 gray ticks
+  statusRead: '#53BDEB', // Authentic WhatsApp Blue Ticks!
 
   // Borders & Dividers
-  border: '#30363D',
-  borderLight: '#21262D',
-  divider: '#161B22',
+  border: '#2A3942',
+  borderLight: '#222E35',
+  divider: '#202C33',
 };
 
 export const FONTS = {

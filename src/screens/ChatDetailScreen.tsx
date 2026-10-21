@@ -13,6 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
 import dbManager, { CURRENT_USER_ID } from '../db/client';
 import { HydratedMessage } from '../db/types';
@@ -21,7 +22,16 @@ import EnvVaultBubble from '../components/EnvVaultBubble';
 import RepoCardBubble from '../components/RepoCardBubble';
 import MessageStatusTicks from '../components/MessageStatusTicks';
 
+import {
+  BackArrowIcon,
+  MoreVertIcon,
+  LockIcon,
+  CodeTagIcon,
+  SendIcon,
+} from '../components/MaterialIcons';
+
 export const ChatDetailScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { chatId, chatTitle } = route.params || { chatId: 'chat_dm_dan', chatTitle: 'Dan (Frontend Lead)' };
@@ -212,26 +222,32 @@ export const ChatDetailScreen: React.FC = () => {
     >
       <StatusBar barStyle="light-content" />
 
-      {/* Top Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>‹</Text>
+      {/* Top WhatsApp App Bar with Material Design 3 Styling */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <BackArrowIcon size={22} color={COLORS.textPrimary} />
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {chatTitle.startsWith('github:') ? '🐙' : chatTitle.charAt(0)}
+            </Text>
+          </View>
         </TouchableOpacity>
 
-        <View style={styles.headerTitleBox}>
+        <TouchableOpacity style={styles.headerTitleBox} activeOpacity={0.8}>
           <Text style={styles.headerTitle} numberOfLines={1}>{chatTitle}</Text>
-          <View style={styles.headerSubtitleRow}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.headerSubtitle}>e2e ephemeral relay active</Text>
-          </View>
-        </View>
+          <Text style={styles.headerSubtitle}>online • e2e encrypted</Text>
+        </TouchableOpacity>
 
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={() => setEnvModalVisible(true)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.lockHeaderIcon}>🔐</Text>
+            <LockIcon size={19} color={COLORS.warning} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIconBtn} activeOpacity={0.7}>
+            <MoreVertIcon size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -243,6 +259,22 @@ export const ChatDetailScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         renderItem={renderMessageItem}
         contentContainerStyle={styles.messagesList}
+        ListHeaderComponent={
+          <View style={styles.feedHeaderContainer}>
+            {/* WhatsApp E2E Encryption Banner */}
+            <View style={styles.encryptionPill}>
+              <LockIcon size={13} color="#FFD279" />
+              <Text style={styles.encryptionPillText}>
+                Messages and code snippets are end-to-end encrypted with op-sqlite local store.
+              </Text>
+            </View>
+
+            {/* WhatsApp Date Pill */}
+            <View style={styles.datePill}>
+              <Text style={styles.datePillText}>TODAY</Text>
+            </View>
+          </View>
+        }
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />
 
@@ -261,41 +293,46 @@ export const ChatDetailScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Input Bar */}
-      <View style={styles.inputBar}>
-        {/* Code Snippet Button </> */}
-        <TouchableOpacity
-          style={styles.toolbarBtn}
-          onPress={() => setCodeModalVisible(true)}
-        >
-          <Text style={styles.codeToolbarText}>&lt;/&gt;</Text>
-        </TouchableOpacity>
+      {/* WhatsApp Floating Pill Input Bar */}
+      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <View style={styles.pillInputBox}>
+          {/* Code Snippet Button </> */}
+          <TouchableOpacity
+            style={styles.inputInnerBtn}
+            onPress={() => setCodeModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <CodeTagIcon size={18} color="#8696A0" />
+          </TouchableOpacity>
 
-        {/* Lock (.env Vault) Button */}
-        <TouchableOpacity
-          style={styles.toolbarBtn}
-          onPress={() => setEnvModalVisible(true)}
-        >
-          <Text style={styles.lockToolbarText}>🔐</Text>
-        </TouchableOpacity>
+          {/* Text Input */}
+          <TextInput
+            style={styles.textInput}
+            placeholder="Message"
+            placeholderTextColor={COLORS.textMuted}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+          />
 
-        {/* Text Input */}
-        <TextInput
-          style={styles.textInput}
-          placeholder="Message or paste snippet..."
-          placeholderTextColor={COLORS.textMuted}
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-        />
+          {/* Lock (.env Vault) Attachment Button */}
+          <TouchableOpacity
+            style={styles.inputInnerBtn}
+            onPress={() => setEnvModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <LockIcon size={17} color={COLORS.warning} />
+          </TouchableOpacity>
+        </View>
 
-        {/* Send Button */}
+        {/* WhatsApp Round Green Send FAB */}
         <TouchableOpacity
-          style={[styles.sendBtn, inputText.trim().length > 0 && styles.sendBtnActive]}
+          style={styles.sendFab}
           onPress={handleSendTextMessage}
           disabled={!inputText.trim()}
+          activeOpacity={0.8}
         >
-          <Text style={styles.sendBtnText}>ACK</Text>
+          <SendIcon size={18} color="#0B141A" />
         </TouchableOpacity>
       </View>
 
@@ -420,68 +457,118 @@ export const ChatDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.backgroundAlt,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10161D',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
   },
   backBtn: {
-    paddingRight: 10,
-    paddingLeft: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderRadius: 20,
   },
   backBtnText: {
-    color: COLORS.primary,
-    fontSize: 28,
-    fontWeight: '300',
-    lineHeight: 28,
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontWeight: '400',
+    marginRight: 4,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#374248',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  avatarText: {
+    color: '#D1D7DB',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   headerTitleBox: {
     flex: 1,
+    justifyContent: 'center',
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  headerSubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   headerSubtitle: {
     color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 10,
+    fontSize: 12,
+    marginTop: 1,
   },
   headerIcons: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   headerIconBtn: {
-    padding: 6,
+    padding: 8,
+    marginLeft: 2,
+  },
+  headerActionIcon: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   lockHeaderIcon: {
-    fontSize: 18,
+    fontSize: 17,
+  },
+  feedHeaderContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+    gap: 8,
+  },
+  encryptionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#182229',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    maxWidth: '90%',
+    gap: 6,
+  },
+  encryptionPillText: {
+    color: '#FFD279',
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
+    flex: 1,
+  },
+  datePill: {
+    backgroundColor: '#182229',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    elevation: 1,
+  },
+  datePillText: {
+    color: '#8696A0',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   messagesList: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   messageRow: {
-    marginVertical: 4,
+    marginVertical: 2,
     flexDirection: 'row',
   },
   sentRow: {
@@ -491,135 +578,146 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   bubble: {
-    maxWidth: '88%',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    maxWidth: '85%',
+    paddingHorizontal: 11,
+    paddingTop: 6,
+    paddingBottom: 5,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 1,
   },
   bubbleSent: {
     backgroundColor: COLORS.bubbleSent,
-    borderWidth: 1,
-    borderColor: COLORS.bubbleSentBorder,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 2,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
   },
   bubbleReceived: {
     backgroundColor: COLORS.bubbleReceived,
-    borderWidth: 1,
-    borderColor: COLORS.bubbleReceivedBorder,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 10,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
   },
   senderName: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 11,
+    color: '#00A884',
+    fontSize: 12,
     fontWeight: '700',
     marginBottom: 4,
   },
   textMessageContent: {
     color: COLORS.textPrimary,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 20,
   },
   lineQuoteBanner: {
-    backgroundColor: 'rgba(0, 255, 102, 0.08)',
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
-    paddingLeft: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#00A884',
+    paddingHorizontal: 8,
     paddingVertical: 4,
     marginBottom: 6,
-    borderRadius: 2,
+    borderRadius: 4,
   },
   lineQuoteHeader: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 10,
+    color: '#00A884',
+    fontSize: 11,
     fontWeight: '700',
   },
   lineQuoteSnippet: {
-    color: COLORS.textMuted,
+    color: COLORS.textSecondary,
     fontFamily: 'monospace',
-    fontSize: 10,
+    fontSize: 11,
   },
   replyBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#101720',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00A884',
+    marginHorizontal: 8,
+    marginBottom: 4,
+    borderRadius: 8,
   },
   replyBannerLeft: {
     flex: 1,
   },
   replyBannerTitle: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 11,
+    color: '#00A884',
+    fontSize: 12,
     fontWeight: '700',
   },
   replyBannerSnippet: {
     color: COLORS.textMuted,
     fontFamily: 'monospace',
     fontSize: 11,
+    marginTop: 2,
   },
   replyBannerClose: {
     color: COLORS.textMuted,
     paddingHorizontal: 8,
-    fontSize: 14,
+    fontSize: 16,
   },
-  inputBar: {
+  inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    alignItems: 'flex-end',
+    paddingHorizontal: 6,
+    paddingTop: 4,
     gap: 6,
   },
-  toolbarBtn: {
-    padding: 6,
-    borderRadius: 4,
-    backgroundColor: '#0E141B',
-    borderWidth: 1,
-    borderColor: '#212C38',
+  pillInputBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minHeight: 46,
   },
-  codeToolbarText: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontWeight: '800',
-    fontSize: 12,
+  inputInnerBtn: {
+    padding: 8,
   },
-  lockToolbarText: {
+  codeIconText: {
+    color: '#8696A0',
     fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+  },
+  lockIconText: {
+    fontSize: 16,
   },
   textInput: {
     flex: 1,
-    backgroundColor: COLORS.inputBackground,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 12,
-    paddingHorizontal: 10,
+    fontSize: 15,
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    maxHeight: 100,
+    maxHeight: 120,
   },
-  sendBtn: {
-    backgroundColor: '#1C2632',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  sendBtnActive: {
+  sendFab: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
   },
-  sendBtnText: {
-    color: '#0B0F12',
-    fontFamily: 'monospace',
-    fontWeight: '900',
-    fontSize: 11,
+  sendFabIcon: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 2,
   },
   // Modals
   modalOverlay: {

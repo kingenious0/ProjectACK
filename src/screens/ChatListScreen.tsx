@@ -10,15 +10,25 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
 import dbManager from '../db/client';
 import { HydratedChat, ChatType } from '../db/types';
 
+import {
+  SearchIcon,
+  CameraIcon,
+  MoreVertIcon,
+  ChatBubbleIcon,
+} from '../components/MaterialIcons';
+
 export const ChatListScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [chats, setChats] = useState<HydratedChat[]>([]);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isDbNative, setIsDbNative] = useState<boolean>(false);
 
   const loadChats = useCallback(async () => {
@@ -56,7 +66,7 @@ export const ChatListScreen: React.FC = () => {
       if (!lastMsg) return 'No messages yet';
       if (lastMsg.message_type === 'code') {
         const lang = lastMsg.metadataParsed?.language || 'code';
-        return `</> [${lang.toUpperCase()}] snippet shared`;
+        return `</> [${lang.toUpperCase()}] code snippet shared`;
       }
       if (lastMsg.message_type === 'env_secret') {
         return `🔐 [.ENV VAULT] Burn-after-reading secret`;
@@ -101,11 +111,19 @@ export const ChatListScreen: React.FC = () => {
               {item.type === 'webhook' && <Text style={styles.webhookPrefix}>[WH]</Text>}
               <Text style={styles.chatTitle} numberOfLines={1}>{title}</Text>
             </View>
-            <Text style={styles.chatTime}>{formatTimestamp(item.updated_at || lastMsg?.created_at)}</Text>
+            <Text style={[styles.chatTime, item.unreadCount ? styles.chatTimeUnread : null]}>
+              {formatTimestamp(item.updated_at || lastMsg?.created_at)}
+            </Text>
           </View>
 
           <View style={styles.previewRow}>
-            <Text style={[styles.chatPreview, (lastMsg?.message_type === 'code' || lastMsg?.message_type === 'env_secret') && styles.specialPreview]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.chatPreview,
+                (lastMsg?.message_type === 'code' || lastMsg?.message_type === 'env_secret') && styles.specialPreview,
+              ]}
+              numberOfLines={1}
+            >
               {renderPreview()}
             </Text>
             {item.unreadCount ? (
@@ -123,53 +141,62 @@ export const ChatListScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Top Terminal Branding Bar */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require('../assets/logo.jpg')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.brandTitle}>PROJECT ACK</Text>
-          <View style={styles.activeDot} />
-        </View>
-
-        <View style={styles.engineBadge}>
-          <Text style={styles.engineText}>{isDbNative ? '⚡ op-sqlite' : '💾 memory-sqlite'}</Text>
-        </View>
-      </View>
-
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          placeholder="Filter messages, git hashes, or peers..."
-          placeholderTextColor={COLORS.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={styles.searchInput}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Text style={styles.clearIcon}>✕</Text>
-          </TouchableOpacity>
+      {/* WhatsApp Main Top App Bar */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14) }]}>
+        {isSearching ? (
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchBarInput}
+              placeholder="Search chats, repos, snippets..."
+              placeholderTextColor={COLORS.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            <TouchableOpacity onPress={() => { setIsSearching(false); setSearchQuery(''); }}>
+              <Text style={styles.searchCancelText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.brandTitle}>WhatsDev</Text>
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
+                <CameraIcon size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                activeOpacity={0.7}
+                onPress={() => setIsSearching(true)}
+              >
+                <SearchIcon size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
+                <MoreVertIcon size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </View>
 
-      {/* Filter Tabs */}
+      {/* WhatsApp Filter Pills (All, Unread, Groups, Repos) */}
       <View style={styles.filterTabs}>
-        {['ALL', 'DMS', 'GROUPS', 'WEBHOOKS'].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setFilterType(tab)}
-            style={[styles.filterTab, filterType === tab && styles.filterTabActive]}
-          >
-            <Text style={[styles.filterTabText, filterType === tab && styles.filterTabTextActive]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {['All', 'DMs', 'Groups', 'Repos'].map((tab) => {
+          const mapKey = tab === 'All' ? 'ALL' : tab === 'DMs' ? 'DMS' : tab === 'Groups' ? 'GROUPS' : 'WEBHOOKS';
+          const isActive = filterType === mapKey;
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setFilterType(mapKey)}
+              style={[styles.filterTab, isActive && styles.filterTabActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Chats FlatList */}
@@ -187,6 +214,15 @@ export const ChatListScreen: React.FC = () => {
           </View>
         }
       />
+
+      {/* WhatsApp Floating New Chat Button (FAB) with authentic vector icon */}
+      <TouchableOpacity
+        style={[styles.newChatFab, { bottom: Math.max(insets.bottom + 16, 20) }]}
+        activeOpacity={0.8}
+        onPress={() => {}}
+      >
+        <ChatBubbleIcon size={24} color="#0B141A" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -202,149 +238,97 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoImage: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-  },
-  terminalPrompt: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 18,
-    fontWeight: '800',
+    backgroundColor: COLORS.surface,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
   },
   brandTitle: {
     color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
-  },
-  engineBadge: {
-    backgroundColor: 'rgba(0, 255, 102, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 255, 102, 0.25)',
-  },
-  engineText: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 10,
+    fontSize: 20,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  searchContainer: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 6,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
+    gap: 12,
   },
-  searchIcon: {
-    fontSize: 13,
-    marginRight: 6,
+  headerIconButton: {
+    padding: 6,
   },
-  searchInput: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontFamily: 'monospace',
-    fontSize: 12,
-    paddingVertical: 7,
-  },
-  clearIcon: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    paddingHorizontal: 4,
+  headerIconText: {
+    fontSize: 18,
+    color: COLORS.textSecondary,
   },
   filterTabs: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
     gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
   filterTab: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: '#10161D',
-    borderWidth: 1,
-    borderColor: '#1F2A38',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 18,
+    backgroundColor: COLORS.inputBackground,
   },
   filterTabActive: {
-    backgroundColor: 'rgba(0, 255, 102, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(0, 168, 132, 0.2)',
   },
   filterTabText: {
     color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
   },
   filterTabTextActive: {
     color: COLORS.primary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   listContent: {
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   avatarWrapper: {
     position: 'relative',
-    marginRight: 12,
+    marginRight: 14,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surface,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#374248',
   },
   placeholderAvatar: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#2A3942',
   },
   placeholderText: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#D1D7DB',
+    fontSize: 18,
+    fontWeight: '600',
   },
   onlineBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: COLORS.primary,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: COLORS.background,
   },
   chatInfo: {
@@ -378,45 +362,52 @@ const styles = StyleSheet.create({
   },
   chatTitle: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   chatTime: {
     color: COLORS.textMuted,
-    fontFamily: 'monospace',
-    fontSize: 10,
+    fontSize: 12,
+  },
+  chatTimeUnread: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   previewRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 2,
   },
   chatPreview: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 14,
     flex: 1,
     marginRight: 8,
   },
   specialPreview: {
     color: COLORS.textSecondary,
     fontFamily: 'monospace',
+    fontSize: 13,
   },
   unreadBadge: {
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
   },
   unreadText: {
-    color: '#0B0F12',
-    fontFamily: 'monospace',
-    fontSize: 10,
+    color: '#0B141A',
+    fontSize: 11,
     fontWeight: '800',
   },
   separator: {
-    height: 1,
-    backgroundColor: '#121A22',
-    marginLeft: 72,
+    height: 0.5,
+    backgroundColor: COLORS.borderLight,
+    marginLeft: 78,
   },
   emptyContainer: {
     padding: 40,
@@ -438,6 +429,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     textAlign: 'center',
+  },
+  newChatFab: {
+    position: 'absolute',
+    right: 18,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    height: 42,
+  },
+  searchBarInput: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  searchCancelText: {
+    color: COLORS.textMuted,
+    fontSize: 16,
+    paddingHorizontal: 8,
   },
 });
 
