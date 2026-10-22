@@ -44,7 +44,7 @@ export const ChatListScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadChats]);
 
-  const filteredChats = chats.filter((c) => {
+  const filteredChats = chats.filter(c => {
     if (filterType === 'DMS' && c.type !== 'dm') return false;
     if (filterType === 'GROUPS' && c.type !== 'group') return false;
     if (filterType === 'WEBHOOKS' && c.type !== 'webhook') return false;
@@ -58,7 +58,9 @@ export const ChatListScreen: React.FC = () => {
 
   const renderChatItem = ({ item }: { item: HydratedChat }) => {
     const isDM = item.type === 'dm';
-    const title = isDM ? (item.peerUser?.display_name || item.title || 'Developer') : (item.title || 'Channel');
+    const title = isDM
+      ? item.peerUser?.display_name || item.title || 'Developer'
+      : item.title || 'Channel';
     const avatar = item.avatar_url || item.peerUser?.avatar_url;
     const lastMsg = item.lastMessage;
 
@@ -80,14 +82,23 @@ export const ChatListScreen: React.FC = () => {
     const formatTimestamp = (ts?: string) => {
       if (!ts) return '';
       const d = new Date(ts);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      return d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
     };
 
     return (
       <TouchableOpacity
         style={styles.chatRow}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('ChatDetail', { chatId: item.id, chatTitle: title })}
+        onPress={() =>
+          navigation.navigate('ChatDetail', {
+            chatId: item.id,
+            chatTitle: title,
+          })
+        }
       >
         {/* Avatar */}
         <View style={styles.avatarWrapper}>
@@ -96,7 +107,11 @@ export const ChatListScreen: React.FC = () => {
           ) : (
             <View style={[styles.avatar, styles.placeholderAvatar]}>
               <Text style={styles.placeholderText}>
-                {item.type === 'webhook' ? '🐙' : item.type === 'group' ? '#' : '>_'}
+                {item.type === 'webhook'
+                  ? '🐙'
+                  : item.type === 'group'
+                  ? '#'
+                  : '>_'}
               </Text>
             </View>
           )}
@@ -107,11 +122,22 @@ export const ChatListScreen: React.FC = () => {
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <View style={styles.titleBadgeRow}>
-              {item.type === 'group' && <Text style={styles.channelPrefix}>#</Text>}
-              {item.type === 'webhook' && <Text style={styles.webhookPrefix}>[WH]</Text>}
-              <Text style={styles.chatTitle} numberOfLines={1}>{title}</Text>
+              {item.type === 'group' && (
+                <Text style={styles.channelPrefix}>#</Text>
+              )}
+              {item.type === 'webhook' && (
+                <Text style={styles.webhookPrefix}>[WH]</Text>
+              )}
+              <Text style={styles.chatTitle} numberOfLines={1}>
+                {title}
+              </Text>
             </View>
-            <Text style={[styles.chatTime, item.unreadCount ? styles.chatTimeUnread : null]}>
+            <Text
+              style={[
+                styles.chatTime,
+                item.unreadCount ? styles.chatTimeUnread : null,
+              ]}
+            >
               {formatTimestamp(item.updated_at || lastMsg?.created_at)}
             </Text>
           </View>
@@ -120,7 +146,9 @@ export const ChatListScreen: React.FC = () => {
             <Text
               style={[
                 styles.chatPreview,
-                (lastMsg?.message_type === 'code' || lastMsg?.message_type === 'env_secret') && styles.specialPreview,
+                (lastMsg?.message_type === 'code' ||
+                  lastMsg?.message_type === 'env_secret') &&
+                  styles.specialPreview,
               ]}
               numberOfLines={1}
             >
@@ -153,15 +181,31 @@ export const ChatListScreen: React.FC = () => {
               onChangeText={setSearchQuery}
               autoFocus
             />
-            <TouchableOpacity onPress={() => { setIsSearching(false); setSearchQuery(''); }}>
+            <TouchableOpacity
+              onPress={() => {
+                setIsSearching(false);
+                setSearchQuery('');
+              }}
+            >
               <Text style={styles.searchCancelText}>✕</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            <Text style={styles.brandTitle}>WhatsDev</Text>
+            <View style={styles.brandLockup}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>A</Text>
+              </View>
+              <View>
+                <Text style={styles.brandTitle}>ACK</Text>
+                <Text style={styles.brandSubtitle}>developer network</Text>
+              </View>
+            </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                activeOpacity={0.7}
+              >
                 <CameraIcon size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
@@ -171,7 +215,10 @@ export const ChatListScreen: React.FC = () => {
               >
                 <SearchIcon size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                activeOpacity={0.7}
+              >
                 <MoreVertIcon size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -181,8 +228,15 @@ export const ChatListScreen: React.FC = () => {
 
       {/* WhatsApp Filter Pills (All, Unread, Groups, Repos) */}
       <View style={styles.filterTabs}>
-        {['All', 'DMs', 'Groups', 'Repos'].map((tab) => {
-          const mapKey = tab === 'All' ? 'ALL' : tab === 'DMs' ? 'DMS' : tab === 'Groups' ? 'GROUPS' : 'WEBHOOKS';
+        {['All', 'DMs', 'Groups', 'Repos'].map(tab => {
+          const mapKey =
+            tab === 'All'
+              ? 'ALL'
+              : tab === 'DMs'
+              ? 'DMS'
+              : tab === 'Groups'
+              ? 'GROUPS'
+              : 'WEBHOOKS';
           const isActive = filterType === mapKey;
           return (
             <TouchableOpacity
@@ -191,7 +245,12 @@ export const ChatListScreen: React.FC = () => {
               style={[styles.filterTab, isActive && styles.filterTabActive]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+              <Text
+                style={[
+                  styles.filterTabText,
+                  isActive && styles.filterTabTextActive,
+                ]}
+              >
                 {tab}
               </Text>
             </TouchableOpacity>
@@ -202,7 +261,7 @@ export const ChatListScreen: React.FC = () => {
       {/* Chats FlatList */}
       <FlatList
         data={filteredChats}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={renderChatItem}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -210,14 +269,19 @@ export const ChatListScreen: React.FC = () => {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>&gt;_</Text>
             <Text style={styles.emptyTitle}>No chats found</Text>
-            <Text style={styles.emptySubtitle}>Start a new DM or link a GitHub repository.</Text>
+            <Text style={styles.emptySubtitle}>
+              Start a new DM or link a GitHub repository.
+            </Text>
           </View>
         }
       />
 
       {/* WhatsApp Floating New Chat Button (FAB) with authentic vector icon */}
       <TouchableOpacity
-        style={[styles.newChatFab, { bottom: Math.max(insets.bottom + 16, 20) }]}
+        style={[
+          styles.newChatFab,
+          { bottom: Math.max(insets.bottom + 16, 20) },
+        ]}
         activeOpacity={0.8}
         onPress={() => {}}
       >
@@ -246,11 +310,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 1 },
   },
+  brandLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandMarkText: {
+    color: '#071316',
+    fontSize: 19,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+  },
   brandTitle: {
     color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  brandSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 1,
+    letterSpacing: 0.5,
   },
   headerRight: {
     flexDirection: 'row',
@@ -267,11 +356,10 @@ const styles = StyleSheet.create({
   filterTabs: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: COLORS.background,
     gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
   },
   filterTab: {
     paddingHorizontal: 14,
@@ -297,8 +385,14 @@ const styles = StyleSheet.create({
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    paddingHorizontal: 12,
     paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   avatarWrapper: {
     position: 'relative',
@@ -405,9 +499,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   separator: {
-    height: 0.5,
-    backgroundColor: COLORS.borderLight,
-    marginLeft: 78,
+    height: 0,
   },
   emptyContainer: {
     padding: 40,
