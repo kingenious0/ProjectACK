@@ -1,221 +1,142 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { COLORS } from '../theme/colors';
-import { maskSecretLines } from '../utils/crypto';
+import { Shield, Eye, EyeOff, Flame, Copy, Check } from 'lucide-react';
+import { webStore } from '../web-db/store';
 
-import { LockIcon } from './MaterialIcons';
-
-interface Props {
+interface EnvVaultBubbleProps {
+  chatId: string;
   messageId: string;
-  secretContent: string;
+  secretMasked?: string;
+  ttlSeconds?: number;
   isBurned?: boolean;
-  readTimerSeconds?: number;
-  onBurn?: (messageId: string) => void;
 }
 
-export const EnvVaultBubble: React.FC<Props> = ({
+export const EnvVaultBubble: React.FC<EnvVaultBubbleProps> = ({
+  chatId,
   messageId,
-  secretContent,
-  isBurned: initialIsBurned = false,
-  readTimerSeconds = 60,
-  onBurn,
+  secretMasked = '',
+  ttlSeconds = 60,
+  isBurned = false,
 }) => {
-  const [isBurned, setIsBurned] = useState<boolean>(initialIsBurned);
-  const [timeLeft, setTimeLeft] = useState<number>(readTimerSeconds);
-  const [copiedStatus, setCopiedStatus] = useState<string | null>(null);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(ttlSeconds);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (isBurned) return;
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleBurn();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isBurned]);
-
-  const handleBurn = () => {
-    setIsBurned(true);
-    if (onBurn) {
-      onBurn(messageId);
+    let timer: any;
+    if (isRevealed && !isBurned && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            webStore.burnSecret(chatId, messageId);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-  };
+    return () => clearInterval(timer);
+  }, [isRevealed, isBurned, timeLeft, chatId, messageId]);
 
-  const handleCopyAll = () => {
+  const handleCopyAndBurn = () => {
     if (isBurned) return;
-
-    setCopiedStatus('COPIED & WIPED FROM RELAY');
-    handleBurn();
-
-    Alert.alert(
-      '🔒 Secret Copied & Burned',
-      'The .env secret payload has been copied to your clipboard and permanently wiped from the relay server and local store.'
-    );
+    navigator.clipboard.writeText(secretMasked);
+    setCopied(true);
+    setTimeout(() => {
+      webStore.burnSecret(chatId, messageId);
+    }, 400);
   };
 
-  const displayContent = isBurned ? maskSecretLines(secretContent) : secretContent;
+  if (isBurned) {
+    return (
+      <div
+        className="vault-bubble-card"
+        style={{
+          border: '1px solid #F15C6D',
+          background: 'linear-gradient(145deg, #1C1012 0%, #110B0C 100%)',
+          boxShadow: 'none',
+        }}
+        id={`vault-${messageId}`}
+      >
+        <div className="vault-bubble-top" style={{ color: '#F15C6D' }}>
+          <Flame size={16} color="#F15C6D" />
+          <span>Burned .env Secret (Purged)</span>
+        </div>
+        <div
+          className="vault-secret-box"
+          style={{
+            borderColor: '#F15C6D',
+            color: '#8696A0',
+            textAlign: 'center',
+            padding: '12px',
+          }}
+        >
+          💥 This .env payload was burned and permanently erased from local storage &amp; relay buffers.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <View style={[styles.container, isBurned && styles.burnedContainer]}>
-      {/* Vault Header Bar */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <LockIcon size={16} color={COLORS.warning} />
-          <View>
-            <Text style={styles.titleText}>BURN-AFTER-READING .ENV VAULT</Text>
-            <Text style={styles.subText}>AES-GCM CLIENT ENCRYPTED</Text>
-          </View>
-        </View>
-
-        {/* Burn Timer Pill */}
-        <View style={[styles.timerBadge, isBurned && styles.burnedBadge]}>
-          <Text style={[styles.timerText, isBurned && styles.burnedText]}>
-            {isBurned ? 'BURNED' : `⏱ ${timeLeft}s`}
-          </Text>
-        </View>
-      </View>
-
-      {/* Secret Content Block */}
-      <View style={styles.secretBox}>
-        <Text style={[styles.secretText, isBurned && styles.secretTextBurned]}>
-          {displayContent}
-        </Text>
-      </View>
-
-      {/* Action Bar */}
-      <View style={styles.actions}>
-        <TouchableOpacity
-          disabled={isBurned}
-          onPress={handleCopyAll}
-          style={[styles.copyButton, isBurned && styles.disabledButton]}
-        >
-          <Text style={styles.copyButtonText}>
-            {isBurned ? 'PAYLOAD DESTROYED' : '📋 COPY ALL & BURN INSTANTLY'}
-          </Text>
-        </TouchableOpacity>
-
-        {copiedStatus && (
-          <Text style={styles.statusBanner}>✓ {copiedStatus}</Text>
+    <div className="vault-bubble-card" id={`vault-${messageId}`}>
+      <div className="vault-bubble-top">
+        <Shield size={16} />
+        <span>Burn-After-Reading .env Vault</span>
+        {isRevealed && (
+          <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#FFB800' }}>
+            Auto-destruct in: <strong>{timeLeft}s</strong>
+          </span>
         )}
-      </View>
-    </View>
+      </div>
+
+      <div className="vault-secret-box">
+        {isRevealed ? (
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#00FF66' }}>{secretMasked}</pre>
+        ) : (
+          <div style={{ letterSpacing: '3px', color: '#8696A0' }}>
+            ••••••••••••••••••••••••••••••••••••••••••••
+            <br />
+            ••••••••••••••••••••••••••••••••••••••••••••
+          </div>
+        )}
+      </div>
+
+      <div className="vault-actions">
+        <button
+          className="reveal-btn"
+          onClick={() => setIsRevealed(!isRevealed)}
+          id={`btn-reveal-${messageId}`}
+        >
+          {isRevealed ? (
+            <>
+              <EyeOff size={13} style={{ display: 'inline', marginRight: 4 }} /> Hide
+            </>
+          ) : (
+            <>
+              <Eye size={13} style={{ display: 'inline', marginRight: 4 }} /> Reveal Secret
+            </>
+          )}
+        </button>
+
+        <button
+          className="burn-btn"
+          onClick={handleCopyAndBurn}
+          id={`btn-burn-${messageId}`}
+          title="Copies secret to clipboard and wipes it permanently"
+        >
+          {copied ? (
+            <>
+              <Check size={14} /> Copied &amp; Purged!
+            </>
+          ) : (
+            <>
+              <Copy size={13} />
+              <Flame size={13} />
+              Copy &amp; Burn
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#161309',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: COLORS.warning,
-    overflow: 'hidden',
-    marginVertical: 4,
-    minWidth: 280,
-  },
-  burnedContainer: {
-    backgroundColor: '#121416',
-    borderColor: COLORS.border,
-    opacity: 0.85,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#201A0B',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 184, 0, 0.3)',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  lockIcon: {
-    fontSize: 16,
-  },
-  titleText: {
-    color: COLORS.warning,
-    fontSize: 10,
-    fontWeight: '800',
-    fontFamily: 'monospace',
-    letterSpacing: 0.5,
-  },
-  subText: {
-    color: '#D4A347',
-    fontSize: 9,
-    fontFamily: 'monospace',
-  },
-  timerBadge: {
-    backgroundColor: 'rgba(255, 184, 0, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.warning,
-  },
-  burnedBadge: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderColor: '#F85149',
-  },
-  timerText: {
-    color: COLORS.warning,
-    fontSize: 10,
-    fontFamily: 'monospace',
-    fontWeight: '700',
-  },
-  burnedText: {
-    color: '#F85149',
-  },
-  secretBox: {
-    padding: 10,
-    backgroundColor: '#0A0C0E',
-  },
-  secretText: {
-    color: COLORS.warning,
-    fontFamily: 'monospace',
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  secretTextBurned: {
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
-  },
-  actions: {
-    padding: 8,
-    backgroundColor: '#161309',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 184, 0, 0.2)',
-  },
-  copyButton: {
-    backgroundColor: COLORS.warning,
-    paddingVertical: 7,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#21262D',
-  },
-  copyButtonText: {
-    color: '#0B0F12',
-    fontFamily: 'monospace',
-    fontWeight: '800',
-    fontSize: 11,
-  },
-  statusBanner: {
-    color: COLORS.primary,
-    fontFamily: 'monospace',
-    fontSize: 10,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-});
-
-export default EnvVaultBubble;
