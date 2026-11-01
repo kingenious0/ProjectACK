@@ -1,60 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { webStore, Chat, Message, ShipLog } from './web-db/store';
+import { webStore, Chat, Message } from './web-db/store';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
+import { AddFriendsModal } from './components/AddFriendsModal';
 import { PrDiffModal } from './components/PrDiffModal';
 import { CreateVaultModal } from './components/CreateVaultModal';
 import { CreateCodeModal } from './components/CreateCodeModal';
-import { ShipLogsModal } from './components/ShipLogsModal';
 
 export const App: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
-  const [activeChatId, setActiveChatId] = useState<string | null>('chat_torvalds_repo');
-  const [shipLogs, setShipLogs] = useState<ShipLog[]>(webStore.getShipLogs());
+  const [activeChatId, setActiveChatId] = useState<string | null>('chat_robert_jonas');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
 
   // Modals
+  const [isAddFriendsOpen, setIsAddFriendsOpen] = useState(false);
   const [isPrModalOpen, setIsPrModalOpen] = useState(false);
   const [activePrData, setActivePrData] = useState<any>(null);
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
-  const [isShipLogsOpen, setIsShipLogsOpen] = useState(false);
-
-  // PWA Install Prompt State
-  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-  const [canInstallPwa, setCanInstallPwa] = useState(false);
 
   // Subscribe to web store reactive updates
   useEffect(() => {
     const unsubscribe = webStore.subscribe(() => {
       setChats([...webStore.getChats()]);
-      setShipLogs([...webStore.getShipLogs()]);
     });
     return unsubscribe;
   }, []);
-
-  // Listen for PWA BeforeInstallPrompt
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredInstallPrompt(e);
-      setCanInstallPwa(true);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstallPwa = async () => {
-    if (!deferredInstallPrompt) {
-      alert('To install WhatsDev PWA:\n• On Chrome/Edge Desktop: Click the Install icon in the address bar.\n• On iOS Safari: Tap Share -> "Add to Home Screen".\n• On Android: Tap Chrome menu -> "Install App".');
-      return;
-    }
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setCanInstallPwa(false);
-    }
-  };
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
   const activeMessages: Message[] = activeChatId ? webStore.getMessages(activeChatId) : [];
@@ -90,7 +61,6 @@ export const App: React.FC = () => {
     if (msgMetadata) {
       setActivePrData(msgMetadata);
     } else {
-      // Default to Torvalds PR #142 metadata
       const torvaldsMsg = webStore.getMessages('chat_torvalds_repo').find((m) => m.type === 'pr_card');
       setActivePrData(torvaldsMsg?.metadata);
     }
@@ -103,24 +73,20 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-container" id="whatsdev-root">
-      <div className="desktop-accent-strip" />
-
-      <div className="whatsapp-web-frame">
-        {/* Left Sidebar */}
+    <div className="snapcord-app" id="snapcord-root">
+      <div className="snapcord-viewport">
+        {/* Screen 1: Snapchat Chat List with Discord Badges */}
         <Sidebar
           chats={chats}
           activeChatId={activeChatId}
           onSelectChat={handleSelectChat}
-          onOpenShipLogs={() => setIsShipLogsOpen(true)}
+          onOpenAddFriends={() => setIsAddFriendsOpen(true)}
           onOpenCreateVault={() => setIsVaultModalOpen(true)}
           onOpenCreateCode={() => setIsCodeModalOpen(true)}
           isMobileViewHidden={isMobileChatOpen}
-          canInstallPwa={canInstallPwa || true}
-          onInstallPwa={handleInstallPwa}
         />
 
-        {/* Right Chat Panel */}
+        {/* Screen 2, 3 & 5: Snapchat Ephemeral Stream + Discord Code Embeds + Input Dock */}
         <ChatView
           chat={activeChat}
           messages={activeMessages}
@@ -133,7 +99,14 @@ export const App: React.FC = () => {
         />
       </div>
 
-      {/* Interactive Modals */}
+      {/* Screen 4: Add Friends & Quick Add Developer Modal */}
+      <AddFriendsModal
+        isOpen={isAddFriendsOpen}
+        onClose={() => setIsAddFriendsOpen(false)}
+        onSelectNewChat={handleSelectChat}
+      />
+
+      {/* Developer Modals */}
       <PrDiffModal
         isOpen={isPrModalOpen}
         onClose={() => setIsPrModalOpen(false)}
@@ -154,12 +127,6 @@ export const App: React.FC = () => {
         isOpen={isCodeModalOpen}
         onClose={() => setIsCodeModalOpen(false)}
         onSendCode={handleSendCode}
-      />
-
-      <ShipLogsModal
-        isOpen={isShipLogsOpen}
-        onClose={() => setIsShipLogsOpen(false)}
-        shipLogs={shipLogs}
       />
     </div>
   );

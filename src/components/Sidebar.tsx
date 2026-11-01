@@ -1,215 +1,296 @@
 import React, { useState } from 'react';
 import {
   Search,
-  Plus,
-  Rocket,
+  UserPlus,
+  MoreHorizontal,
+  Camera,
+  MessageSquare,
+  Edit,
+  MapPin,
+  Flame,
+  Compass,
+  Check,
+  X,
   Shield,
-  Download,
-  Filter,
-  CheckCheck,
   GitBranch,
 } from 'lucide-react';
-import { Chat, CURRENT_USER } from '../web-db/store';
+import { Chat, SuggestedDev, CURRENT_USER, webStore } from '../web-db/store';
 
 interface SidebarProps {
   chats: Chat[];
   activeChatId: string | null;
   onSelectChat: (chatId: string) => void;
-  onOpenShipLogs: () => void;
+  onOpenAddFriends: () => void;
   onOpenCreateVault: () => void;
   onOpenCreateCode: () => void;
   isMobileViewHidden?: boolean;
-  onInstallPwa?: () => void;
-  canInstallPwa?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   chats,
   activeChatId,
   onSelectChat,
-  onOpenShipLogs,
+  onOpenAddFriends,
   onOpenCreateVault,
   onOpenCreateCode,
   isMobileViewHidden = false,
-  onInstallPwa,
-  canInstallPwa = false,
 }) => {
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'unread' | 'repos' | 'vaults'>('all');
+  const [suggestions, setSuggestions] = useState<SuggestedDev[]>(webStore.getSuggestions());
+  const [activeTab, setActiveTab] = useState<'map' | 'chat' | 'camera' | 'stories' | 'spotlight'>('chat');
 
-  // Filter chats based on search and selected filter pill
-  const filteredChats = chats.filter((c) => {
-    const matchesSearch =
+  // Filter chats
+  const filteredChats = chats.filter(
+    (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.repoTag && c.repoTag.toLowerCase().includes(searchQuery.toLowerCase()));
+      c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.statusText.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    if (!matchesSearch) return false;
+  const quickAddPreview = suggestions.slice(0, 2);
 
-    if (activeFilter === 'unread') return c.unreadCount > 0;
-    if (activeFilter === 'repos') return c.type === 'repo';
-    if (activeFilter === 'vaults') return c.lastMessage.includes('Vault');
-    return true;
-  });
+  const handleQuickAdd = (dev: SuggestedDev) => {
+    const newChat = webStore.addFriend(dev);
+    setSuggestions(webStore.getSuggestions());
+    onSelectChat(newChat.id);
+  };
+
+  const handleDismiss = (devId: string) => {
+    webStore.dismissSuggestion(devId);
+    setSuggestions(webStore.getSuggestions());
+  };
 
   return (
-    <aside className={`sidebar ${isMobileViewHidden ? 'hidden-mobile' : ''}`} id="whatsdev-sidebar">
-      {/* Top Profile & Global Actions Header */}
-      <div className="sidebar-header">
-        <div className="user-profile-badge" title="Your Developer Profile" id="profile-badge">
-          <div className="avatar-wrapper">
-            <img src={CURRENT_USER.avatar} alt={CURRENT_USER.name} className="avatar-img" />
-            <div className="online-dot" />
+    <aside className={`snap-chat-screen ${isMobileViewHidden ? 'hidden-mobile' : ''}`} id="snap-sidebar">
+      {/* Snapchat Top Header (Screenshot 1) */}
+      <header className="snap-header">
+        <div className="snap-header-left">
+          <div
+            className="snap-avatar-btn"
+            onClick={onOpenAddFriends}
+            title="Profile & Quick Add"
+            id="btn-profile-avatar"
+          >
+            <img src={CURRENT_USER.avatar} alt={CURRENT_USER.name} className="snap-avatar-img" />
           </div>
-          <div className="dev-info">
-            <span className="dev-name">
-              WhatsDev
-              <span style={{ fontSize: '10px', color: '#00FF66', background: 'rgba(0,255,102,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
-                WEB
-              </span>
-            </span>
-            <span className="dev-handle">{CURRENT_USER.handle}</span>
+
+          <button
+            className="snap-icon-circle-btn"
+            onClick={() => setSearchOpen(!searchOpen)}
+            title="Search Chats"
+            id="btn-toggle-search"
+          >
+            <Search size={18} />
+          </button>
+        </div>
+
+        <h1 className="snap-screen-title">Chat</h1>
+
+        <div className="snap-header-right">
+          <button
+            className="snap-icon-circle-btn"
+            onClick={onOpenAddFriends}
+            title="Add Friends & Devs"
+            id="btn-header-add-friend"
+          >
+            <UserPlus size={18} />
+          </button>
+
+          <button className="snap-icon-circle-btn" title="Options" id="btn-header-more">
+            <MoreHorizontal size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* Expandable Search Input Bar */}
+      {searchOpen && (
+        <div style={{ padding: '4px 16px 8px 16px' }}>
+          <div className="snap-add-search-box" style={{ margin: 0 }}>
+            <Search size={16} color="#8B949E" />
+            <input
+              type="text"
+              placeholder="Search chat or username..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              id="input-sidebar-search"
+            />
+            {searchQuery && (
+              <X size={16} style={{ cursor: 'pointer' }} onClick={() => setSearchQuery('')} />
+            )}
           </div>
         </div>
+      )}
 
-        <div className="sidebar-actions">
-          {/* PWA Install Button */}
-          {canInstallPwa && onInstallPwa && (
-            <button
-              className="pwa-badge-btn"
-              onClick={onInstallPwa}
-              title="Install WhatsDev as desktop/mobile PWA"
-              id="btn-install-pwa"
-            >
-              <Download size={12} />
-              <span>Install PWA</span>
-            </button>
-          )}
-
-          {/* 24h Ship Logs / Status Stories */}
-          <button
-            className="icon-btn"
-            onClick={onOpenShipLogs}
-            title="Developer Ship Logs & Status (24h Stories)"
-            id="btn-sidebar-shiplogs"
-          >
-            <Rocket size={19} color="#00FF66" />
-          </button>
-
-          {/* Burn-After-Reading Vault Creator */}
-          <button
-            className="icon-btn"
-            onClick={onOpenCreateVault}
-            title="Create Burn-After-Reading .env Vault"
-            id="btn-sidebar-vault"
-          >
-            <Shield size={18} color="#FFB800" />
-          </button>
-
-          {/* New Code Snippet / Chat */}
-          <button
-            className="icon-btn"
-            onClick={onOpenCreateCode}
-            title="Share Code Snippet"
-            id="btn-sidebar-code"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Search Input Box */}
-      <div className="search-container">
-        <div className="search-input-box">
-          <Search size={16} color="#8696A0" />
-          <input
-            type="text"
-            placeholder="Search chats, repos, commits, secrets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            id="input-sidebar-search"
-          />
-        </div>
-
-        {/* Quick Filter Pills */}
-        <div className="filter-pills" id="filter-pills-bar">
-          <button
-            className={`pill-btn ${activeFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('all')}
-            id="pill-filter-all"
-          >
-            All
-          </button>
-          <button
-            className={`pill-btn ${activeFilter === 'unread' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('unread')}
-            id="pill-filter-unread"
-          >
-            Unread
-          </button>
-          <button
-            className={`pill-btn ${activeFilter === 'repos' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('repos')}
-            id="pill-filter-repos"
-          >
-            <GitBranch size={12} /> Repos
-          </button>
-          <button
-            className={`pill-btn ${activeFilter === 'vaults' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('vaults')}
-            id="pill-filter-vaults"
-          >
-            <Shield size={12} /> .env Vaults
-          </button>
-        </div>
-      </div>
-
-      {/* Conversation List */}
-      <div className="chat-list" id="chat-list-container">
+      {/* Chat Stream List (Screenshot 1) */}
+      <div className="snap-chat-list-scroll" id="snap-chat-list-scroll">
         {filteredChats.map((chat) => {
           const isActive = chat.id === activeChatId;
+
+          // Status icon styling
+          let iconColorClass = 'blue';
+          if (chat.statusIconType === 'record') iconColorClass = 'red';
+          if (chat.statusIconType === 'vault') iconColorClass = 'gold';
+          if (chat.statusIconType === 'code') iconColorClass = 'purple';
 
           return (
             <div
               key={chat.id}
-              className={`chat-item ${isActive ? 'active' : ''}`}
+              className={`snap-chat-row ${isActive ? 'active' : ''}`}
               onClick={() => onSelectChat(chat.id)}
-              id={`chat-item-${chat.id}`}
+              id={`chat-row-${chat.id}`}
             >
-              <div className="chat-item-avatar">
+              <div className="snap-row-avatar">
                 <img src={chat.avatar} alt={chat.name} />
-                {chat.isOnline && <div className="online-dot" />}
+                {chat.isOnline && <div className="snap-online-badge" />}
               </div>
 
-              <div className="chat-item-content">
-                <div className="chat-item-top">
-                  <div className="chat-title">
-                    <span>{chat.name}</span>
-                    {chat.repoTag && <span className="repo-badge">{chat.repoTag}</span>}
-                  </div>
-                  <span className="chat-timestamp">{chat.lastTimestamp}</span>
+              <div className="snap-row-info">
+                <div className="snap-row-name">
+                  <span>{chat.name}</span>
+                  {chat.repoTag && <span className="discord-repo-pill">{chat.repoTag}</span>}
                 </div>
 
-                <div className="chat-item-bottom">
-                  <div className="last-message">
-                    <CheckCheck size={14} color="#53BDEB" style={{ flexShrink: 0 }} />
-                    <span>{chat.lastMessage}</span>
-                  </div>
-                  {chat.unreadCount > 0 && (
-                    <span className="unread-badge">{chat.unreadCount}</span>
-                  )}
+                <div className="snap-row-subtitle">
+                  <span className={`snap-status-icon ${iconColorClass}`}>
+                    {chat.statusIconType === 'vault' ? (
+                      <Shield size={9} />
+                    ) : chat.statusIconType === 'code' ? (
+                      <GitBranch size={9} />
+                    ) : (
+                      <MessageSquare size={9} />
+                    )}
+                  </span>
+                  <span className={`snap-status-text ${iconColorClass}`}>{chat.statusText}</span>
+                  <span>&bull;</span>
+                  <span>{chat.statusTime}</span>
                 </div>
+              </div>
+
+              <div className="snap-row-actions">
+                {chat.type === 'repo' ? (
+                  <GitBranch size={20} color="#8B949E" />
+                ) : chat.statusIconType === 'record' ? (
+                  <Camera size={20} color="#8B949E" />
+                ) : (
+                  <MessageSquare size={20} color="#8B949E" />
+                )}
               </div>
             </div>
           );
         })}
 
-        {filteredChats.length === 0 && (
-          <div style={{ padding: '32px 16px', textAlign: 'center', color: '#8696A0', fontSize: '13px' }}>
-            No developer conversations found for "{searchQuery}".
+        {/* Quick Add Section (Screenshot 1) */}
+        {quickAddPreview.length > 0 && (
+          <div style={{ marginTop: '8px' }}>
+            <div className="snap-section-label">
+              <span>Quick Add</span>
+              <span
+                style={{ fontSize: '11px', color: '#8B949E', cursor: 'pointer' }}
+                onClick={onOpenAddFriends}
+              >
+                All Contacts &rsaquo;
+              </span>
+            </div>
+
+            {quickAddPreview.map((dev) => (
+              <div key={dev.id} className="quick-add-preview-card" id={`quick-add-preview-${dev.id}`}>
+                <div className="quick-add-user">
+                  <div className="snap-row-avatar" style={{ width: 42, height: 42 }}>
+                    <img src={dev.avatar} alt={dev.name} />
+                    {dev.isOnline && <div className="snap-online-badge" />}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600 }}>{dev.name}</span>
+                    <span style={{ fontSize: '11.5px', color: '#8B949E', fontFamily: 'var(--font-mono)' }}>
+                      @{dev.username}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    className="quick-add-btn"
+                    onClick={() => handleQuickAdd(dev)}
+                    id={`btn-quick-add-${dev.id}`}
+                  >
+                    <UserPlus size={13} />
+                    <span>Add</span>
+                  </button>
+                  <button
+                    className="snap-dismiss-btn"
+                    onClick={() => handleDismiss(dev.id)}
+                    title="Dismiss"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Floating Action Button (Screenshot 1) */}
+      <button
+        className="snap-fab"
+        onClick={onOpenCreateCode}
+        title="Compose Message or Snippet"
+        id="btn-snap-fab"
+      >
+        <Edit size={22} />
+      </button>
+
+      {/* Snapchat 5-Tab Bottom Dock (Screenshot 1) */}
+      <nav className="snap-dock" id="snap-bottom-dock">
+        <button
+          className={`snap-dock-item ${activeTab === 'map' ? 'active' : ''}`}
+          onClick={() => setActiveTab('map')}
+          id="dock-tab-map"
+        >
+          <MapPin size={22} />
+          <span>Map</span>
+        </button>
+
+        <button
+          className={`snap-dock-item ${activeTab === 'chat' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+          id="dock-tab-chat"
+        >
+          <MessageSquare size={22} />
+          <span className="snap-dock-badge">2</span>
+          <span>Chat</span>
+        </button>
+
+        <button
+          className={`snap-dock-item ${activeTab === 'camera' ? 'active' : ''}`}
+          onClick={onOpenCreateVault}
+          title="Secret Vault"
+          id="dock-tab-camera"
+        >
+          <Shield size={23} color="#FFB800" />
+          <span style={{ color: '#FFB800' }}>Vault</span>
+        </button>
+
+        <button
+          className={`snap-dock-item ${activeTab === 'stories' ? 'active' : ''}`}
+          onClick={() => setActiveTab('stories')}
+          id="dock-tab-stories"
+        >
+          <Flame size={22} />
+          <span>Stories</span>
+        </button>
+
+        <button
+          className={`snap-dock-item ${activeTab === 'spotlight' ? 'active' : ''}`}
+          onClick={() => setActiveTab('spotlight')}
+          id="dock-tab-spotlight"
+        >
+          <Compass size={22} />
+          <span>Spotlight</span>
+        </button>
+      </nav>
     </aside>
   );
 };

@@ -1,9 +1,7 @@
 /**
  * WhatsDev (Project ACK) Web Reactive Store
- * Local-First Message Store with persistent LocalStorage/IndexedDB backup
+ * Snapchat x Discord ("Snapcord") Developer Messenger Store
  */
-
-import { encryptEnvSecret } from '../utils/crypto';
 
 export interface DiffLine {
   type: 'normal' | 'add' | 'del';
@@ -32,6 +30,7 @@ export interface MessageMetadata {
   prAdditions?: number;
   prDeletions?: number;
   diffFiles?: DiffFile[];
+  accentColor?: string; // Snapchat signature vertical line color
 }
 
 export interface Message {
@@ -50,121 +49,231 @@ export interface Message {
 export interface Chat {
   id: string;
   name: string;
-  type: 'dm' | 'group' | 'repo' | 'channel';
+  username: string;
+  type: 'dm' | 'group' | 'repo' | 'ai';
   avatar: string;
-  repoTag?: string;
-  isOnline?: boolean;
+  statusIconType: 'chat' | 'code' | 'vault' | 'record';
+  statusText: string;
+  statusTime: string;
   unreadCount: number;
-  lastMessage: string;
-  lastTimestamp: string;
+  isOnline?: boolean;
   isPinned?: boolean;
+  repoTag?: string;
 }
 
-export interface ShipLog {
+export interface SuggestedDev {
   id: string;
-  author: string;
-  authorAvatar: string;
-  title: string;
-  description: string;
-  timestamp: string;
-  tags: string[];
+  name: string;
+  username: string;
+  avatar: string;
+  tag: string;
+  mutualCount: number;
+  isOnline: boolean;
 }
 
 export const CURRENT_USER = {
   id: 'usr_me',
   name: 'Dev ACK (You)',
+  username: 'kinge_dev',
   handle: '@kinge',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
 };
 
-// Initial Seed Data
+// Initial Snapchat-style Chat List
 const INITIAL_CHATS: Chat[] = [
+  {
+    id: 'chat_my_ai',
+    name: 'My AI Copilot',
+    username: 'ack_ai_bot',
+    type: 'ai',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'chat',
+    statusText: 'New Chat',
+    statusTime: '25m',
+    unreadCount: 1,
+    isOnline: true,
+    isPinned: true,
+  },
+  {
+    id: 'chat_robert_jonas',
+    name: 'Robert Jonas',
+    username: 'robertpageflows',
+    type: 'dm',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'record',
+    statusText: 'Screen recording',
+    statusTime: '9m',
+    unreadCount: 0,
+    isOnline: true,
+    isPinned: true,
+  },
   {
     id: 'chat_torvalds_repo',
     name: 'linux-kernel / net-core',
+    username: 'torvalds_linux',
     type: 'repo',
     avatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
-    repoTag: 'torvalds/linux#v6.12-rc',
-    isOnline: true,
+    statusIconType: 'code',
+    statusText: 'New PR Diff and Review',
+    statusTime: '25m',
     unreadCount: 2,
-    lastMessage: 'PR #142: Zero-copy socket ring buffer ready for review',
-    lastTimestamp: '10:42 AM',
+    isOnline: true,
     isPinned: true,
+    repoTag: 'torvalds/linux#v6.12-rc',
   },
   {
     id: 'chat_sarah_devops',
-    name: 'Sarah Connor [Infra / SRE]',
+    name: 'Sarah Connor',
+    username: 'sarah_infra',
     type: 'dm',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    repoTag: 'supabase-staging',
-    isOnline: true,
+    statusIconType: 'vault',
+    statusText: 'Burn-After-Reading .env Vault',
+    statusTime: '1h',
     unreadCount: 1,
-    lastMessage: '🔒 [Burn-After-Reading .env Vault] Staging DB credentials',
-    lastTimestamp: '10:15 AM',
-    isPinned: true,
-  },
-  {
-    id: 'chat_core_team',
-    name: 'Project ACK Core Team',
-    type: 'group',
-    avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
-    repoTag: 'project-ack/web',
     isOnline: true,
-    unreadCount: 0,
-    lastMessage: 'Vite PWA web build is running with 0ms cold starts!',
-    lastTimestamp: 'Yesterday',
     isPinned: false,
   },
   {
-    id: 'chat_indie_hackers',
-    name: 'Indie Hackers Syndicate',
-    type: 'channel',
-    avatar: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=150&auto=format&fit=crop&q=80',
-    repoTag: 'ship-everyday',
-    isOnline: false,
-    unreadCount: 0,
-    lastMessage: 'Launched on Product Hunt: $2.4k MRR in 48 hours!',
-    lastTimestamp: 'Wednesday',
-    isPinned: false,
-  },
-  {
-    id: 'chat_elena_secops',
-    name: 'Elena Rostova [SecOps]',
+    id: 'chat_hardik',
+    name: 'Hardik',
+    username: 'hkothari1510',
     type: 'dm',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    repoTag: 'zero-trust',
-    isOnline: false,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'chat',
+    statusText: 'Opened chat',
+    statusTime: '3h',
     unreadCount: 0,
-    lastMessage: 'WebCrypto PBKDF2 salt verified against replay vectors.',
-    lastTimestamp: 'Monday',
+    isOnline: true,
     isPinned: false,
   },
 ];
 
+// Initial Quick Add Contacts (Matches Screenshots 4 & 5)
+const INITIAL_SUGGESTIONS: SuggestedDev[] = [
+  {
+    id: 'dev_hardik',
+    name: 'Hardik',
+    username: 'hkothari1510',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    tag: 'Rust / Kernel',
+    mutualCount: 14,
+    isOnline: true,
+  },
+  {
+    id: 'dev_mohit',
+    name: 'Môhïț 🇬🇧',
+    username: 'chhipa231044',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    tag: 'TypeScript / React',
+    mutualCount: 8,
+    isOnline: true,
+  },
+  {
+    id: 'dev_rey',
+    name: 'Rey Patel',
+    username: 'rey_patel3277',
+    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
+    tag: 'DevOps / Go',
+    mutualCount: 23,
+    isOnline: true,
+  },
+  {
+    id: 'dev_aman',
+    name: 'Aman 💤',
+    username: 'a-kay126',
+    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80',
+    tag: 'Fullstack',
+    mutualCount: 5,
+    isOnline: false,
+  },
+  {
+    id: 'dev_rohan',
+    name: 'Rohan 🔱',
+    username: 'rohanbhonsle12',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    tag: 'AI / Python',
+    mutualCount: 19,
+    isOnline: true,
+  },
+  {
+    id: 'dev_prince',
+    name: 'PRINCE RRAI !!',
+    username: 'princerrai',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    tag: 'Security / PGP',
+    mutualCount: 12,
+    isOnline: true,
+  },
+];
+
+// Ephemeral Messages
 const INITIAL_MESSAGES: Record<string, Message[]> = {
+  chat_robert_jonas: [
+    {
+      id: 'm_rob_1',
+      chatId: 'chat_robert_jonas',
+      senderId: 'usr_me',
+      senderName: 'ME',
+      senderAvatar: CURRENT_USER.avatar,
+      content: 'hi bob',
+      type: 'text',
+      status: 'read',
+      timestamp: '9:41 AM',
+      metadata: { accentColor: '#E91E63' }, // Snapchat Magenta vertical bar
+    },
+    {
+      id: 'm_rob_2',
+      chatId: 'chat_robert_jonas',
+      senderId: 'usr_robert',
+      senderName: 'ROBERT JONAS',
+      senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      content: 'Hey! Did you check out the zero-trust .env vault for staging?',
+      type: 'text',
+      status: 'read',
+      timestamp: '9:42 AM',
+      metadata: { accentColor: '#00A884' },
+    },
+  ],
+  chat_my_ai: [
+    {
+      id: 'm_ai_1',
+      chatId: 'chat_my_ai',
+      senderId: 'usr_ai',
+      senderName: 'MY AI',
+      senderAvatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+      content: 'Hello! I am your developer copilot. Ask me to generate regex, review git diffs, or encrypt secrets.',
+      type: 'text',
+      status: 'read',
+      timestamp: '25m ago',
+      metadata: { accentColor: '#5865F2' },
+    },
+  ],
   chat_torvalds_repo: [
     {
       id: 'm_101',
       chatId: 'chat_torvalds_repo',
       senderId: 'usr_linus',
-      senderName: 'Linus Torvalds',
+      senderName: 'LINUS TORVALDS',
       senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       content: 'We refactored the socket poll descriptor table to avoid redundant mutex contention under high QPS. Check the snippet:',
       type: 'text',
       status: 'read',
       timestamp: '10:35 AM',
+      metadata: { accentColor: '#00FF66' },
     },
     {
       id: 'm_102',
       chatId: 'chat_torvalds_repo',
       senderId: 'usr_linus',
-      senderName: 'Linus Torvalds',
+      senderName: 'LINUS TORVALDS',
       senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       content: 'Kernel Ring Buffer Implementation',
       type: 'code',
       status: 'read',
       timestamp: '10:36 AM',
       metadata: {
+        accentColor: '#00FF66',
         language: 'rust',
         codeSnippet: `pub struct SocketRingBuffer<T, const CAP: usize> {
     head: AtomicUsize,
@@ -194,13 +303,14 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       id: 'm_103',
       chatId: 'chat_torvalds_repo',
       senderId: 'usr_github_bot',
-      senderName: 'GitHub Webhook [PR #142]',
+      senderName: 'GITHUB WEBHOOK [PR #142]',
       senderAvatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
       content: 'New Pull Request opened on torvalds/linux#v6.12-rc',
       type: 'pr_card',
       status: 'read',
       timestamp: '10:42 AM',
       metadata: {
+        accentColor: '#A371F7',
         prNumber: 142,
         prTitle: 'net: Introduce Zero-Copy Socket Ring Buffer',
         prBranch: 'feat/ring-buffer-v2',
@@ -230,79 +340,38 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       id: 'm_201',
       chatId: 'chat_sarah_devops',
       senderId: 'usr_sarah',
-      senderName: 'Sarah Connor',
+      senderName: 'SARAH CONNOR',
       senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       content: 'Hey! I rotated the Postgres DB credentials for staging. Sharing the connection string via our Burn-After-Reading Vault:',
       type: 'text',
       status: 'read',
       timestamp: '10:14 AM',
+      metadata: { accentColor: '#FFB800' },
     },
     {
       id: 'm_202',
       chatId: 'chat_sarah_devops',
       senderId: 'usr_sarah',
-      senderName: 'Sarah Connor',
+      senderName: 'SARAH CONNOR',
       senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       content: 'Staging Database Connection Secrets',
       type: 'env_secret',
       status: 'read',
       timestamp: '10:15 AM',
       metadata: {
+        accentColor: '#FFB800',
         secretMasked: 'DATABASE_URL="postgres://postgres:k9#Xm$88Pz@db.ack-staging.supabase.co:5432/postgres"\nJWT_SECRET="super-secret-jwt-key-2026-xyz"\nREDIS_CACHE_URL="rediss://default:p33r@redis.ack.internal:6379"',
         ttlSeconds: 60,
         isBurned: false,
       },
     },
   ],
-  chat_core_team: [
-    {
-      id: 'm_301',
-      chatId: 'chat_core_team',
-      senderId: 'usr_me',
-      senderName: 'Dev ACK (You)',
-      senderAvatar: CURRENT_USER.avatar,
-      content: 'Pivoted our mobile app to a responsive WhatsApp Web PWA! Desktop has full multi-column layout, and mobile feels 100% native.',
-      type: 'text',
-      status: 'read',
-      timestamp: 'Yesterday',
-    },
-  ],
 };
-
-const INITIAL_SHIP_LOGS: ShipLog[] = [
-  {
-    id: 'ship_1',
-    author: 'Sarah Connor',
-    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    title: 'Zero-Downtime DB Migration Complete',
-    description: 'Swapped staging cluster to dedicated NVMe storage with 3x IOPS.',
-    timestamp: '2h ago',
-    tags: ['infra', 'supabase', 'postgres'],
-  },
-  {
-    id: 'ship_2',
-    author: 'Linus Torvalds',
-    authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    title: 'Merged v6.12 Socket Patch',
-    description: 'Socket polling throughput increased by 28% across 100k persistent web connections.',
-    timestamp: '5h ago',
-    tags: ['kernel', 'rust', 'networking'],
-  },
-  {
-    id: 'ship_3',
-    author: 'Dev ACK (You)',
-    authorAvatar: CURRENT_USER.avatar,
-    title: 'WhatsDev Web App & PWA Launched',
-    description: 'WhatsApp Web + Mobile PWA with Burn-After-Reading .env vaults and line-by-line PR reviews.',
-    timestamp: 'Just now',
-    tags: ['vite', 'react', 'pwa', 'cyber-emerald'],
-  },
-];
 
 class WebStore {
   private chats: Chat[] = [];
   private messages: Record<string, Message[]> = {};
-  private shipLogs: ShipLog[] = [];
+  private suggestions: SuggestedDev[] = [];
   private listeners: Set<() => void> = new Set();
 
   constructor() {
@@ -311,25 +380,25 @@ class WebStore {
 
   private loadState() {
     try {
-      const savedChats = localStorage.getItem('whatsdev_chats');
-      const savedMessages = localStorage.getItem('whatsdev_messages');
-      const savedShipLogs = localStorage.getItem('whatsdev_shiplogs');
+      const savedChats = localStorage.getItem('whatsdev_snap_chats');
+      const savedMessages = localStorage.getItem('whatsdev_snap_messages');
+      const savedSuggestions = localStorage.getItem('whatsdev_snap_suggestions');
 
       this.chats = savedChats ? JSON.parse(savedChats) : INITIAL_CHATS;
       this.messages = savedMessages ? JSON.parse(savedMessages) : INITIAL_MESSAGES;
-      this.shipLogs = savedShipLogs ? JSON.parse(savedShipLogs) : INITIAL_SHIP_LOGS;
+      this.suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : INITIAL_SUGGESTIONS;
     } catch (e) {
       this.chats = INITIAL_CHATS;
       this.messages = INITIAL_MESSAGES;
-      this.shipLogs = INITIAL_SHIP_LOGS;
+      this.suggestions = INITIAL_SUGGESTIONS;
     }
   }
 
   private persist() {
     try {
-      localStorage.setItem('whatsdev_chats', JSON.stringify(this.chats));
-      localStorage.setItem('whatsdev_messages', JSON.stringify(this.messages));
-      localStorage.setItem('whatsdev_shiplogs', JSON.stringify(this.shipLogs));
+      localStorage.setItem('whatsdev_snap_chats', JSON.stringify(this.chats));
+      localStorage.setItem('whatsdev_snap_messages', JSON.stringify(this.messages));
+      localStorage.setItem('whatsdev_snap_suggestions', JSON.stringify(this.suggestions));
     } catch (e) {
       console.warn('Storage persist failed', e);
     }
@@ -354,8 +423,8 @@ class WebStore {
     return this.messages[chatId] || [];
   }
 
-  public getShipLogs(): ShipLog[] {
-    return this.shipLogs;
+  public getSuggestions(): SuggestedDev[] {
+    return this.suggestions;
   }
 
   // Actions
@@ -367,13 +436,16 @@ class WebStore {
       id: 'm_' + Date.now(),
       chatId,
       senderId: CURRENT_USER.id,
-      senderName: CURRENT_USER.name,
+      senderName: 'ME',
       senderAvatar: CURRENT_USER.avatar,
       content,
       type,
       status: 'read',
       timestamp: timeStr,
-      metadata,
+      metadata: {
+        accentColor: '#E91E63', // Snapchat signature magenta for current user
+        ...metadata,
+      },
     };
 
     if (!this.messages[chatId]) {
@@ -384,8 +456,8 @@ class WebStore {
     // Update Chat last message
     const chat = this.chats.find((c) => c.id === chatId);
     if (chat) {
-      chat.lastMessage = type === 'code' ? '💻 [Code Snippet]' : type === 'env_secret' ? '🔒 [Burn-After-Reading Vault]' : content;
-      chat.lastTimestamp = timeStr;
+      chat.statusText = type === 'code' ? 'Code snippet shared' : type === 'env_secret' ? 'Secret vault shared' : content;
+      chat.statusTime = 'Just now';
     }
 
     this.persist();
@@ -404,17 +476,49 @@ class WebStore {
     }
   }
 
-  public addShipLog(title: string, description: string, tags: string[]) {
-    const newLog: ShipLog = {
-      id: 'ship_' + Date.now(),
-      author: CURRENT_USER.name,
-      authorAvatar: CURRENT_USER.avatar,
-      title,
-      description,
-      timestamp: 'Just now',
-      tags,
-    };
-    this.shipLogs.unshift(newLog);
+  public addFriend(dev: SuggestedDev): Chat {
+    // Check if chat already exists
+    let chat = this.chats.find((c) => c.username === dev.username);
+    if (!chat) {
+      chat = {
+        id: 'chat_' + dev.id,
+        name: dev.name,
+        username: dev.username,
+        type: 'dm',
+        avatar: dev.avatar,
+        statusIconType: 'chat',
+        statusText: 'New Collab Added',
+        statusTime: 'Just now',
+        unreadCount: 0,
+        isOnline: dev.isOnline,
+      };
+      this.chats.unshift(chat);
+
+      // Add welcome message
+      this.messages[chat.id] = [
+        {
+          id: 'm_welcome_' + Date.now(),
+          chatId: chat.id,
+          senderId: dev.id,
+          senderName: dev.name.toUpperCase(),
+          senderAvatar: dev.avatar,
+          content: `Hey @${CURRENT_USER.username}! Connected on WhatsDev. Ready to hack on ${dev.tag}?`,
+          type: 'text',
+          status: 'read',
+          timestamp: 'Just now',
+          metadata: { accentColor: '#00A884' },
+        },
+      ];
+    }
+
+    // Remove from suggestions
+    this.suggestions = this.suggestions.filter((s) => s.id !== dev.id);
+    this.persist();
+    return chat;
+  }
+
+  public dismissSuggestion(devId: string) {
+    this.suggestions = this.suggestions.filter((s) => s.id !== devId);
     this.persist();
   }
 }
