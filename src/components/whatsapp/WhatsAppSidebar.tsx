@@ -38,6 +38,7 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chats' | 'updates' | 'calls'>('chats');
 
   const filteredChats = chats.filter((chat) => {
     const matchesSearch =
@@ -80,17 +81,30 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
           flexShrink: 0,
         }}
       >
-        {/* User Profile Avatar */}
-        <div
-          style={{ cursor: 'pointer', position: 'relative' }}
-          onClick={onOpenNewChat}
-          title="Your Profile"
-        >
-          <img
-            src={CURRENT_USER.avatar}
-            alt={CURRENT_USER.name}
-            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
-          />
+        {/* Left: Avatar + WhatsDev Title Branding */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{ cursor: 'pointer', position: 'relative' }}
+            onClick={onOpenNewChat}
+            title="Your Profile"
+          >
+            <img
+              src={CURRENT_USER.avatar}
+              alt={CURRENT_USER.name}
+              style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+            />
+          </div>
+          <span
+            style={{
+              color: '#00A884',
+              fontSize: '19px',
+              fontWeight: 700,
+              letterSpacing: '-0.3px',
+              fontFamily: 'Inter, sans-serif',
+            }}
+          >
+            WhatsDev
+          </span>
         </div>
 
         {/* Action Icons */}
@@ -188,6 +202,53 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
           </div>
         </div>
       </header>
+
+      {/* WhatsApp Mobile Tabs Row (Android & Web App Style) */}
+      <div className="wa-mobile-tabs-row" id="wa-mobile-tabs">
+        <button
+          type="button"
+          className="wa-mobile-tab"
+          style={{ flex: '0 0 44px' }}
+          title="Communities"
+        >
+          <Users2 size={18} />
+        </button>
+        <button
+          type="button"
+          className={`wa-mobile-tab ${activeTab === 'chats' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chats')}
+        >
+          <span>Chats</span>
+          {chats.reduce((acc, c) => acc + c.unreadCount, 0) > 0 && (
+            <span
+              style={{
+                background: '#00A884',
+                color: '#0B141A',
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: '10px',
+              }}
+            >
+              {chats.reduce((acc, c) => acc + c.unreadCount, 0)}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`wa-mobile-tab ${activeTab === 'updates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('updates')}
+        >
+          <span>Updates</span>
+        </button>
+        <button
+          type="button"
+          className={`wa-mobile-tab ${activeTab === 'calls' ? 'active' : ''}`}
+          onClick={() => setActiveTab('calls')}
+        >
+          <span>Calls</span>
+        </button>
+      </div>
 
       {/* 2. Search & Filter Bar */}
       <div
@@ -341,10 +402,14 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
                       {chat.name}
                     </span>
                     {chat.statusIconType === 'vault' && (
-                      <Shield size={13} color="#FFB800" title="Protected Vault" />
+                      <span title="Protected Vault" style={{ display: 'inline-flex' }}>
+                        <Shield size={13} color="#FFB800" />
+                      </span>
                     )}
                     {chat.type === 'repo' && (
-                      <GitBranch size={13} color="#58A6FF" title="Repo Link" />
+                      <span title="Repo Link" style={{ display: 'inline-flex' }}>
+                        <GitBranch size={13} color="#58A6FF" />
+                      </span>
                     )}
                   </div>
 
@@ -405,6 +470,17 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
           );
         })}
       </div>
+
+      {/* WhatsApp Mobile Floating Action Button (FAB) */}
+      <button
+        type="button"
+        className="wa-mobile-fab"
+        onClick={onOpenNewChat}
+        title="Start new chat"
+        id="btn-mobile-fab-new-chat"
+      >
+        <MessageSquarePlus size={24} color="#0B141A" />
+      </button>
     </aside>
   );
 };

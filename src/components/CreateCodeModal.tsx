@@ -30,7 +30,7 @@ export const CreateCodeModal: React.FC<CreateCodeModalProps> = ({
       <div className="modal-window" onClick={(e) => e.stopPropagation()} id="create-code-modal">
         <div className="modal-header">
           <div className="modal-title">
-            <Code size={18} color="#00FF66" />
+            <Code size={18} color="#00A884" />
             <span>Share Code Snippet</span>
           </div>
           <button className="icon-btn" onClick={onClose} id="btn-close-code-modal">
@@ -40,7 +40,7 @@ export const CreateCodeModal: React.FC<CreateCodeModalProps> = ({
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '12px' }}>
+            <div className="wa-modal-grid-row">
               <div className="form-field">
                 <label className="form-label">Snippet Title / Description</label>
                 <input

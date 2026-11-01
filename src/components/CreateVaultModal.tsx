@@ -74,6 +74,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
                 onChange={(e) => setRawSecret(e.target.value)}
                 placeholder="PASTE YOUR SECRETS OR .ENV FILE HERE..."
                 id="input-vault-payload"
+                style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '13px' }}
               />
             </div>
 
