@@ -1037,3 +1037,127 @@ html, body {
 .snap-dismiss-btn:hover {
   color: var(--text-primary);
 }
+
+/* ==========================================================================
+   E-CHAT & FIGMA HYBRID EXTENSIONS (Option A + Option B)
+   ========================================================================== */
+
+/* Keyframe Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseWave {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@keyframes pulseRecord {
+  from {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes spectrumBounce {
+  0% {
+    height: 6px;
+    background: #00A3FF;
+  }
+  100% {
+    height: 38px;
+    background: #00FF66;
+  }
+}
+
+.pulse-green {
+  animation: pulseGreen 1.5s infinite;
+}
+
+@keyframes pulseGreen {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* E-Chat Audio Waveform Bubble */
+.echat-audio-bubble {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.echat-audio-bubble:hover {
+  box-shadow: 0 4px 16px rgba(0, 163, 255, 0.2);
+}
+
+.audio-play-btn:hover {
+  transform: scale(1.06);
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* Category Filter Pills */
+.category-filter-pill:hover {
+  background: rgba(0, 163, 255, 0.12) !important;
+  color: #FFF !important;
+  border-color: rgba(0, 163, 255, 0.4) !important;
+}
+
+/* Call Action Buttons */
+.call-action-circle:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.call-action-circle:active {
+  transform: translateY(1px);
+}
+
+.call-action-circle.end-call:hover {
+  box-shadow: 0 10px 28px rgba(255, 59, 48, 0.7) !important;
+}
+
+/* Numeric Keypad Buttons */
+.keypad-digit-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(0, 255, 102, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+.keypad-digit-btn:active {
+  transform: translateY(1px) scale(0.96);
+  background: rgba(0, 255, 102, 0.2) !important;
+}
+

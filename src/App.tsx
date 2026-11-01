@@ -6,11 +6,20 @@ import { AddFriendsModal } from './components/AddFriendsModal';
 import { PrDiffModal } from './components/PrDiffModal';
 import { CreateVaultModal } from './components/CreateVaultModal';
 import { CreateCodeModal } from './components/CreateCodeModal';
+import { VideoCallOverlay } from './components/VideoCallOverlay';
+import { PinSecurityModal } from './components/PinSecurityModal';
+import { ProtectedChatDrawer } from './components/ProtectedChatDrawer';
 
 export const App: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
   const [activeChatId, setActiveChatId] = useState<string | null>('chat_robert_jonas');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+
+  // E-Chat & Snapcord Experiences
+  const [isCallOpen, setIsCallOpen] = useState(false);
+  const [callType, setCallType] = useState<'audio' | 'video'>('video');
+  const [isPinSecurityOpen, setIsPinSecurityOpen] = useState(false);
+  const [isProtectedDrawerOpen, setIsProtectedDrawerOpen] = useState(false);
 
   // Modals
   const [isAddFriendsOpen, setIsAddFriendsOpen] = useState(false);
@@ -38,6 +47,14 @@ export const App: React.FC = () => {
   const handleSendMessage = (text: string) => {
     if (!activeChatId) return;
     webStore.sendMessage(activeChatId, text, 'text');
+  };
+
+  const handleSendAudioNote = (duration: string, waveform: number[]) => {
+    if (!activeChatId) return;
+    webStore.sendMessage(activeChatId, `Voice note (${duration})`, 'audio_note', {
+      audioDuration: duration,
+      waveform,
+    });
   };
 
   const handleSendVault = (title: string, rawSecret: string, ttlSeconds: number) => {
@@ -72,10 +89,19 @@ export const App: React.FC = () => {
     webStore.sendMessage(activeChatId, comment, 'text');
   };
 
+  const handleOpenCall = (type: 'audio' | 'video') => {
+    setCallType(type);
+    setIsCallOpen(true);
+  };
+
+  const handlePinSuccess = () => {
+    setIsVaultModalOpen(true);
+  };
+
   return (
     <div className="snapcord-app" id="snapcord-root">
       <div className="snapcord-viewport">
-        {/* Screen 1: Snapchat Chat List with Discord Badges */}
+        {/* Screen 1: E-Chat & Snapchat Hybrid Sidebar with Category Filters */}
         <Sidebar
           chats={chats}
           activeChatId={activeChatId}
@@ -83,30 +109,58 @@ export const App: React.FC = () => {
           onOpenAddFriends={() => setIsAddFriendsOpen(true)}
           onOpenCreateVault={() => setIsVaultModalOpen(true)}
           onOpenCreateCode={() => setIsCodeModalOpen(true)}
+          onOpenPinSecurity={() => setIsPinSecurityOpen(true)}
           isMobileViewHidden={isMobileChatOpen}
         />
 
-        {/* Screen 2, 3 & 5: Snapchat Ephemeral Stream + Discord Code Embeds + Input Dock */}
+        {/* Screen 2: Ephemeral Stream + E-Chat Waveform Voice Notes + Discord Code Embeds */}
         <ChatView
           chat={activeChat}
           messages={activeMessages}
           onSendMessage={handleSendMessage}
+          onSendAudioNote={handleSendAudioNote}
           onOpenCodeModal={() => setIsCodeModalOpen(true)}
           onOpenVaultModal={() => setIsVaultModalOpen(true)}
           onOpenPrModal={handleOpenPrModal}
           onBackToSidebar={() => setIsMobileChatOpen(false)}
+          onOpenCall={handleOpenCall}
+          onOpenProtectedDrawer={() => setIsProtectedDrawerOpen(true)}
           isMobileActive={isMobileChatOpen}
         />
       </div>
 
-      {/* Screen 4: Add Friends & Quick Add Developer Modal */}
+      {/* Screen 3: E-Chat Fullscreen Video / Audio Call Overlay */}
+      <VideoCallOverlay
+        isOpen={isCallOpen}
+        chat={activeChat}
+        callType={callType}
+        onClose={() => setIsCallOpen(false)}
+      />
+
+      {/* Screen 4: E-Chat PIN & Biometric Security Keypad Modal */}
+      <PinSecurityModal
+        isOpen={isPinSecurityOpen}
+        onClose={() => setIsPinSecurityOpen(false)}
+        onSuccess={handlePinSuccess}
+      />
+
+      {/* Screen 5: Protected Chat & Collab Room Settings Drawer */}
+      <ProtectedChatDrawer
+        isOpen={isProtectedDrawerOpen}
+        chat={activeChat}
+        onClose={() => setIsProtectedDrawerOpen(false)}
+        onOpenVault={() => setIsVaultModalOpen(true)}
+        onOpenCode={() => setIsCodeModalOpen(true)}
+      />
+
+      {/* Screen 6: Add Friends & Quick Add Developer Modal */}
       <AddFriendsModal
         isOpen={isAddFriendsOpen}
         onClose={() => setIsAddFriendsOpen(false)}
         onSelectNewChat={handleSelectChat}
       />
 
-      {/* Developer Modals */}
+      {/* Developer Tooling Modals */}
       <PrDiffModal
         isOpen={isPrModalOpen}
         onClose={() => setIsPrModalOpen(false)}

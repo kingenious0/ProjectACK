@@ -31,6 +31,8 @@ export interface MessageMetadata {
   prDeletions?: number;
   diffFiles?: DiffFile[];
   accentColor?: string; // Snapchat signature vertical line color
+  audioDuration?: string;
+  waveform?: number[];
 }
 
 export interface Message {
@@ -40,7 +42,7 @@ export interface Message {
   senderName: string;
   senderAvatar: string;
   content: string;
-  type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'system';
+  type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system';
   status: 'sent' | 'delivered' | 'read';
   timestamp: string;
   metadata?: MessageMetadata;
@@ -233,6 +235,22 @@ const INITIAL_MESSAGES: Record<string, Message[]> = {
       status: 'read',
       timestamp: '9:42 AM',
       metadata: { accentColor: '#00A884' },
+    },
+    {
+      id: 'm_rob_3',
+      chatId: 'chat_robert_jonas',
+      senderId: 'usr_robert',
+      senderName: 'ROBERT JONAS',
+      senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      content: 'Voice note (0:18)',
+      type: 'audio_note',
+      status: 'read',
+      timestamp: '9:43 AM',
+      metadata: {
+        accentColor: '#00A884',
+        audioDuration: '0:18',
+        waveform: [25, 45, 70, 90, 60, 40, 85, 100, 75, 50, 65, 80, 45, 90, 70, 35, 55, 85, 95, 60, 40, 30],
+      },
     },
   ],
   chat_my_ai: [

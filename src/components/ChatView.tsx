@@ -5,6 +5,7 @@ import {
   Video,
   Camera,
   Mic,
+  MicOff,
   Smile,
   Image,
   Plus,
@@ -13,20 +14,28 @@ import {
   Shield,
   GitPullRequest,
   Check,
+  CheckCheck,
   Copy,
   Terminal,
+  ShieldCheck,
+  X,
+  Radio,
 } from 'lucide-react';
 import { Chat, Message, CURRENT_USER } from '../web-db/store';
 import { EnvVaultBubble } from './EnvVaultBubble';
+import { AudioWaveBubble } from './AudioWaveBubble';
 
 interface ChatViewProps {
   chat: Chat | null;
   messages: Message[];
   onSendMessage: (text: string) => void;
+  onSendAudioNote?: (duration: string, waveform: number[]) => void;
   onOpenCodeModal: () => void;
   onOpenVaultModal: () => void;
   onOpenPrModal: (msgMetadata?: any) => void;
   onBackToSidebar: () => void;
+  onOpenCall?: (type: 'audio' | 'video') => void;
+  onOpenProtectedDrawer?: () => void;
   isMobileActive?: boolean;
 }
 
@@ -34,21 +43,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
   chat,
   messages,
   onSendMessage,
+  onSendAudioNote,
   onOpenCodeModal,
   onOpenVaultModal,
   onOpenPrModal,
   onBackToSidebar,
+  onOpenCall,
+  onOpenProtectedDrawer,
   isMobileActive = false,
 }) => {
   const [inputText, setInputText] = useState('');
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [showToolDrawer, setShowToolDrawer] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Voice recording timer
+  useEffect(() => {
+    let timer: any;
+    if (isRecordingVoice) {
+      timer = setInterval(() => {
+        setRecordSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      setRecordSeconds(0);
+    }
+    return () => clearInterval(timer);
+  }, [isRecordingVoice]);
 
   if (!chat) {
     return (
@@ -87,12 +115,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
+  const handleStartVoiceRecord = () => {
+    setIsRecordingVoice(true);
+    setRecordSeconds(0);
+  };
+
+  const handleCancelVoiceRecord = () => {
+    setIsRecordingVoice(false);
+    setRecordSeconds(0);
+  };
+
+  const handleSendVoiceRecord = () => {
+    const mins = Math.floor(recordSeconds / 60);
+    const secs = (recordSeconds % 60).toString().padStart(2, '0');
+    const durationStr = `${mins}:${secs}`;
+    const generatedWaveform = Array.from({ length: 22 }, () => Math.floor(Math.random() * 70) + 30);
+
+    if (onSendAudioNote) {
+      onSendAudioNote(durationStr, generatedWaveform);
+    } else {
+      onSendMessage(`Voice note (${durationStr})`);
+    }
+
+    setIsRecordingVoice(false);
+    setRecordSeconds(0);
+  };
+
   return (
     <main
       className={`snap-conversation-view ${isMobileActive ? 'active-mobile' : ''}`}
       id="snap-active-conversation"
     >
-      {/* Top Header (Matches Screenshot 2 & 3) */}
+      {/* Top Header (Matches E-Chat & Snapcord) */}
       <header className="snap-convo-header">
         <div className="snap-convo-header-left">
           <button
@@ -104,12 +158,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <ChevronLeft size={28} />
           </button>
 
-          <div className="snap-convo-recipient">
+          <div
+            className="snap-convo-recipient"
+            onClick={onOpenProtectedDrawer}
+            title="Click to view Protected Chat Room details"
+            style={{ cursor: 'pointer' }}
+            id="btn-recipient-profile-header"
+          >
             <div className="snap-row-avatar" style={{ width: 38, height: 38 }}>
               <img src={chat.avatar} alt={chat.name} />
               {chat.isOnline && <div className="snap-online-badge" />}
             </div>
-            <span className="snap-convo-name">{chat.name}</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="snap-convo-name">{chat.name}</span>
+                <ShieldCheck size={14} color="#00FF66" title="Verified E2EE Session" />
+              </div>
+              <span style={{ fontSize: '11px', color: '#8B949E' }}>
+                {chat.isOnline ? 'Online • tap for room info' : 'Offline'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -126,29 +194,42 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </button>
           )}
 
-          <button className="snap-header-action-btn" title="Audio Call" id="btn-call-audio">
+          {/* E-Chat Audio Call Trigger */}
+          <button
+            className="snap-header-action-btn"
+            onClick={() => onOpenCall && onOpenCall('audio')}
+            title="Start Audio Call"
+            id="btn-call-audio"
+          >
             <Phone size={18} />
           </button>
 
-          <button className="snap-header-action-btn" title="Video Call" id="btn-call-video">
+          {/* E-Chat Video Call Trigger */}
+          <button
+            className="snap-header-action-btn"
+            onClick={() => onOpenCall && onOpenCall('video')}
+            title="Start Video Call"
+            id="btn-call-video"
+          >
             <Video size={18} />
           </button>
         </div>
       </header>
 
-      {/* Snapchat Signature Top Ephemeral Banner (Screenshots 2 & 3) */}
+      {/* Ephemeral Alert Banner */}
       <div className="snap-ephemeral-banner" id="banner-ephemeral-alert">
         {chat.type === 'repo'
-          ? 'GITHUB REPO HOOK ATTACHED &bull; LIVE DIFFS ENABLED'
+          ? 'GITHUB REPO HOOK ATTACHED • LIVE DIFFS ENABLED'
           : chat.statusIconType === 'vault'
-          ? '🔒 SENSITIVE .ENV VAULT ENGAGED &bull; ZERO-KNOWLEDGE ENCRYPTION'
-          : 'YOU SCREEN RECORDED CHAT!'}
+          ? '🔒 SENSITIVE .ENV VAULT ENGAGED • ZERO-KNOWLEDGE ENCRYPTION'
+          : 'ENCRYPTED DEVELOPER SESSION ACTIVE'}
       </div>
 
-      {/* Ephemeral Message Stream (Screenshots 2 & 3 + Discord Code Embeds) */}
+      {/* Message Stream */}
       <div className="snap-messages-stream" id="snap-messages-stream">
         {messages.map((msg) => {
           const accentColor = msg.metadata?.accentColor || (msg.senderId === CURRENT_USER.id ? '#E91E63' : '#00A884');
+          const isMe = msg.senderId === CURRENT_USER.id;
 
           return (
             <div
@@ -157,17 +238,43 @@ export const ChatView: React.FC<ChatViewProps> = ({
               style={{ ['--accent-bar-color' as any]: accentColor }}
               id={`snap-msg-${msg.id}`}
             >
-              {/* Sender Tag (e.g. ME, ROBERT JONAS, LINUS TORVALDS) */}
-              <div className="snap-sender-tag" style={{ color: accentColor }}>
-                {msg.senderName}
+              {/* Sender Tag */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '2px',
+                }}
+              >
+                <div className="snap-sender-tag" style={{ color: accentColor }}>
+                  {msg.senderName}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#8B949E' }}>
+                  <span>{msg.timestamp}</span>
+                  <CheckCheck size={13} color="#00A3FF" />
+                </div>
               </div>
 
-              {/* 1. Pure Text Body (Screenshot 3) */}
+              {/* 1. Pure Text Body */}
               {msg.type === 'text' && (
                 <div className="snap-text-body">{msg.content}</div>
               )}
 
-              {/* 2. Discord Embedded Code Snippet */}
+              {/* 2. E-Chat Audio Waveform Voice Note */}
+              {msg.type === 'audio_note' && (
+                <div style={{ marginTop: '4px' }}>
+                  <AudioWaveBubble
+                    duration={msg.metadata?.audioDuration || '0:18'}
+                    waveform={msg.metadata?.waveform}
+                    accentColor={accentColor}
+                    isMe={isMe}
+                    timestamp={msg.timestamp}
+                  />
+                </div>
+              )}
+
+              {/* 3. Discord Embedded Code Snippet */}
               {msg.type === 'code' && (
                 <div>
                   {msg.content && <div className="snap-text-body" style={{ marginBottom: 4 }}>{msg.content}</div>}
@@ -208,7 +315,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
               )}
 
-              {/* 3. Burn-After-Reading .env Vault Bubble */}
+              {/* 4. Burn-After-Reading .env Vault Bubble */}
               {msg.type === 'env_secret' && (
                 <div>
                   {msg.content && <div className="snap-text-body" style={{ marginBottom: 4 }}>{msg.content}</div>}
@@ -222,7 +329,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
               )}
 
-              {/* 4. GitHub PR / Git Commit Card */}
+              {/* 5. GitHub PR Card */}
               {msg.type === 'pr_card' && (
                 <div className="pr-bubble-card" id={`pr-card-${msg.id}`} style={{ marginTop: 4 }}>
                   <div className="pr-bubble-top">
@@ -304,82 +411,147 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Screen 5: Snapchat Input Dock (Screenshots 2 & 3) */}
+      {/* Input Dock (With E-Chat Voice Note Recording Mode) */}
       <footer className="snap-input-dock" id="snap-input-dock">
-        {/* Camera Button */}
-        <button
-          type="button"
-          className="snap-camera-btn"
-          onClick={() => alert('Camera & Screen Capture ready!')}
-          title="Camera & Screenshot"
-          id="btn-snap-camera"
-        >
-          <Camera size={24} />
-        </button>
+        {isRecordingVoice ? (
+          /* Active Recording State (E-Chat Conversation Record screen) */
+          <div
+            className="echat-recording-dock"
+            id="dock-voice-recording-active"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 14px',
+              background: 'rgba(233, 30, 99, 0.15)',
+              border: '1px solid rgba(233, 30, 99, 0.4)',
+              borderRadius: '24px',
+              animation: 'fadeIn 0.15s ease-out',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#FF4757',
+                  animation: 'pulseRecord 1s infinite alternate',
+                }}
+              />
+              <span
+                style={{
+                  color: '#FFF',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                }}
+              >
+                0:{recordSeconds.toString().padStart(2, '0')}
+              </span>
+              <span style={{ color: '#8B949E', fontSize: '12px' }}>
+                Recording voice note...
+              </span>
+            </div>
 
-        {/* Pill Input Container */}
-        <form onSubmit={handleSend} style={{ flex: 1, display: 'flex', gap: 10 }}>
-          <div className="snap-input-pill" id="snap-input-pill">
-            <span className="snap-cursor-accent" />
-            <input
-              type="text"
-              className="snap-text-field"
-              placeholder="Chat..."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              id="input-snap-chat"
-            />
-
-            <div className="snap-pill-actions">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
-                className="snap-pill-action-icon"
-                title="Voice Note"
-                id="btn-voice-note"
+                onClick={handleCancelVoiceRecord}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#8B949E',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: '4px 8px',
+                }}
               >
-                <Mic size={18} />
+                Cancel
               </button>
 
               <button
                 type="button"
-                className="snap-pill-action-icon"
-                title="Stickers & Emojis"
-                id="btn-emojis"
+                onClick={handleSendVoiceRecord}
+                className="snap-send-btn"
+                style={{ background: '#00A3FF' }}
+                title="Send Voice Note"
+                id="btn-send-voice-note"
               >
-                <Smile size={18} />
-              </button>
-
-              <button
-                type="button"
-                className="snap-pill-action-icon"
-                title="Media Gallery"
-                id="btn-media-gallery"
-              >
-                <Image size={18} />
-              </button>
-
-              <button
-                type="button"
-                className="snap-pill-action-icon"
-                onClick={() => setShowToolDrawer(!showToolDrawer)}
-                title="Developer Tools (+)"
-                id="btn-toggle-dev-tools"
-              >
-                <Plus size={19} color="#00A3FF" />
+                <Send size={16} />
               </button>
             </div>
           </div>
+        ) : (
+          /* Normal Message Input State */
+          <>
+            <button
+              type="button"
+              className="snap-camera-btn"
+              onClick={() => alert('Screenshot & code capture ready')}
+              title="Camera & Screenshot"
+              id="btn-snap-camera"
+            >
+              <Camera size={24} />
+            </button>
 
-          {/* Send Button */}
-          <button
-            type="submit"
-            className="snap-send-btn"
-            title="Send"
-            id="btn-snap-send"
-          >
-            <Send size={18} />
-          </button>
-        </form>
+            <form onSubmit={handleSend} style={{ flex: 1, display: 'flex', gap: 10 }}>
+              <div className="snap-input-pill" id="snap-input-pill">
+                <span className="snap-cursor-accent" />
+                <input
+                  type="text"
+                  className="snap-text-field"
+                  placeholder="Chat or type /code..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  id="input-snap-chat"
+                />
+
+                <div className="snap-pill-actions">
+                  {/* Click to record voice note */}
+                  <button
+                    type="button"
+                    className="snap-pill-action-icon"
+                    onClick={handleStartVoiceRecord}
+                    title="Record Voice Note"
+                    id="btn-voice-note"
+                  >
+                    <Mic size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="snap-pill-action-icon"
+                    title="Stickers & Emojis"
+                    id="btn-emojis"
+                  >
+                    <Smile size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="snap-pill-action-icon"
+                    onClick={() => setShowToolDrawer(!showToolDrawer)}
+                    title="Developer Tools (+)"
+                    id="btn-toggle-dev-tools"
+                  >
+                    <Plus size={19} color="#00A3FF" />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="snap-send-btn"
+                title="Send Message"
+                id="btn-snap-send"
+              >
+                <Send size={18} />
+              </button>
+            </form>
+          </>
+        )}
       </footer>
     </main>
   );

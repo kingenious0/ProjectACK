@@ -10,9 +10,12 @@ import {
   Flame,
   Compass,
   Check,
+  CheckCheck,
   X,
   Shield,
   GitBranch,
+  Filter,
+  Lock,
 } from 'lucide-react';
 import { Chat, SuggestedDev, CURRENT_USER, webStore } from '../web-db/store';
 
@@ -23,6 +26,7 @@ interface SidebarProps {
   onOpenAddFriends: () => void;
   onOpenCreateVault: () => void;
   onOpenCreateCode: () => void;
+  onOpenPinSecurity?: () => void;
   isMobileViewHidden?: boolean;
 }
 
@@ -33,20 +37,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddFriends,
   onOpenCreateVault,
   onOpenCreateCode,
+  onOpenPinSecurity,
   isMobileViewHidden = false,
 }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'direct' | 'repos' | 'vaults' | 'unread'>('all');
   const [suggestions, setSuggestions] = useState<SuggestedDev[]>(webStore.getSuggestions());
-  const [activeTab, setActiveTab] = useState<'map' | 'chat' | 'camera' | 'stories' | 'spotlight'>('chat');
+  const [activeTab, setActiveTab] = useState<'map' | 'chat' | 'vault' | 'stories' | 'spotlight'>('chat');
 
-  // Filter chats
-  const filteredChats = chats.filter(
-    (c) =>
+  // Filter chats by search and category
+  const filteredChats = chats.filter((c) => {
+    const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.statusText.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      c.statusText.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (activeCategory === 'direct') return c.type === 'dm' || c.type === 'ai';
+    if (activeCategory === 'repos') return c.type === 'repo' || c.type === 'group';
+    if (activeCategory === 'vaults') return c.statusIconType === 'vault';
+    if (activeCategory === 'unread') return c.unreadCount > 0;
+    return true;
+  });
 
   const quickAddPreview = suggestions.slice(0, 2);
 
@@ -63,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className={`snap-chat-screen ${isMobileViewHidden ? 'hidden-mobile' : ''}`} id="snap-sidebar">
-      {/* Snapchat Top Header (Screenshot 1) */}
+      {/* Snapchat & E-Chat Header */}
       <header className="snap-header">
         <div className="snap-header-left">
           <div
@@ -97,8 +111,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <UserPlus size={18} />
           </button>
 
-          <button className="snap-icon-circle-btn" title="Options" id="btn-header-more">
-            <MoreHorizontal size={18} />
+          <button
+            className="snap-icon-circle-btn"
+            onClick={onOpenPinSecurity}
+            title="Security & PIN Settings"
+            id="btn-header-security"
+          >
+            <Shield size={18} color="#00FF66" />
           </button>
         </div>
       </header>
@@ -123,7 +142,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Chat Stream List (Screenshot 1) */}
+      {/* Category Segmented Filter Pills */}
+      <div
+        className="sidebar-category-filters"
+        id="sidebar-category-filters"
+        style={{
+          display: 'flex',
+          gap: '8px',
+          padding: '8px 16px 12px 16px',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'direct', label: 'Direct' },
+          { key: 'repos', label: 'Repos' },
+          { key: 'vaults', label: '🔒 Vaults' },
+          { key: 'unread', label: 'Unread' },
+        ].map((tab) => {
+          const isSelected = activeCategory === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                if (tab.key === 'vaults' && onOpenPinSecurity) {
+                  onOpenPinSecurity();
+                }
+                setActiveCategory(tab.key as any);
+              }}
+              className={`category-filter-pill ${isSelected ? 'active' : ''}`}
+              id={`filter-pill-${tab.key}`}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '16px',
+                border: isSelected ? '1px solid #00A3FF' : '1px solid rgba(255, 255, 255, 0.08)',
+                background: isSelected ? 'rgba(0, 163, 255, 0.15)' : 'rgba(22, 27, 34, 0.8)',
+                color: isSelected ? '#00A3FF' : '#8B949E',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Chat Stream List */}
       <div className="snap-chat-list-scroll" id="snap-chat-list-scroll">
         {filteredChats.map((chat) => {
           const isActive = chat.id === activeChatId;
@@ -139,84 +209,105 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={chat.id}
               className={`snap-chat-row ${isActive ? 'active' : ''}`}
               onClick={() => onSelectChat(chat.id)}
-              id={`chat-row-${chat.id}`}
+              id={`chat-item-${chat.id}`}
             >
+              {/* Bitmoji / Developer Avatar */}
               <div className="snap-row-avatar">
-                <img src={chat.avatar} alt={chat.name} />
-                {chat.isOnline && <div className="snap-online-badge" />}
+                <img src={chat.avatar} alt={chat.name} className="snap-row-avatar-img" />
+                {chat.isOnline && <span className="snap-online-badge" />}
               </div>
 
-              <div className="snap-row-info">
-                <div className="snap-row-name">
-                  <span>{chat.name}</span>
-                  {chat.repoTag && <span className="discord-repo-pill">{chat.repoTag}</span>}
+              {/* Chat Content Body */}
+              <div className="snap-row-content">
+                <div className="snap-row-top">
+                  <span className="snap-row-name">{chat.name}</span>
+                  {chat.repoTag && (
+                    <span className="discord-repo-pill" title={chat.repoTag}>
+                      <GitBranch size={11} />
+                      <span className="repo-pill-text">{chat.repoTag.split('#')[0]}</span>
+                    </span>
+                  )}
                 </div>
 
-                <div className="snap-row-subtitle">
+                <div className="snap-row-bottom">
+                  {/* Status Indicator Icon */}
                   <span className={`snap-status-icon ${iconColorClass}`}>
                     {chat.statusIconType === 'vault' ? (
-                      <Shield size={9} />
+                      <Shield size={12} fill="#FFB800" color="#FFB800" />
                     ) : chat.statusIconType === 'code' ? (
-                      <GitBranch size={9} />
+                      <span className="code-icon-glyph">&lt;/&gt;</span>
+                    ) : chat.statusIconType === 'record' ? (
+                      <span className="snap-record-dot" />
                     ) : (
-                      <MessageSquare size={9} />
+                      <span className="snap-chat-square" />
                     )}
                   </span>
-                  <span className={`snap-status-text ${iconColorClass}`}>{chat.statusText}</span>
-                  <span>&bull;</span>
-                  <span>{chat.statusTime}</span>
+
+                  <span className="snap-status-text">{chat.statusText}</span>
+
+                  <span className="snap-status-bullet">&bull;</span>
+                  <span className="snap-status-time">{chat.statusTime}</span>
+
+                  {/* Read receipts */}
+                  <CheckCheck size={13} color="#00A3FF" style={{ marginLeft: 4 }} />
                 </div>
               </div>
 
+              {/* Unread badge & Camera Trigger */}
               <div className="snap-row-actions">
-                {chat.type === 'repo' ? (
-                  <GitBranch size={20} color="#8B949E" />
-                ) : chat.statusIconType === 'record' ? (
-                  <Camera size={20} color="#8B949E" />
-                ) : (
-                  <MessageSquare size={20} color="#8B949E" />
+                {chat.unreadCount > 0 && (
+                  <span className="snap-row-unread-badge">{chat.unreadCount}</span>
                 )}
+                <button
+                  className="snap-row-camera-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    alert(`Capture snippet for ${chat.name}`);
+                  }}
+                  title="Snap code"
+                >
+                  <Camera size={19} />
+                </button>
               </div>
             </div>
           );
         })}
 
-        {/* Quick Add Section (Screenshot 1) */}
+        {/* Quick Add Section */}
         {quickAddPreview.length > 0 && (
-          <div style={{ marginTop: '8px' }}>
-            <div className="snap-section-label">
-              <span>Quick Add</span>
-              <span
-                style={{ fontSize: '11px', color: '#8B949E', cursor: 'pointer' }}
+          <div className="snap-quick-add-section" id="snap-quick-add-container">
+            <div className="snap-quick-add-header">
+              <span>Quick Add Developers</span>
+              <button
+                className="snap-view-all-link"
                 onClick={onOpenAddFriends}
+                id="btn-view-all-devs"
               >
-                All Contacts &rsaquo;
-              </span>
+                View More
+              </button>
             </div>
 
             {quickAddPreview.map((dev) => (
-              <div key={dev.id} className="quick-add-preview-card" id={`quick-add-preview-${dev.id}`}>
-                <div className="quick-add-user">
-                  <div className="snap-row-avatar" style={{ width: 42, height: 42 }}>
-                    <img src={dev.avatar} alt={dev.name} />
-                    {dev.isOnline && <div className="snap-online-badge" />}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600 }}>{dev.name}</span>
-                    <span style={{ fontSize: '11.5px', color: '#8B949E', fontFamily: 'var(--font-mono)' }}>
-                      @{dev.username}
-                    </span>
+              <div key={dev.id} className="snap-quick-add-card" id={`quick-dev-${dev.id}`}>
+                <div className="snap-quick-add-avatar">
+                  <img src={dev.avatar} alt={dev.name} />
+                  {dev.isOnline && <span className="snap-online-badge" />}
+                </div>
+
+                <div className="snap-quick-add-info">
+                  <div className="snap-quick-add-name">{dev.name}</div>
+                  <div className="snap-quick-add-sub">
+                    {dev.username} &bull; <span style={{ color: '#00FF66' }}>{dev.tag}</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="snap-quick-add-btns">
                   <button
-                    className="quick-add-btn"
+                    className="snap-add-pill-btn"
                     onClick={() => handleQuickAdd(dev)}
-                    id={`btn-quick-add-${dev.id}`}
+                    id={`btn-add-quick-${dev.id}`}
                   >
-                    <UserPlus size={13} />
-                    <span>Add</span>
+                    + Add
                   </button>
                   <button
                     className="snap-dismiss-btn"
@@ -232,7 +323,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Floating Action Button (Screenshot 1) */}
+      {/* Floating Action Button */}
       <button
         className="snap-fab"
         onClick={onOpenCreateCode}
@@ -242,7 +333,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <Edit size={22} />
       </button>
 
-      {/* Snapchat 5-Tab Bottom Dock (Screenshot 1) */}
+      {/* Snapchat 5-Tab Bottom Dock */}
       <nav className="snap-dock" id="snap-bottom-dock">
         <button
           className={`snap-dock-item ${activeTab === 'map' ? 'active' : ''}`}
@@ -263,10 +354,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Chat</span>
         </button>
 
+        {/* Vault Tab (Protected PIN Biometric gate) */}
         <button
-          className={`snap-dock-item ${activeTab === 'camera' ? 'active' : ''}`}
-          onClick={onOpenCreateVault}
-          title="Secret Vault"
+          className={`snap-dock-item ${activeTab === 'vault' ? 'active' : ''}`}
+          onClick={() => {
+            if (onOpenPinSecurity) {
+              onOpenPinSecurity();
+            } else {
+              onOpenCreateVault();
+            }
+          }}
+          title="Developer Vault"
           id="dock-tab-camera"
         >
           <Shield size={23} color="#FFB800" />
