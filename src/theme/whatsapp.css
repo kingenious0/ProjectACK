@@ -1,0 +1,182 @@
+/* ==========================================================================
+   WHATSAPP WEB DARK THEME - 1:1 CLONE SPECIFICATION
+   Tokens: #111B21 (Sidebar), #0B141A (Canvas), #202C33 (Header/Incoming), #005C4B (Sent)
+   ========================================================================== */
+
+:root {
+  --wa-bg-deep: #0c1317;
+  --wa-bg-sidebar: #111b21;
+  --wa-bg-header: #202c33;
+  --wa-bg-chat: #0b141a;
+  --wa-bg-incoming: #202c33;
+  --wa-bg-outgoing: #005c4b;
+  --wa-bg-input: #2a3942;
+  --wa-accent-green: #00a884;
+  --wa-accent-lightgreen: #25d366;
+  --wa-ticks-blue: #53bdeb;
+  --wa-text-primary: #e9edef;
+  --wa-text-secondary: #8696a0;
+  --wa-border-subtle: #222d34;
+}
+
+/* App Desktop Container */
+.wa-app-root {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--wa-bg-deep);
+  display: flex;
+  align-items: center;
+  justifyContent: center;
+  overflow: hidden;
+  position: relative;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--wa-text-primary);
+}
+
+/* WhatsApp Desktop Green Accent Top Strip */
+.wa-app-root::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 127px;
+  background-color: var(--wa-accent-green);
+  z-index: 1;
+}
+
+/* Main Split View Window */
+.wa-desktop-window {
+  width: 100%;
+  height: 100%;
+  max-width: 1600px;
+  background: var(--wa-bg-sidebar);
+  display: flex;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 6px 18px rgba(11, 20, 26, 0.4);
+  overflow: hidden;
+}
+
+@media (min-width: 1441px) {
+  .wa-desktop-window {
+    width: 95vw;
+    height: 94vh;
+    border-radius: 4px;
+  }
+}
+
+/* WhatsApp Subtle Doodle Wallpaper Background */
+.wa-wallpaper-stream {
+  background-color: #0b141a;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0),
+    linear-gradient(to bottom, rgba(11, 20, 26, 0.85), rgba(11, 20, 26, 0.85));
+  background-size: 24px 24px;
+}
+
+/* Message Bubble Corners & Tails */
+.wa-message-bubble {
+  position: relative;
+  word-wrap: break-word;
+}
+
+.wa-bubble-sent {
+  border-top-right-radius: 0px !important;
+}
+
+.wa-bubble-sent::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #005c4b;
+  border-right: 8px solid transparent;
+}
+
+.wa-bubble-received {
+  border-top-left-radius: 0px !important;
+}
+
+.wa-bubble-received::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #202c33;
+  border-left: 8px solid transparent;
+}
+
+/* Hover & Interactive States */
+.wa-chat-row:hover {
+  background-color: #202c33 !important;
+}
+
+.wa-row-active {
+  background-color: #2a3942 !important;
+}
+
+.wa-icon-btn:hover {
+  color: #e9edef !important;
+}
+
+.wa-dropdown-item:hover {
+  background-color: #182229 !important;
+}
+
+/* Custom Scrollbars */
+.wa-chat-list::-webkit-scrollbar,
+.wa-wallpaper-stream::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wa-chat-list::-webkit-scrollbar-thumb,
+.wa-wallpaper-stream::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+}
+
+.wa-chat-list::-webkit-scrollbar-thumb:hover,
+.wa-wallpaper-stream::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Mobile Responsive Switching */
+@media (max-width: 768px) {
+  .wa-app-root::before {
+    display: none;
+  }
+  
+  .wa-desktop-window {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .wa-sidebar-container {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .wa-sidebar-container.wa-hidden-mobile {
+    display: none !important;
+  }
+
+  .wa-chat-pane {
+    display: none !important;
+  }
+
+  .wa-chat-pane.wa-active-mobile {
+    display: flex !important;
+  }
+
+  .wa-mobile-back-btn {
+    display: flex !important;
+    align-items: center;
+    justifyContent: center;
+  }
+}
