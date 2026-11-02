@@ -60,8 +60,8 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
         maxWidth: '420px',
         minWidth: '320px',
         height: '100%',
-        background: '#111B21',
-        borderRight: '1px solid #222D34',
+        background: 'var(--wa-bg-sidebar)',
+        borderRight: '1px solid var(--wa-border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -73,12 +73,13 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
         className="wa-header"
         style={{
           height: '59px',
-          background: '#202C33',
+          background: 'var(--wa-bg-header)',
           padding: '10px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
+          borderBottom: '1px solid var(--wa-border-subtle)',
         }}
       >
         {/* Left: Avatar + WhatsDev Title Branding */}
@@ -96,7 +97,7 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
           </div>
           <span
             style={{
-              color: '#00A884',
+              color: 'var(--wa-accent-green)',
               fontSize: '19px',
               fontWeight: 700,
               letterSpacing: '-0.3px',

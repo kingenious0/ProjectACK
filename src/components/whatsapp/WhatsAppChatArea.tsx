@@ -288,7 +288,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        background: '#0B141A',
+        background: 'var(--wa-bg-chat)',
         minWidth: 0,
       }}
       onClick={() => {
@@ -316,12 +316,12 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
         className="wa-chat-header"
         style={{
           height: '59px',
-          background: '#202C33',
+          background: 'var(--wa-bg-header)',
           padding: '10px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          borderBottom: '1px solid var(--wa-border-subtle)',
           zIndex: 10,
           flexShrink: 0,
         }}
@@ -507,12 +507,12 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                 style={{
                   maxWidth: isImage || isDoc ? '85%' : '65%',
                   minWidth: '100px',
-                  background: isImage ? 'transparent' : isMe ? '#005C4B' : '#202C33',
-                  color: '#E9EDEF',
+                  background: isImage ? 'transparent' : isMe ? 'var(--wa-bg-outgoing)' : 'var(--wa-bg-incoming)',
+                  color: 'var(--wa-text-primary)',
                   borderRadius: '7.5px',
                   padding: isImage ? '0' : '6px 9px 6px 9px',
                   position: 'relative',
-                  boxShadow: isImage ? 'none' : '0 1px 0.5px rgba(11,20,26,0.13)',
+                  boxShadow: isImage ? 'none' : '0 1px 0.5px rgba(0,0,0,0.3)',
                   fontSize: '14.2px',
                   lineHeight: '19px',
                   fontFamily: 'Inter, sans-serif',
@@ -727,13 +727,14 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
         className="wa-composer-footer"
         style={{
           height: '62px',
-          background: '#202C33',
+          background: 'var(--wa-bg-header)',
           padding: '5px 16px',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
           zIndex: 10,
           flexShrink: 0,
+          borderTop: '1px solid var(--wa-border-subtle)',
         }}
       >
         {isRecording ? (
@@ -744,7 +745,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: '#111B21',
+              background: 'var(--wa-bg-deep)',
               borderRadius: '24px',
               padding: '6px 14px',
               border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -765,7 +766,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
               />
               <span
                 style={{
-                  color: '#E9EDEF',
+                  color: 'var(--wa-text-primary)',
                   fontFamily: 'monospace',
                   fontSize: '15px',
                   fontWeight: 600,
@@ -783,7 +784,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                   style={{
                     width: '3px',
                     height: `${h}px`,
-                    background: '#00A884',
+                    background: 'var(--wa-accent-green)',
                     borderRadius: '2px',
                     animation: `bounceWave 0.8s infinite ease-in-out alternate ${i * 0.08}s`,
                   }}
@@ -819,9 +820,9 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
-                  background: '#00A884',
+                  background: 'var(--wa-accent-green)',
                   border: 'none',
-                  color: '#0B141A',
+                  color: '#090D16',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -848,7 +849,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: showEmojiPicker ? '#00A884' : '#8696A0',
+                color: showEmojiPicker ? 'var(--wa-accent-green)' : 'var(--wa-text-secondary)',
                 cursor: 'pointer',
                 padding: '4px',
               }}
@@ -870,7 +871,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: showAttachMenu ? '#00A884' : '#8696A0',
+                color: showAttachMenu ? 'var(--wa-accent-green)' : 'var(--wa-text-secondary)',
                 cursor: 'pointer',
                 padding: '4px',
               }}
@@ -890,12 +891,12 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                 style={{
                   width: '100%',
                   height: '42px',
-                  background: '#2A3942',
+                  background: 'var(--wa-bg-input)',
                   border: 'none',
                   outline: 'none',
                   borderRadius: '8px',
                   padding: '9px 12px',
-                  color: '#E9EDEF',
+                  color: 'var(--wa-text-primary)',
                   fontSize: '15px',
                   fontFamily: 'Inter, sans-serif',
                 }}
@@ -914,15 +915,15 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                   width: '42px',
                   height: '42px',
                   borderRadius: '50%',
-                  background: '#00A884',
+                  background: 'var(--wa-accent-green)',
                   border: 'none',
-                  color: '#0B141A',
+                  color: '#090D16',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   flexShrink: 0,
-                  boxShadow: '0 2px 6px rgba(0, 168, 132, 0.4)',
+                  boxShadow: '0 2px 8px rgba(0, 255, 204, 0.35)',
                 }}
               >
                 <Send size={18} />
@@ -937,7 +938,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#8696A0',
+                  color: 'var(--wa-text-secondary)',
                   cursor: 'pointer',
                   padding: '4px',
                 }}

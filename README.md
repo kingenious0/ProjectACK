@@ -34,21 +34,25 @@
 ## ⚡ Superpowers & Key Features
 
 ### 1. 🖼️ Real Image Picker, Previews & Fullscreen Lightbox
+
 - **Device Image Picker:** Send photos directly using real device file pickers.
 - **WhatsApp Photo Review Screen:** Preview selected photos before sending with an *"Add a caption..."* composer, emoji picker, and green send button.
 - **WhatsApp Photo Bubble:** Tailored message bubbles with timestamps and read receipts.
 - **Fullscreen Lightbox Viewer:** Click any photo to view in high-resolution with zoom-in/out and download actions.
 
 ### 2. 📄 Universal Document & File Sharing
+
 - **Real File Picker:** Attach any `.pdf`, `.zip`, `.tar.gz`, `.docx`, `.ts`, `.py`, `.json`, or `.csv` document.
 - **WhatsApp Document Bubble:** Extension badges (Red for PDF, Orange for Archives, Green for Sheets, Purple for Code), file size display, and one-click download.
 
 ### 3. 🎙️ Live Voice Notes & Waveform Audio Bubble
+
 - **WhatsApp Live Recording Bar:** Tap the microphone icon to activate live recording mode with a pulsing red recording dot, second-by-second timer (`0:01`, `0:02`...), animated frequency waveform, red trash cancel icon (`🗑️`), and send button.
 - **Browser MediaRecorder with Fallback:** Uses `navigator.mediaDevices.getUserMedia` for voice recording, with an automatic synthetic fallback for testing environments.
 - **Interactive Audio Waveform Bubble:** WhatsApp-styled audio player with play/pause toggle, audio progress scrubber, and double ticks.
 
 ### 4. 😀 WhatsApp Categorized Emoji Drawer
+
 - **Instant Access:** Smiley icon in the composer opens a WhatsApp-style emoji drawer.
 - **Dev-Centric Categories:**
   - 😀 **Smileys & People**
@@ -58,20 +62,24 @@
 - **Search Bar:** Real-time filter inside the drawer with direct cursor insertion.
 
 ### 5. 🛡️ Zero-Trust Burn-After-Reading .env Vault
+
 - **Client-Side AES-GCM WebCrypto Encryption:** Secrets and API keys are encrypted in-memory and in transit.
 - **Countdown Self-Destruct:** Configurable auto-destruct timers (30s, 60s, 5m, 10m).
 - **Instant Burn:** Recipient clicking **"Copy & Burn"** masks the secret and triggers a permanent purge from local storage.
 
 ### 6. 💻 Developer Code Snippets & Pull Request Cards
+
 - **Syntax Highlighting:** Formatted syntax blocks with language tags (`rust`, `typescript`, `python`, `go`, etc.).
 - **Line Numbers & Review Quoting:** Quote specific lines in replies directly from the message.
 - **GitHub PR Cards:** Real-time pull request cards with branch names, additions (`+84`), deletions (`-12`), and diff files.
 
 ### 7. 👍 Message Reactions & Context Menu
+
 - **Quick Reaction Bar:** Double-tap or tap a message to open quick reactions (`👍`, `❤️`, `😂`, `😮`, `😢`, `🔥`) and message deletion.
 - **Reactions Pill:** WhatsApp-style reaction counters badge dynamically underneath the message bubble.
 
 ### 8. 📱 90% Mobile Viewport First-Class UX
+
 - Built primarily for mobile web and PWA usage (90% mobile / 10% desktop).
 - Single-pane slide navigation between chats and conversation.
 - WhatsApp mobile top header with back arrow, call buttons, and contact status.
@@ -84,18 +92,18 @@
 
 WhatsDev implements a 1:1 WhatsApp Web & Mobile dark theme:
 
-| Element | Color Hex | WhatsApp Token |
-| :--- | :--- | :--- |
-| **Sidebar & Drawer Background** | `#111B21` | `--wa-bg-sidebar` |
-| **Chat Canvas** | `#0B141A` | `--wa-bg-chat` |
+| Element                                 | Color Hex   | WhatsApp Token                            |
+| :-------------------------------------- | :---------- | :---------------------------------------- |
+| **Sidebar & Drawer Background**   | `#111B21` | `--wa-bg-sidebar`                       |
+| **Chat Canvas**                   | `#0B141A` | `--wa-bg-chat`                          |
 | **Top Headers & Incoming Bubble** | `#202C33` | `--wa-bg-header` / `--wa-bg-incoming` |
-| **Outgoing Bubble (Sent)** | `#005C4B` | `--wa-bg-outgoing` |
-| **Input Bar & Modals** | `#2A3942` | `--wa-bg-input` |
-| **WhatsApp Brand Green** | `#00A884` | `--wa-accent-green` |
-| **Active Floating Action Green** | `#25D366` | `--wa-accent-lightgreen` |
-| **Read Receipt Ticks** | `#53BDEB` | `--wa-ticks-blue` |
-| **Primary Text** | `#E9EDEF` | `--wa-text-primary` |
-| **Secondary Text & Icons** | `#8696A0` | `--wa-text-secondary` |
+| **Outgoing Bubble (Sent)**        | `#005C4B` | `--wa-bg-outgoing`                      |
+| **Input Bar & Modals**            | `#2A3942` | `--wa-bg-input`                         |
+| **WhatsApp Brand Green**          | `#00A884` | `--wa-accent-green`                     |
+| **Active Floating Action Green**  | `#25D366` | `--wa-accent-lightgreen`                |
+| **Read Receipt Ticks**            | `#53BDEB` | `--wa-ticks-blue`                       |
+| **Primary Text**                  | `#E9EDEF` | `--wa-text-primary`                     |
+| **Secondary Text & Icons**        | `#8696A0` | `--wa-text-secondary`                   |
 
 ---
 
@@ -139,10 +147,12 @@ WhatsDev/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js `>= 20.0.0`
 - npm or pnpm
 
 ### 1. Clone & Install
+
 ```bash
 git clone https://github.com/kingenious0/ProjectACK.git
 cd ProjectACK
@@ -150,15 +160,19 @@ npm install
 ```
 
 ### 2. Run Locally in Dev Mode
+
 ```bash
 npm run dev
 ```
+
 Open **[http://localhost:3000](http://localhost:3000)** in your browser or mobile emulator.
 
 ### 3. Build for Production (Vercel / Cloudflare / Netlify)
+
 ```bash
 npm run build
 ```
+
 Generates an optimized bundle in `dist/` verified with zero TypeScript errors.
 
 ---
