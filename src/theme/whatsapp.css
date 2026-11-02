@@ -454,6 +454,11 @@ body, html {
     border-radius: 0 !important;
   }
 
+  /* Extreme Left Dock is hidden on mobile, replaced by bottom execution rail */
+  .wa-workspace-dock {
+    display: none !important;
+  }
+
   .wa-sidebar-container {
     max-width: 100% !important;
     width: 100vw !important;
@@ -463,6 +468,15 @@ body, html {
   }
 
   .wa-sidebar-container.wa-hidden-mobile {
+    display: none !important;
+  }
+
+  /* Mobile Bottom Navigation Rail */
+  .wa-mobile-nav-rail {
+    display: flex !important;
+  }
+
+  .wa-mobile-tabs-row {
     display: none !important;
   }
 
@@ -477,6 +491,25 @@ body, html {
 
   .wa-chat-pane.wa-active-mobile {
     display: flex !important;
+  }
+
+  /* Mobile Vertical Stack Split Screen */
+  .wa-chat-workspace-layout {
+    flex-direction: column !important;
+  }
+
+  .wa-chat-workspace-layout.wa-has-split-review .wa-chat-stream-column {
+    height: 42% !important;
+    flex: 0 0 42% !important;
+    border-bottom: 2px solid var(--wa-border-subtle);
+  }
+
+  .wa-code-review-mobile-sheet {
+    height: 58% !important;
+    flex: 0 0 58% !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    position: relative !important;
   }
 
   .wa-mobile-back-btn {
@@ -593,5 +626,78 @@ body, html {
 
 .wa-reactions-pill:hover {
   transform: scale(1.08);
+}
+
+/* ==========================================================================
+   DEV CONTROL CENTER - SPLIT-SCREEN ACTION WORKSPACE & DOCK TOKENS
+   ========================================================================== */
+
+/* Desktop Workspace Dock Navigation */
+.wa-dock-btn:hover {
+  background: rgba(0, 255, 204, 0.08) !important;
+  color: var(--wa-accent-green) !important;
+}
+
+/* Hide Mobile Nav Rail on Desktop */
+@media (min-width: 901px) {
+  .wa-mobile-nav-rail {
+    display: none !important;
+  }
+
+  .wa-code-review-desktop-split {
+    width: 480px;
+    min-width: 380px;
+    max-width: 620px;
+    height: 100%;
+    position: relative;
+    transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .wa-code-review-desktop-split.wa-review-expanded {
+    width: 680px;
+    max-width: 800px;
+  }
+}
+
+@media (max-width: 440px) {
+  .wa-hide-tiny-mobile {
+    display: none !important;
+  }
+}
+
+/* Developer Tree Item Active & Hover Styles */
+.wa-dev-row:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.wa-dev-row.wa-row-active {
+  background: var(--wa-bg-incoming) !important;
+}
+
+/* Clean High-Contrast Scrollbars for Code & Diff Viewers */
+.wa-code-review-drawer pre::-webkit-scrollbar,
+.wa-dev-tree::-webkit-scrollbar,
+.wa-wallpaper-stream::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.wa-code-review-drawer pre::-webkit-scrollbar-track,
+.wa-dev-tree::-webkit-scrollbar-track,
+.wa-wallpaper-stream::-webkit-scrollbar-track {
+  background: rgba(9, 13, 22, 0.5);
+}
+
+.wa-code-review-drawer pre::-webkit-scrollbar-thumb,
+.wa-dev-tree::-webkit-scrollbar-thumb,
+.wa-wallpaper-stream::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.wa-code-review-drawer pre::-webkit-scrollbar-thumb:hover,
+.wa-dev-tree::-webkit-scrollbar-thumb:hover,
+.wa-wallpaper-stream::-webkit-scrollbar-thumb:hover {
+  background: var(--wa-accent-green);
 }
 

@@ -167,6 +167,33 @@ const INITIAL_CHATS: Chat[] = [
     isOnline: true,
     isPinned: false,
   },
+  {
+    id: 'chat_project_ack',
+    name: 'kingenious0 / ProjectACK',
+    username: 'project_ack_repo',
+    type: 'repo',
+    avatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'code',
+    statusText: 'Release v2.0-rc live on main',
+    statusTime: '4m',
+    unreadCount: 3,
+    isOnline: true,
+    isPinned: true,
+    repoTag: 'kingenious0/ProjectACK#main',
+  },
+  {
+    id: 'chat_webhook_ci',
+    name: '⚡ CI/CD Webhook Stream',
+    username: 'webhook_dispatch',
+    type: 'group',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'record',
+    statusText: 'Vercel build: SUCCESS (2843376)',
+    statusTime: 'Just now',
+    unreadCount: 1,
+    isOnline: true,
+    isPinned: false,
+  },
 ];
 
 // Initial Quick Add Contacts (Matches Screenshots 4 & 5)
@@ -439,6 +466,64 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       },
     },
   ],
+  chat_project_ack: [
+    {
+      id: 'm_ack_1',
+      chatId: 'chat_project_ack',
+      senderId: 'usr_me',
+      senderName: 'ME',
+      senderAvatar: CURRENT_USER.avatar,
+      content: 'Pushed commit 2843376 to origin main: Clean React 19 build & Cyberpunk tokens implemented.',
+      type: 'text',
+      status: 'read',
+      timestamp: '11:15 AM',
+      metadata: { accentColor: '#00FFCC' },
+    },
+    {
+      id: 'm_ack_2',
+      chatId: 'chat_project_ack',
+      senderId: 'usr_github_bot',
+      senderName: 'GITHUB CI/CD',
+      senderAvatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+      content: 'Vercel Deployment: ProjectACK v2.0-rc',
+      type: 'pr_card',
+      status: 'read',
+      timestamp: '11:16 AM',
+      metadata: {
+        accentColor: '#00E5FF',
+        prNumber: 28,
+        prTitle: 'Dev Control Center: Mobile-First Layout Architecture',
+        prBranch: 'main',
+        prAdditions: 340,
+        prDeletions: 48,
+        diffFiles: [
+          {
+            filename: 'src/components/whatsapp/WorkspaceDock.tsx',
+            additions: 180,
+            deletions: 0,
+            lines: [
+              { type: 'add', content: '+ export const WorkspaceDock: React.FC = () => {', newNo: 1 },
+              { type: 'add', content: '+   return <nav className="wa-workspace-dock">...', newNo: 2 },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+  chat_webhook_ci: [
+    {
+      id: 'm_wh_1',
+      chatId: 'chat_webhook_ci',
+      senderId: 'usr_github_bot',
+      senderName: 'VERCEL WEBHOOK [BUILD READY]',
+      senderAvatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+      content: '📦 Build succeeded in Washington, D.C., USA (East) – iad1 in 1.197s. Zero TypeScript errors. Live at https://whatsdev.vercel.app',
+      type: 'text',
+      status: 'read',
+      timestamp: 'Just now',
+      metadata: { accentColor: '#00FFCC' },
+    },
+  ],
 };
 
 class WebStore {
@@ -457,8 +542,21 @@ class WebStore {
       const savedMessages = localStorage.getItem('whatsdev_snap_messages');
       const savedSuggestions = localStorage.getItem('whatsdev_snap_suggestions');
 
-      this.chats = savedChats ? JSON.parse(savedChats) : INITIAL_CHATS;
-      this.messages = savedMessages ? JSON.parse(savedMessages) : INITIAL_MESSAGES;
+      if (savedChats) {
+        const loaded: Chat[] = JSON.parse(savedChats);
+        const missing = INITIAL_CHATS.filter((ic) => !loaded.some((lc) => lc.id === ic.id));
+        this.chats = [...loaded, ...missing];
+      } else {
+        this.chats = INITIAL_CHATS;
+      }
+
+      if (savedMessages) {
+        const loadedMsgs = JSON.parse(savedMessages);
+        this.messages = { ...INITIAL_MESSAGES, ...loadedMsgs };
+      } else {
+        this.messages = INITIAL_MESSAGES;
+      }
+
       this.suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : INITIAL_SUGGESTIONS;
 
       // Ensure rich media demonstration messages are populated

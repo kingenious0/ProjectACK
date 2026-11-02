@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { webStore, Chat, Message } from './web-db/store';
+import { WorkspaceDock, WorkspaceCategory } from './components/whatsapp/WorkspaceDock';
 import { WhatsAppSidebar } from './components/whatsapp/WhatsAppSidebar';
 import { WhatsAppChatArea } from './components/whatsapp/WhatsAppChatArea';
+import { CodeReviewPayload } from './components/whatsapp/CodeReviewDrawer';
 import { AddFriendsModal } from './components/AddFriendsModal';
 import { CreateVaultModal } from './components/CreateVaultModal';
 import { CreateCodeModal } from './components/CreateCodeModal';
@@ -10,8 +12,10 @@ import './theme/whatsapp.css';
 
 export const App: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
-  const [activeChatId, setActiveChatId] = useState<string | null>('chat_robert_jonas');
+  const [activeChatId, setActiveChatId] = useState<string | null>('chat_torvalds_repo');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<WorkspaceCategory>('relays');
+  const [activeReviewPayload, setActiveReviewPayload] = useState<CodeReviewPayload | null>(null);
 
   // Modals & Overlays
   const [isAddFriendsOpen, setIsAddFriendsOpen] = useState(false);
@@ -32,6 +36,7 @@ export const App: React.FC = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
   const activeMessages: Message[] = activeChatId ? webStore.getMessages(activeChatId) : [];
+  const totalUnread = chats.reduce((acc, c) => acc + c.unreadCount, 0);
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId);
@@ -68,7 +73,25 @@ export const App: React.FC = () => {
   return (
     <div className="wa-app-root" id="whatsapp-root">
       <div className="wa-desktop-window">
-        {/* Left Column: 1:1 WhatsApp Web Sidebar */}
+        {/* Extreme Left Workspace Selector Dock (Desktop) */}
+        <WorkspaceDock
+          activeCategory={activeCategory}
+          onSelectCategory={(cat) => {
+            setActiveCategory(cat);
+            // If selecting repos on desktop, can highlight or switch to first repo
+            if (cat === 'repos') {
+              const firstRepo = chats.find((c) => c.type === 'repo');
+              if (firstRepo) setActiveChatId(firstRepo.id);
+            } else if (cat === 'webhooks') {
+              const whChat = chats.find((c) => c.id === 'chat_webhook_ci');
+              if (whChat) setActiveChatId(whChat.id);
+            }
+          }}
+          unreadCount={totalUnread}
+          onOpenSettings={() => alert('WhatsDev v2.0 Dev Control Center\nActive Environment: Staging\nGit: kingenious0/ProjectACK')}
+        />
+
+        {/* Workspace Hub Panel (IDE Collapsible Repository Tree) */}
         <WhatsAppSidebar
           chats={chats}
           activeChatId={activeChatId}
@@ -76,23 +99,32 @@ export const App: React.FC = () => {
           onOpenNewChat={() => setIsAddFriendsOpen(true)}
           onOpenCreateVault={() => setIsVaultModalOpen(true)}
           onOpenCreateCode={() => setIsCodeModalOpen(true)}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
           isMobileHidden={isMobileChatOpen}
         />
 
-        {/* Right Column: 1:1 WhatsApp Web Chat Area with Code & Vault bubbles */}
+        {/* Main Action Canvas (Split View: Chat Stream / Monospace Code Review Canvas) */}
         <WhatsAppChatArea
           chat={activeChat}
           messages={activeMessages}
           onSendMessage={handleSendMessage}
           onSendCode={() => setIsCodeModalOpen(true)}
           onSendVault={() => setIsVaultModalOpen(true)}
-          onBackToSidebar={() => setIsMobileChatOpen(false)}
+          onBackToSidebar={() => {
+            setIsMobileChatOpen(false);
+            setActiveReviewPayload(null);
+          }}
           onOpenCall={handleOpenCall}
           isMobileActive={isMobileChatOpen}
+          activeReviewPayload={activeReviewPayload}
+          onOpenReview={setActiveReviewPayload}
+          onCloseReview={() => setActiveReviewPayload(null)}
+          onSendReviewComment={handleSendMessage}
         />
       </div>
 
-      {/* WhatsApp-Style Modals */}
+      {/* Developer Tooling Modals */}
       <AddFriendsModal
         isOpen={isAddFriendsOpen}
         onClose={() => setIsAddFriendsOpen(false)}

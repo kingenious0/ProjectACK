@@ -19,8 +19,16 @@ import {
   Flame,
   Trash2,
   Radio,
+  GitBranch,
+  GitPullRequest,
+  Columns,
+  Activity,
+  CheckCircle2,
+  Terminal,
+  ExternalLink,
+  Code2,
 } from 'lucide-react';
-import { Chat, Message, CURRENT_USER, webStore } from '../../web-db/store';
+import { Chat, Message, CURRENT_USER, webStore, DiffFile } from '../../web-db/store';
 import { WhatsAppCodeBubble } from './WhatsAppCodeBubble';
 import { WhatsAppVaultBubble } from './WhatsAppVaultBubble';
 import { WhatsAppImageBubble } from './WhatsAppImageBubble';
@@ -29,6 +37,7 @@ import { WhatsAppEmojiPicker } from './WhatsAppEmojiPicker';
 import { WhatsAppImagePreviewModal } from './WhatsAppImagePreviewModal';
 import { WhatsAppReactions } from './WhatsAppReactions';
 import { AudioWaveBubble } from '../AudioWaveBubble';
+import { CodeReviewDrawer, CodeReviewPayload } from './CodeReviewDrawer';
 
 interface WhatsAppChatAreaProps {
   chat: Chat | null;
@@ -39,6 +48,10 @@ interface WhatsAppChatAreaProps {
   onBackToSidebar: () => void;
   onOpenCall?: (type: 'audio' | 'video') => void;
   isMobileActive?: boolean;
+  activeReviewPayload?: CodeReviewPayload | null;
+  onOpenReview?: (payload: CodeReviewPayload) => void;
+  onCloseReview?: () => void;
+  onSendReviewComment?: (comment: string) => void;
 }
 
 export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
@@ -50,11 +63,35 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
   onBackToSidebar,
   onOpenCall,
   isMobileActive = false,
+  activeReviewPayload,
+  onOpenReview,
+  onCloseReview,
+  onSendReviewComment,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeReactionMenuId, setActiveReactionMenuId] = useState<string | null>(null);
+  const [showRepoSheet, setShowRepoSheet] = useState(false);
+  const [internalReviewPayload, setInternalReviewPayload] = useState<CodeReviewPayload | null>(null);
+
+  const effectiveReview = activeReviewPayload !== undefined ? activeReviewPayload : internalReviewPayload;
+
+  const handleTriggerReview = (payload: CodeReviewPayload) => {
+    if (onOpenReview) {
+      onOpenReview(payload);
+    } else {
+      setInternalReviewPayload(payload);
+    }
+  };
+
+  const handleCloseReview = () => {
+    if (onCloseReview) {
+      onCloseReview();
+    } else {
+      setInternalReviewPayload(null);
+    }
+  };
 
   // Image upload & preview state
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -311,136 +348,248 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
         onChange={handleDocSelected}
       />
 
-      {/* 1. WhatsApp Chat Top Header */}
+      {/* 1. Terminal Breadcrumb Header (Dev Hub Pivot) */}
       <header
-        className="wa-chat-header"
+        className="wa-chat-header wa-terminal-chat-header"
         style={{
-          height: '59px',
+          height: '56px',
           background: 'var(--wa-bg-header)',
-          padding: '10px 16px',
+          padding: '0 14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: '1px solid var(--wa-border-subtle)',
-          zIndex: 10,
+          zIndex: 15,
           flexShrink: 0,
         }}
       >
-        {/* Left: Avatar, Back button (Mobile) and Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+        {/* Left: Mobile Back Button + Terminal Path Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <button
             type="button"
             className="wa-mobile-back-btn"
             onClick={onBackToSidebar}
-            title="Back to chats"
+            title="Back to repos & relays"
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#AECBFA',
+              color: 'var(--wa-accent-green)',
               padding: '6px',
               cursor: 'pointer',
               display: 'none',
-              marginLeft: '-8px',
+              marginLeft: '-6px',
             }}
           >
-            <ChevronLeft size={26} />
+            <ChevronLeft size={24} />
           </button>
 
-          <div style={{ position: 'relative', width: '40px', height: '40px', flexShrink: 0 }}>
-            <img
-              src={chat.avatar}
-              alt={chat.name}
-              style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
-            />
-            {chat.isOnline && (
+          {/* Breadcrumb Path & Telemetry Button */}
+          <div
+            onClick={() => setShowRepoSheet(true)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              cursor: 'pointer',
+              minWidth: 0,
+            }}
+            title="Click to view Repository Health & Webhook Telemetry"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+              <GitBranch size={14} color="var(--wa-accent-green)" style={{ flexShrink: 0 }} />
               <span
                 style={{
-                  position: 'absolute',
-                  bottom: '1px',
-                  right: '1px',
-                  width: '10px',
-                  height: '10px',
-                  background: '#00A884',
-                  borderRadius: '50%',
-                  border: '2px solid #202C33',
+                  color: 'var(--wa-text-primary)',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  letterSpacing: '-0.2px',
                 }}
-              />
-            )}
-          </div>
+              >
+                {chat.type === 'repo'
+                  ? chat.repoTag || chat.name
+                  : chat.type === 'ai'
+                  ? 'ai-copilot / ack-agent ↳ #copilot'
+                  : `@${chat.username} ↳ #relay`}
+              </span>
 
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span
+              <span
+                style={{
+                  background: 'rgba(0, 255, 204, 0.1)',
+                  color: 'var(--wa-accent-green)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <CheckCircle2 size={10} />
+                <span>PASS</span>
+              </span>
+            </div>
+
+            <div
               style={{
-                color: '#E9EDEF',
-                fontSize: '16px',
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                color: 'var(--wa-text-secondary)',
+                fontSize: '11px',
+                fontFamily: 'JetBrains Mono, monospace',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
-              {chat.name}
-            </span>
-            <span style={{ color: '#8696A0', fontSize: '12px' }}>
-              {chat.isOnline ? 'online' : `@${chat.username}`}
-            </span>
+              <span>{chat.isOnline ? 'session: active' : 'last commit: 2843376'}</span>
+              <span>&bull;</span>
+              <span style={{ color: 'var(--wa-ticks-blue)' }}>telemetry ↗</span>
+            </div>
           </div>
         </div>
 
         {/* Right Header Action Icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', color: '#8696A0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Split Review Toggle Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (effectiveReview) {
+                handleCloseReview();
+              } else {
+                // Find latest code or pr_card message to review
+                const targetMsg = messages
+                  .slice()
+                  .reverse()
+                  .find((m) => m.type === 'code' || m.type === 'pr_card');
+                if (targetMsg) {
+                  handleTriggerReview({
+                    title: targetMsg.metadata?.prTitle || targetMsg.content || 'Code Review',
+                    codeSnippet: targetMsg.metadata?.codeSnippet,
+                    language: targetMsg.metadata?.language,
+                    prNumber: targetMsg.metadata?.prNumber,
+                    prBranch: targetMsg.metadata?.prBranch,
+                    diffFiles: targetMsg.metadata?.diffFiles,
+                    repoName: chat.repoTag || chat.name,
+                  });
+                } else {
+                  handleTriggerReview({
+                    title: 'Active Code Canvas',
+                    codeSnippet: '// No recent snippet selected.\n// Transmit a code bubble or select a PR card.',
+                    language: 'rust',
+                    repoName: chat.name,
+                  });
+                }
+              }
+            }}
+            title={effectiveReview ? 'Close Split Review Canvas' : 'Open Split Review Canvas'}
+            style={{
+              background: effectiveReview ? 'var(--wa-accent-green)' : 'rgba(0, 255, 204, 0.12)',
+              color: effectiveReview ? 'var(--wa-bg-deep)' : 'var(--wa-accent-green)',
+              border: '1px solid rgba(0, 255, 204, 0.4)',
+              borderRadius: '6px',
+              padding: '5px 10px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              fontFamily: 'JetBrains Mono, monospace',
+            }}
+          >
+            <Columns size={14} />
+            <span className="wa-hide-tiny-mobile">{effectiveReview ? 'Close Split' : 'Split View'}</span>
+          </button>
+
+          {/* Quick .env Vault Key Button */}
+          <button
+            type="button"
+            onClick={onSendVault}
+            title="Transmit .env Vault Secret"
+            style={{
+              background: 'rgba(255, 184, 0, 0.1)',
+              border: '1px solid rgba(255, 184, 0, 0.3)',
+              color: 'var(--wa-vault-amber)',
+              borderRadius: '6px',
+              padding: '6px 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Shield size={16} />
+          </button>
+
+          {/* Pairing Video / Audio Call */}
           {onOpenCall && (
             <button
               type="button"
               onClick={() => onOpenCall('video')}
-              title="Video call"
+              title="Start Pair Programming Video Call"
               className="wa-header-action-btn"
-              style={{ background: 'transparent', border: 'none', color: '#8696A0', cursor: 'pointer', padding: '4px' }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--wa-text-secondary)',
+                cursor: 'pointer',
+                padding: '6px',
+              }}
             >
-              <Video size={20} />
-            </button>
-          )}
-
-          {onOpenCall && (
-            <button
-              type="button"
-              onClick={() => onOpenCall('audio')}
-              title="Voice call"
-              className="wa-header-action-btn"
-              style={{ background: 'transparent', border: 'none', color: '#8696A0', cursor: 'pointer', padding: '4px' }}
-            >
-              <Phone size={19} />
+              <Video size={18} />
             </button>
           )}
 
           <button
             type="button"
-            title="Search conversation"
+            title="Terminal Options & Menu"
             className="wa-header-action-btn"
-            style={{ background: 'transparent', border: 'none', color: '#8696A0', cursor: 'pointer', padding: '4px' }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--wa-text-secondary)',
+              cursor: 'pointer',
+              padding: '6px',
+            }}
           >
-            <Search size={19} />
-          </button>
-
-          <button
-            type="button"
-            title="Menu options"
-            className="wa-header-action-btn"
-            style={{ background: 'transparent', border: 'none', color: '#8696A0', cursor: 'pointer', padding: '4px' }}
-          >
-            <MoreVertical size={19} />
+            <MoreVertical size={18} />
           </button>
         </div>
       </header>
 
-      {/* 2. Chat Conversation Canvas */}
+      {/* 2. Main Action Canvas (Split View Container) */}
       <div
-        className="wa-wallpaper-stream"
+        className={`wa-chat-workspace-layout ${effectiveReview ? 'wa-has-split-review' : ''}`}
         style={{
           flex: 1,
-          overflowY: 'auto',
-          padding: '16px 5%',
           display: 'flex',
+          position: 'relative',
+          overflow: 'hidden',
+          minHeight: 0,
+        }}
+      >
+        <div
+          className="wa-chat-stream-column"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            minWidth: 0,
+            position: 'relative',
+          }}
+        >
+          {/* Chat Conversation Canvas */}
+          <div
+            className="wa-wallpaper-stream"
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '16px 5%',
+              display: 'flex',
           flexDirection: 'column',
           gap: '6px',
         }}
@@ -553,7 +702,103 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
                       language={msg.metadata?.language}
                       code={msg.metadata?.codeSnippet || ''}
                       title={msg.metadata?.prTitle}
+                      onOpenReview={() =>
+                        handleTriggerReview({
+                          title: msg.metadata?.prTitle || msg.content || 'Code Snippet',
+                          codeSnippet: msg.metadata?.codeSnippet,
+                          language: msg.metadata?.language,
+                          repoName: chat.repoTag || chat.name,
+                        })
+                      }
                     />
+                  </div>
+                )}
+
+                {/* 4b. Interactive GitHub Pull Request Card */}
+                {msg.type === 'pr_card' && (
+                  <div
+                    className="wa-pr-bubble-card"
+                    style={{
+                      background: 'rgba(9, 13, 22, 0.95)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(0, 255, 204, 0.3)',
+                      padding: '10px 12px',
+                      margin: '4px 0 6px 0',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      minWidth: '240px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          color: 'var(--wa-accent-green)',
+                          fontWeight: 700,
+                          fontSize: '12px',
+                        }}
+                      >
+                        <GitPullRequest size={14} />
+                        <span>PR #{msg.metadata?.prNumber}</span>
+                      </span>
+
+                      <div style={{ display: 'flex', gap: '6px', fontSize: '11px', fontWeight: 700 }}>
+                        <span style={{ color: 'var(--wa-accent-green)' }}>+{msg.metadata?.prAdditions}</span>
+                        <span style={{ color: '#F85149' }}>-{msg.metadata?.prDeletions}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        color: 'var(--wa-text-primary)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        marginBottom: '10px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {msg.metadata?.prTitle || msg.content}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleTriggerReview({
+                          title: msg.metadata?.prTitle || msg.content,
+                          prNumber: msg.metadata?.prNumber,
+                          prBranch: msg.metadata?.prBranch,
+                          diffFiles: msg.metadata?.diffFiles,
+                          repoName: chat.repoTag || chat.name,
+                        })
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '7px 10px',
+                        background: 'rgba(0, 255, 204, 0.15)',
+                        border: '1px solid rgba(0, 255, 204, 0.4)',
+                        borderRadius: '6px',
+                        color: 'var(--wa-accent-green)',
+                        fontWeight: 700,
+                        fontSize: '11.5px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'background 0.15s ease',
+                      }}
+                    >
+                      <Columns size={13} />
+                      <span>Inspect Line-by-Line Diff &amp; Review</span>
+                    </button>
                   </div>
                 )}
 
@@ -949,6 +1194,153 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
           </>
         )}
       </footer>
+        </div>
+
+        {/* 5. Split-Screen Action Workspace Drawer (Desktop Side-by-Side & Mobile Draggable Split Sheet) */}
+        <CodeReviewDrawer
+          payload={effectiveReview}
+          isOpen={!!effectiveReview}
+          onClose={handleCloseReview}
+          onSendReviewComment={onSendReviewComment || ((note) => onSendMessage(note))}
+          isMobile={typeof window !== 'undefined' && window.innerWidth <= 900}
+        />
+      </div>
+
+      {/* 6. Repository Telemetry & Webhook Health Slide-Over Modal */}
+      {showRepoSheet && (
+        <div
+          className="wa-repo-sheet-backdrop"
+          onClick={() => setShowRepoSheet(false)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 120,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            animation: 'fadeIn 0.15s ease',
+          }}
+        >
+          <div
+            className="wa-repo-sheet-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              height: '100%',
+              background: 'var(--wa-bg-sidebar)',
+              borderLeft: '1px solid var(--wa-border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '16px',
+              overflowY: 'auto',
+              fontFamily: 'JetBrains Mono, monospace',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Terminal size={18} color="var(--wa-accent-green)" />
+                <span style={{ color: 'var(--wa-text-primary)', fontSize: '14px', fontWeight: 700 }}>
+                  Repo Telemetry
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRepoSheet(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--wa-text-secondary)', cursor: 'pointer', fontSize: '16px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Repo Card */}
+            <div
+              style={{
+                background: 'var(--wa-bg-deep)',
+                borderRadius: '8px',
+                border: '1px solid var(--wa-border-subtle)',
+                padding: '12px',
+                marginBottom: '14px',
+              }}
+            >
+              <div style={{ color: 'var(--wa-accent-green)', fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>
+                {chat.repoTag || chat.name}
+              </div>
+              <div style={{ color: 'var(--wa-text-secondary)', fontSize: '11px', marginBottom: '8px' }}>
+                Branch: <span style={{ color: 'var(--wa-ticks-blue)' }}>main (2843376)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--wa-accent-green)', fontSize: '11px' }}>
+                <CheckCircle2 size={13} />
+                <span>CI Build: SUCCESS (1.197s)</span>
+              </div>
+            </div>
+
+            {/* Connected Webhooks */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ color: 'var(--wa-text-secondary)', fontSize: '11px', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>
+                Active Webhook Logs
+              </div>
+              <div style={{ background: 'var(--wa-bg-deep)', borderRadius: '6px', padding: '8px 10px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--wa-text-primary)' }}>Vercel Deployments</span>
+                  <span style={{ color: 'var(--wa-accent-green)' }}>READY 2m ago</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--wa-text-primary)' }}>GitHub Actions (CI)</span>
+                  <span style={{ color: 'var(--wa-accent-green)' }}>18/18 PASS</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Collaborators */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ color: 'var(--wa-text-secondary)', fontSize: '11px', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>
+                Active Collaborators
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {[
+                  { name: 'Dev ACK (You)', role: 'Lead Architect', commits: 42 },
+                  { name: 'Linus Torvalds', role: 'Kernel Maintainer', commits: 128 },
+                  { name: 'Sarah Connor', role: 'DevOps / Sec', commits: 19 },
+                ].map((c, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--wa-bg-deep)', borderRadius: '6px', fontSize: '11.5px' }}>
+                    <span style={{ color: 'var(--wa-text-primary)' }}>{c.name}</span>
+                    <span style={{ color: 'var(--wa-text-secondary)', fontSize: '10.5px' }}>{c.commits} commits</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Git Clone Button */}
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText('git clone https://github.com/kingenious0/ProjectACK.git');
+                alert('Copied git clone URL to clipboard!');
+              }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: 'rgba(0, 255, 204, 0.15)',
+                border: '1px solid rgba(0, 255, 204, 0.4)',
+                borderRadius: '8px',
+                color: 'var(--wa-accent-green)',
+                fontWeight: 700,
+                fontSize: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              <ExternalLink size={14} />
+              <span>Copy Git Clone Command</span>
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
