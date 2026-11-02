@@ -33,6 +33,14 @@ export interface MessageMetadata {
   accentColor?: string; // Snapchat signature vertical line color
   audioDuration?: string;
   waveform?: number[];
+  audioUrl?: string;
+  imageUrl?: string;
+  imageCaption?: string;
+  docName?: string;
+  docSize?: string;
+  docType?: string;
+  docUrl?: string;
+  reactions?: Record<string, string[]>;
 }
 
 export interface Message {
@@ -42,7 +50,7 @@ export interface Message {
   senderName: string;
   senderAvatar: string;
   content: string;
-  type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system';
+  type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system' | 'image' | 'document';
   status: 'sent' | 'delivered' | 'read';
   timestamp: string;
   metadata?: MessageMetadata;
@@ -260,6 +268,43 @@ const INITIAL_MESSAGES: Record<string, Message[]> = {
         accentColor: '#00A884',
         audioDuration: '0:18',
         waveform: [25, 45, 70, 90, 60, 40, 85, 100, 75, 50, 65, 80, 45, 90, 70, 35, 55, 85, 95, 60, 40, 30],
+        reactions: { '👍': ['usr_me'] },
+      },
+    },
+    {
+      id: 'm_rob_4',
+      chatId: 'chat_robert_jonas',
+      senderId: 'usr_me',
+      senderName: 'ME',
+      senderAvatar: CURRENT_USER.avatar,
+      content: 'Here is the staging UI architecture diagram we discussed!',
+      type: 'image',
+      status: 'read',
+      timestamp: '9:45 AM',
+      metadata: {
+        accentColor: '#E91E63',
+        imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+        imageCaption: 'Staging UI cluster & websocket gateway architecture 🚀',
+        reactions: { '🔥': ['usr_robert'], '❤️': ['usr_me'] },
+      },
+    },
+    {
+      id: 'm_rob_5',
+      chatId: 'chat_robert_jonas',
+      senderId: 'usr_robert',
+      senderName: 'ROBERT JONAS',
+      senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      content: 'Architecture-Specification-v2.pdf',
+      type: 'document',
+      status: 'read',
+      timestamp: '9:46 AM',
+      metadata: {
+        accentColor: '#00A884',
+        docName: 'Architecture-Specification-v2.pdf',
+        docSize: '2.4 MB',
+        docType: 'PDF',
+        docUrl: '#',
+        reactions: { '👏': ['usr_me'] },
       },
     },
   ],
@@ -415,6 +460,11 @@ class WebStore {
       this.chats = savedChats ? JSON.parse(savedChats) : INITIAL_CHATS;
       this.messages = savedMessages ? JSON.parse(savedMessages) : INITIAL_MESSAGES;
       this.suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : INITIAL_SUGGESTIONS;
+
+      // Ensure rich media demonstration messages are populated
+      if (this.messages['chat_robert_jonas'] && !this.messages['chat_robert_jonas'].some((m: Message) => m.type === 'image')) {
+        this.messages['chat_robert_jonas'] = INITIAL_MESSAGES.chat_robert_jonas;
+      }
     } catch (e) {
       this.chats = INITIAL_CHATS;
       this.messages = INITIAL_MESSAGES;
@@ -549,6 +599,41 @@ class WebStore {
 
   public dismissSuggestion(devId: string) {
     this.suggestions = this.suggestions.filter((s) => s.id !== devId);
+    this.persist();
+  }
+
+  public addReaction(chatId: string, messageId: string, emoji: string) {
+    const list = this.messages[chatId];
+    if (!list) return;
+    const msg = list.find((m) => m.id === messageId);
+    if (!msg) return;
+
+    if (!msg.metadata) msg.metadata = {};
+    if (!msg.metadata.reactions) msg.metadata.reactions = {};
+
+    const users = msg.metadata.reactions[emoji] || [];
+    const userIndex = users.indexOf(CURRENT_USER.id);
+
+    if (userIndex > -1) {
+      // Toggle off if already reacted
+      users.splice(userIndex, 1);
+      if (users.length === 0) {
+        delete msg.metadata.reactions[emoji];
+      } else {
+        msg.metadata.reactions[emoji] = users;
+      }
+    } else {
+      // Add reaction
+      msg.metadata.reactions[emoji] = [...users, CURRENT_USER.id];
+    }
+
+    this.persist();
+  }
+
+  public deleteMessage(chatId: string, messageId: string) {
+    const list = this.messages[chatId];
+    if (!list) return;
+    this.messages[chatId] = list.filter((m) => m.id !== messageId);
     this.persist();
   }
 
