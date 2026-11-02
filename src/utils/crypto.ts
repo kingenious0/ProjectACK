@@ -26,7 +26,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as any,
       iterations: 100000,
       hash: 'SHA-256',
     },
@@ -69,7 +69,7 @@ export async function encryptEnvSecret(plainText: string, passphrase = 'ACK_DEFA
   const encrypted = await window.crypto.subtle.encrypt(
     {
       name: ENCRYPTION_ALGORITHM,
-      iv: iv,
+      iv: iv as any,
     },
     key,
     enc.encode(plainText)
@@ -95,10 +95,10 @@ export async function decryptEnvSecret(payload: EncryptedPayload, passphrase = '
   const decrypted = await window.crypto.subtle.decrypt(
     {
       name: ENCRYPTION_ALGORITHM,
-      iv: iv,
+      iv: iv as any,
     },
     key,
-    ciphertext
+    ciphertext as any
   );
 
   const dec = new TextDecoder();

@@ -25,7 +25,9 @@ export const App: React.FC = () => {
     const unsubscribe = webStore.subscribe(() => {
       setChats([...webStore.getChats()]);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;

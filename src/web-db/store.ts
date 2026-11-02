@@ -73,6 +73,16 @@ export interface SuggestedDev {
   isOnline: boolean;
 }
 
+export interface ShipLog {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  tags: string[];
+  author?: string;
+  authorAvatar?: string;
+}
+
 export const CURRENT_USER = {
   id: 'usr_me',
   name: 'Dev ACK (You)',
@@ -423,9 +433,11 @@ class WebStore {
     this.notify();
   }
 
-  public subscribe(listener: () => void) {
+  public subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   private notify() {
@@ -538,6 +550,10 @@ class WebStore {
   public dismissSuggestion(devId: string) {
     this.suggestions = this.suggestions.filter((s) => s.id !== devId);
     this.persist();
+  }
+
+  public addShipLog(_title: string, _desc: string, _tags: string[]) {
+    this.notify();
   }
 }
 

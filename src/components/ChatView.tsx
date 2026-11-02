@@ -172,7 +172,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="snap-convo-name">{chat.name}</span>
-                <ShieldCheck size={14} color="#00FF66" title="Verified E2EE Session" />
+                <span title="Verified E2EE Session" style={{ display: 'inline-flex' }}>
+                  <ShieldCheck size={14} color="#00FF66" />
+                </span>
               </div>
               <span style={{ fontSize: '11px', color: '#8B949E' }}>
                 {chat.isOnline ? 'Online • tap for room info' : 'Offline'}
