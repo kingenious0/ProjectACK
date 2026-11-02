@@ -1,194 +1,185 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="Project ACK Logo" width="520" style="border-radius: 12px; max-width: 100%;">
+  <img src="assets/logo.jpg" alt="WhatsDev Logo" width="540" style="border-radius: 14px; max-width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
 </p>
 
-# Project ACK (The Developer Messenger)
+# WhatsDev (Project ACK) 💬⚡
 
 <p align="center">
-  <strong style="font-size: 1.25rem;">The High-Velocity, Zero-Friction Developer Messenger</strong><br>
-  Built for Software Engineers, Indie Hackers, CS Students, and Distributed Tech Teams.
-</p>
-
-<p align="center">
-  <a href="https://github.com/kingenious0/ProjectACK/stargazers"><img src="https://img.shields.io/github/stars/kingenious0/ProjectACK?style=for-the-badge&color=00FF66&logo=github&label=Stars" alt="GitHub Stars"></a>
-  <a href="https://github.com/kingenious0/ProjectACK/network/members"><img src="https://img.shields.io/github/forks/kingenious0/ProjectACK?style=for-the-badge&color=FFB800&logo=github&label=Forks" alt="GitHub Forks"></a>
-  <img src="https://img.shields.io/badge/Theme-Obsidian_%26_Cyber--Emerald-00FF66?style=for-the-badge&logo=visual-studio-code&logoColor=black" alt="Obsidian & Cyber-Emerald">
-  <img src="https://img.shields.io/badge/Local_DB-op--sqlite_C%2B%2B-131B22?style=for-the-badge&logo=sqlite&logoColor=00FF66" alt="op-sqlite">
-  <img src="https://img.shields.io/badge/Runtime-React_Native_Bare_CLI-0B0F12?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
-  <a href="https://paystack.shop/pay/project-ack"><img src="https://img.shields.io/badge/Sponsor_ACK-Paystack-00C3F7?style=for-the-badge&logo=paystack&logoColor=white" alt="Sponsor Project ACK via Paystack"></a>
+  <strong style="font-size: 1.25rem;">WhatsApp Web & Mobile Reimagined for Software Engineers, Indie Hackers, and Tech Teams.</strong><br>
+  Instant Code Reviews, Burn-After-Reading .env Vaults, Live Voice Notes, Real Media Pickers, and End-to-End Encryption.
 </p>
 
 <p align="center">
-  <a href="https://github.com/topics/developer-tools"><img src="https://img.shields.io/badge/topic-developer--tools-131B22?style=flat-square&logo=github&logoColor=00FF66" alt="developer-tools"></a>
-  <a href="https://github.com/topics/react-native"><img src="https://img.shields.io/badge/topic-react--native-131B22?style=flat-square&logo=react&logoColor=61DAFB" alt="react-native"></a>
-  <a href="https://github.com/topics/sqlite"><img src="https://img.shields.io/badge/topic-op--sqlite-131B22?style=flat-square&logo=sqlite&logoColor=00FF66" alt="op-sqlite"></a>
-  <a href="https://github.com/topics/zero-trust"><img src="https://img.shields.io/badge/topic-zero--trust-131B22?style=flat-square&logo=shield&logoColor=FFB800" alt="zero-trust"></a>
-  <a href="https://github.com/topics/indiehackers"><img src="https://img.shields.io/badge/topic-indiehackers-131B22?style=flat-square&logo=producthunt&logoColor=FFB800" alt="indiehackers"></a>
-  <a href="https://github.com/topics/supabase"><img src="https://img.shields.io/badge/topic-supabase-131B22?style=flat-square&logo=supabase&logoColor=3ECF8E" alt="supabase"></a>
+  <a href="https://github.com/kingenious0/ProjectACK/stargazers"><img src="https://img.shields.io/github/stars/kingenious0/ProjectACK?style=for-the-badge&color=00A884&logo=github&label=Stars" alt="GitHub Stars"></a>
+  <a href="https://github.com/kingenious0/ProjectACK/network/members"><img src="https://img.shields.io/github/forks/kingenious0/ProjectACK?style=for-the-badge&color=53BDEB&logo=github&label=Forks" alt="GitHub Forks"></a>
+  <img src="https://img.shields.io/badge/Theme-WhatsApp_Dark_v2-111B21?style=for-the-badge&logo=whatsapp&logoColor=00A884" alt="WhatsApp Dark v2">
+  <img src="https://img.shields.io/badge/Vite-8.x_React_19-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8 React 19">
+  <img src="https://img.shields.io/badge/Security-AES--GCM_WebCrypto-00A884?style=for-the-badge&logo=shield&logoColor=white" alt="AES-GCM WebCrypto">
+  <a href="https://paystack.shop/pay/project-ack"><img src="https://img.shields.io/badge/Sponsor-Paystack-00C3F7?style=for-the-badge&logo=paystack&logoColor=white" alt="Sponsor Project ACK via Paystack"></a>
 </p>
 
-> 🌟 **Trending on GitHub:** If you like what we're building with **Project ACK**, drop a ⭐ **Star** on this repository! It fuels open-source development and pushes ACK into GitHub Trending lists worldwide.
+<p align="center">
+  <a href="https://github.com/topics/developer-tools"><img src="https://img.shields.io/badge/topic-developer--tools-111B21?style=flat-square&logo=github&logoColor=00A884" alt="developer-tools"></a>
+  <a href="https://github.com/topics/whatsapp-clone"><img src="https://img.shields.io/badge/topic-whatsapp--clone-111B21?style=flat-square&logo=whatsapp&logoColor=25D366" alt="whatsapp-clone"></a>
+  <a href="https://github.com/topics/react"><img src="https://img.shields.io/badge/topic-react-111B21?style=flat-square&logo=react&logoColor=61DAFB" alt="react"></a>
+  <a href="https://github.com/topics/typescript"><img src="https://img.shields.io/badge/topic-typescript-111B21?style=flat-square&logo=typescript&logoColor=3178C6" alt="typescript"></a>
+  <a href="https://github.com/topics/zero-trust"><img src="https://img.shields.io/badge/topic-zero--trust-111B21?style=flat-square&logo=securityscorecard&logoColor=FFB800" alt="zero-trust"></a>
+  <a href="https://github.com/topics/indiehackers"><img src="https://img.shields.io/badge/topic-indiehackers-111B21?style=flat-square&logo=producthunt&logoColor=FFB800" alt="indiehackers"></a>
+</p>
+
+> 🌟 **Support Open Source:** If you find **WhatsDev** useful or love the developer-first WhatsApp aesthetic, please drop a ⭐ **Star** on this repository!
 
 ---
 
-## ⚡ Key Highlights & Superpowers
+## ⚡ Superpowers & Key Features
 
-### 1. Code Sharing & Line-by-Line Review
-- Dark-mode syntax block with line numbers.
-- Auto-collapses blocks exceeding 15 lines with interactive toggle.
-- **Tappable Line Numbers:** Tap any line number to open an inline review thread quoting that exact line.
+### 1. 🖼️ Real Image Picker, Previews & Fullscreen Lightbox
+- **Device Image Picker:** Send photos directly using real device file pickers.
+- **WhatsApp Photo Review Screen:** Preview selected photos before sending with an *"Add a caption..."* composer, emoji picker, and green send button.
+- **WhatsApp Photo Bubble:** Tailored message bubbles with timestamps and read receipts.
+- **Fullscreen Lightbox Viewer:** Click any photo to view in high-resolution with zoom-in/out and download actions.
 
-### 2. Burn-After-Reading .env Vault
-- Send sensitive environment variables, connection strings, and tokens securely.
-- **Client-Side AES-GCM Encryption.**
-- **Instant Burn:** Recipient tapping **"Copy All"** automatically masks the text with asterisks and triggers an immediate purge from local and cloud relays.
-- Configurable countdown self-destruct timers (30s, 60s, 5m, 10m).
+### 2. 📄 Universal Document & File Sharing
+- **Real File Picker:** Attach any `.pdf`, `.zip`, `.tar.gz`, `.docx`, `.ts`, `.py`, `.json`, or `.csv` document.
+- **WhatsApp Document Bubble:** Extension badges (Red for PDF, Orange for Archives, Green for Sheets, Purple for Code), file size display, and one-click download.
 
-### 3. Repo-Linked Team Chat
-- Link chat rooms and channels directly to GitHub repositories (`org/repo`).
-- Auto-generates webhook listeners (`POST /api/hook/:chatId`).
-- Interactive GitHub PR cards with direct action triggers (`[View PR]`, `[Trigger Rebuild]`).
+### 3. 🎙️ Live Voice Notes & Waveform Audio Bubble
+- **WhatsApp Live Recording Bar:** Tap the microphone icon to activate live recording mode with a pulsing red recording dot, second-by-second timer (`0:01`, `0:02`...), animated frequency waveform, red trash cancel icon (`🗑️`), and send button.
+- **Browser MediaRecorder with Fallback:** Uses `navigator.mediaDevices.getUserMedia` for voice recording, with an automatic synthetic fallback for testing environments.
+- **Interactive Audio Waveform Bubble:** WhatsApp-styled audio player with play/pause toggle, audio progress scrubber, and double ticks.
 
-### 4. Zero-Lag `op-sqlite` Synchronous Engine
-- Synchronous C++ SQLite bindings via `@op-engineering/op-sqlite`.
-- Handles 100,000+ cached messages with 60fps scrolling and zero frame drops on mobile.
+### 4. 😀 WhatsApp Categorized Emoji Drawer
+- **Instant Access:** Smiley icon in the composer opens a WhatsApp-style emoji drawer.
+- **Dev-Centric Categories:**
+  - 😀 **Smileys & People**
+  - 💻 **Dev & Tech Icons** (`💻`, `🚀`, `⚡`, `🐛`, `🔒`, `📦`, `🐙`, `🛠️`, `☕`, `🤖`)
+  - 👍 **Gestures & Hands**
+  - ❤️ **Reactions & Symbols**
+- **Search Bar:** Real-time filter inside the drawer with direct cursor insertion.
 
-### 5. Ephemeral Real-Time Relay
-- Ephemeral WebSocket transport pipeline where cloud stores discard payloads as soon as the recipient device ACKs receipt.
-- **Optimistic State Machine:** Instant display with pending clock (`⏱`) &rarr; single check (`✓`) &rarr; double gray ticks (`✓✓`) &rarr; Cyber-Emerald read ticks (`✓✓`).
+### 5. 🛡️ Zero-Trust Burn-After-Reading .env Vault
+- **Client-Side AES-GCM WebCrypto Encryption:** Secrets and API keys are encrypted in-memory and in transit.
+- **Countdown Self-Destruct:** Configurable auto-destruct timers (30s, 60s, 5m, 10m).
+- **Instant Burn:** Recipient clicking **"Copy & Burn"** masks the secret and triggers a permanent purge from local storage.
+
+### 6. 💻 Developer Code Snippets & Pull Request Cards
+- **Syntax Highlighting:** Formatted syntax blocks with language tags (`rust`, `typescript`, `python`, `go`, etc.).
+- **Line Numbers & Review Quoting:** Quote specific lines in replies directly from the message.
+- **GitHub PR Cards:** Real-time pull request cards with branch names, additions (`+84`), deletions (`-12`), and diff files.
+
+### 7. 👍 Message Reactions & Context Menu
+- **Quick Reaction Bar:** Double-tap or tap a message to open quick reactions (`👍`, `❤️`, `😂`, `😮`, `😢`, `🔥`) and message deletion.
+- **Reactions Pill:** WhatsApp-style reaction counters badge dynamically underneath the message bubble.
+
+### 8. 📱 90% Mobile Viewport First-Class UX
+- Built primarily for mobile web and PWA usage (90% mobile / 10% desktop).
+- Single-pane slide navigation between chats and conversation.
+- WhatsApp mobile top header with back arrow, call buttons, and contact status.
+- Bottom navigation tabs on mobile: **Chats**, **Status** (24h Ship Logs), and **Calls**.
+- Safe-area inset support for modern notch and dynamic island displays.
 
 ---
 
-## 🎨 Design System: Obsidian & Cyber-Emerald
+## 🎨 WhatsApp Dark Mode Design System
 
-To ensure complete uniqueness and avoid Play Store trademark concerns with generic messenger colors, ACK uses an ultra-sleek, developer-first theme:
+WhatsDev implements a 1:1 WhatsApp Web & Mobile dark theme:
 
-- **Background (Canvas):** `#0B0F12` (Deep Obsidian / Void Black)
-- **Surface / Cards / Input Bars:** `#131B22` (Dark Slate Gray)
-- **Primary Accent:** `#00FF66` (Cyber Emerald / Terminal Green)
-- **Secondary Accent:** `#FFB800` (Dev Gold / Amber for `.env` vaults & warnings)
-- **Bubble Sent:** `#003B1F` with `#00FF66` border stroke
-- **Bubble Received:** `#161B22` (Dark Slate)
-- **Text Primary:** `#F0F6FC`
-- **Text Muted / Timestamps:** `#8B949E`
+| Element | Color Hex | WhatsApp Token |
+| :--- | :--- | :--- |
+| **Sidebar & Drawer Background** | `#111B21` | `--wa-bg-sidebar` |
+| **Chat Canvas** | `#0B141A` | `--wa-bg-chat` |
+| **Top Headers & Incoming Bubble** | `#202C33` | `--wa-bg-header` / `--wa-bg-incoming` |
+| **Outgoing Bubble (Sent)** | `#005C4B` | `--wa-bg-outgoing` |
+| **Input Bar & Modals** | `#2A3942` | `--wa-bg-input` |
+| **WhatsApp Brand Green** | `#00A884` | `--wa-accent-green` |
+| **Active Floating Action Green** | `#25D366` | `--wa-accent-lightgreen` |
+| **Read Receipt Ticks** | `#53BDEB` | `--wa-ticks-blue` |
+| **Primary Text** | `#E9EDEF` | `--wa-text-primary` |
+| **Secondary Text & Icons** | `#8696A0` | `--wa-text-secondary` |
 
 ---
 
-## 🗄️ Local Database Schema
+## 🏗️ Project Architecture
 
-```sql
--- Users Table
-CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    github_username TEXT UNIQUE NOT NULL,
-    phone_number TEXT UNIQUE,
-    display_name TEXT NOT NULL,
-    avatar_url TEXT,
-    status_message TEXT,
-    last_seen TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Chats Table
-CREATE TABLE IF NOT EXISTS chats (
-    id TEXT PRIMARY KEY,
-    type TEXT CHECK(type IN ('dm', 'group', 'channel', 'webhook')) NOT NULL,
-    title TEXT,
-    avatar_url TEXT,
-    repo_webhook_secret TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Chat Participants Junction Table
-CREATE TABLE IF NOT EXISTS chat_members (
-    chat_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    role TEXT CHECK(role IN ('admin', 'member')) DEFAULT 'member',
-    PRIMARY KEY (chat_id, user_id),
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Messages Table
-CREATE TABLE IF NOT EXISTS messages (
-    id TEXT PRIMARY KEY,
-    chat_id TEXT NOT NULL,
-    sender_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    message_type TEXT CHECK(message_type IN ('text', 'code', 'env_secret', 'system', 'media')) DEFAULT 'text',
-    status TEXT CHECK(status IN ('pending', 'sent', 'delivered', 'read')) DEFAULT 'pending',
-    quoted_message_id TEXT,
-    metadata TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id),
-    FOREIGN KEY (quoted_message_id) REFERENCES messages(id) ON DELETE SET NULL
-);
-
--- Dev Status Table (24h Ship Logs)
-CREATE TABLE IF NOT EXISTS status_posts (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    media_url TEXT,
-    caption TEXT,
-    preview_url TEXT,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+```
+WhatsDev/
+├── src/
+│   ├── components/
+│   │   ├── whatsapp/
+│   │   │   ├── WhatsAppSidebar.tsx         # Chat list, status indicator, search & tabs
+│   │   │   ├── WhatsAppChatArea.tsx        # Message stream, composer, voice recorder, picker
+│   │   │   ├── WhatsAppImageBubble.tsx     # Image message & fullscreen lightbox viewer
+│   │   │   ├── WhatsAppImagePreviewModal.tsx# Photo preview modal with caption input
+│   │   │   ├── WhatsAppDocumentBubble.tsx  # Document card with file badge & download
+│   │   │   ├── WhatsAppEmojiPicker.tsx     # Categorized emoji drawer with search
+│   │   │   ├── WhatsAppReactions.tsx       # Message reaction pill & floating picker
+│   │   │   ├── WhatsAppCodeBubble.tsx      # Syntax-highlighted code block
+│   │   │   └── WhatsAppVaultBubble.tsx     # Burn-After-Reading .env secret card
+│   │   ├── AudioWaveBubble.tsx             # Interactive voice note player
+│   │   ├── AddFriendsModal.tsx             # WhatsApp "New Chat" contacts selector
+│   │   ├── CreateVaultModal.tsx            # Burn-After-Reading creation modal
+│   │   ├── CreateCodeModal.tsx             # Code snippet sharing modal
+│   │   └── VideoCallOverlay.tsx            # WhatsApp 1:1 audio & video call stage
+│   ├── web-db/
+│   │   └── store.ts                        # Reactive store with localStorage persistence
+│   ├── utils/
+│   │   └── crypto.ts                       # WebCrypto AES-GCM client encryption
+│   ├── theme/
+│   │   └── whatsapp.css                    # WhatsApp 1:1 dark tokens & animations
+│   ├── App.tsx                             # Root layout & responsive single-pane router
+│   └── main.tsx                            # Vite entrypoint
+├── index.html                              # Web & PWA viewport container
+├── package.json                            # Scripts, dependencies & Node engine
+├── tsconfig.json                           # TypeScript compiler configuration
+└── vite.config.ts                          # Vite 8 dev server & build settings
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-### 1. Install Dependencies
+### Prerequisites
+- Node.js `>= 20.0.0`
+- npm or pnpm
+
+### 1. Clone & Install
 ```bash
+git clone https://github.com/kingenious0/ProjectACK.git
+cd ProjectACK
 npm install
 ```
 
-### 2. Run Typechecks & Tests
+### 2. Run Locally in Dev Mode
 ```bash
-npx tsc --noEmit
-npm test
+npm run dev
 ```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser or mobile emulator.
 
-### 3. Run Android Build
+### 3. Build for Production (Vercel / Cloudflare / Netlify)
 ```bash
-npx react-native run-android
+npm run build
 ```
+Generates an optimized bundle in `dist/` verified with zero TypeScript errors.
 
 ---
 
-## 💖 Support & Sponsorship
+## 🛡️ Security & Privacy
 
-Project ACK is an open-source, developer-first communication tool. If you'd like to support active development, infrastructure, and Play Store releases:
-
-👉 **[Sponsor Project ACK via Paystack (https://paystack.shop/pay/project-ack)](https://paystack.shop/pay/project-ack)**
-
----
-
-## 🗺️ Roadmap & Phases
-
-- [x] **Phase 1: Core Foundation & op-sqlite DDL**
-  - Bare React Native CLI setup with Android Gradle structure
-  - Synchronous C++ `op-sqlite` engine and DDL schema execution
-  - Obsidian (`#0B0F12`) & Cyber-Emerald (`#00FF66`) 4-tab bottom navigation
-  - Code block reviewer with line-by-line thread quoting
-  - Burn-After-Reading `.env` vault with instant masking on copy
-  - Interactive GitHub repo card with CI/CD rebuild action
-- [ ] **Phase 2: Authentication & Contact Discovery**
-  - Supabase Auth integration with GitHub OAuth
-  - Phone number hashing and local contact synchronization
-- [ ] **Phase 3: Supabase Realtime Ephemeral Relay**
-  - WebSocket broadcast with immediate zero-retention ACK receipt purge
-- [ ] **Phase 4: Play Store Production APK**
-  - Release keystore signing, Gradle production bundle, and Play Store publishing
+1. **Zero-Trust Encryption:** Sensitive payloads (passwords, tokens, database credentials) are encrypted client-side using `AES-GCM-256`.
+2. **Ephemeral Purge:** Once a Burn-After-Reading secret is copied or expires, it is permanently wiped from memory and local storage.
+3. **No Unencrypted Relay Logs:** No sensitive environment strings are stored in plaintext on any external server.
 
 ---
 
-## 🏷️ Trending Topics & Discovery Tags
+## 💖 Sponsorship & Community
 
-`#developer-tools` `#react-native` `#op-sqlite` `#zero-trust` `#encryption` `#cybersecurity` `#indiehackers` `#supabase` `#code-review` `#devtools` `#privacy` `#realtime` `#typescript` `#open-source` `#mobile-app` `#chat` `#messenger` `#android` `#github-actions` `#sqlite`
+WhatsDev is an open-source tool built with love for developers worldwide. If you'd like to support continued development, hosting, and features:
 
+👉 **[Sponsor WhatsDev via Paystack](https://paystack.shop/pay/project-ack)**
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+Feel free to use, modify, and build upon WhatsDev for your team and personal projects.
