@@ -1060,7 +1060,7 @@ class WebStore {
           senderId: dev.id,
           senderName: dev.name.toUpperCase(),
           senderAvatar: dev.avatar,
-          content: `Hey @${CURRENT_USER.username}! Connected on ACK. (CHAT4DEVS). Ready to hack on ${dev.tag}?`,
+          content: `Hey @${CURRENT_USER.username}! Connected on Ack. Ready to collaborate on ${dev.tag}?`,
           type: 'text',
           status: 'read',
           timestamp: 'Just now',

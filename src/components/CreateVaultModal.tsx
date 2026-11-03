@@ -286,7 +286,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
                 color: 'var(--ack-muted, #9A9AA3)',
               }}
             >
-              Encrypted in your browser with AES-GCM before sending. Deleted after it is revealed.
+              End-to-end encrypted before sending. Permanently deleted after it is revealed.
             </span>
           </div>
 
@@ -312,7 +312,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
               transition: 'transform 80ms ease, opacity 150ms ease',
             }}
           >
-            {isEncrypting ? 'Encrypting with AES-GCM...' : 'Encrypt and send'}
+            {isEncrypting ? 'Encrypting secret...' : 'Encrypt and send'}
           </button>
 
           <button

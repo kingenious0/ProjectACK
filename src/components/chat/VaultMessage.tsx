@@ -123,7 +123,7 @@ export const VaultMessage: React.FC<VaultMessageProps> = ({
             lineHeight: 1.4,
           }}
         >
-          Burns after reading · Encrypted in browser
+          Burns after reading · End-to-end encrypted
         </div>
 
         {/* Action Button */}

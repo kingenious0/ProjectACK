@@ -136,7 +136,8 @@ export const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               gap: '6px',
               fontSize: '13px',
               color: 'var(--ack-success, #4ADE80)',
-              fontFamily: 'JetBrains Mono, monospace',
+              fontFamily: 'Inter, sans-serif',
+              fontWeight: 500,
               marginTop: '4px',
             }}
           >
@@ -148,7 +149,7 @@ export const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 background: 'var(--ack-success, #4ADE80)',
               }}
             />
-            <span>Connected • 1080p WebRTC</span>
+            <span>Connected</span>
           </div>
         </div>
 
@@ -275,7 +276,7 @@ export const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             }}
           >
             <ShieldCheck size={12} color="var(--ack-accent, #8B7CFF)" />
-            <span>Encrypted in browser</span>
+            <span>End-to-end encrypted</span>
           </div>
         </div>
 

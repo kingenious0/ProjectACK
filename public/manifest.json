@@ -1,7 +1,7 @@
 {
   "name": "Ack — Got it.",
   "short_name": "Ack",
-  "description": "Ack: Chat for people who ship. Vault secrets are encrypted in your browser.",
+  "description": "Ack: Chat for people who ship. Vault secrets are end-to-end encrypted.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

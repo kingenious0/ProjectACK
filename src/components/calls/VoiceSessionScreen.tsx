@@ -140,7 +140,7 @@ export const VoiceSessionScreen: React.FC<VoiceSessionScreenProps> = ({
             }}
           >
             <ShieldCheck size={12} color="var(--ack-accent, #8B7CFF)" />
-            <span>Encrypted in browser</span>
+            <span>End-to-end encrypted</span>
           </div>
         </div>
 

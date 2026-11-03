@@ -415,7 +415,7 @@ export const DesktopPairScreen: React.FC<DesktopPairScreenProps> = ({
                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#ECECEF' }}>
                   {chat.name}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--ack-muted, #9A9AA3)' }}>1080p</span>
+                <span style={{ fontSize: '11px', color: 'var(--ack-success, #30D158)', fontWeight: 500 }}>Connected</span>
               </div>
             </div>
 

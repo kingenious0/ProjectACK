@@ -392,7 +392,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             fontFamily: 'Inter, sans-serif',
           }}
         >
-          Vault secrets are encrypted in your browser.
+          Vault secrets are end-to-end encrypted.
         </div>
       </main>
     );
