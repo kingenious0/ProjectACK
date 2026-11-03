@@ -1,12 +1,12 @@
 {
-  "name": "ACK. — CHAT4DEVS",
-  "short_name": "ACK.",
-  "description": "ACK. — CHAT4DEVS: Developer Messenger with Burn-After-Reading .env Vaults, Line-by-Line PR Reviews, and Real-Time Sync",
+  "name": "Ack — Got it.",
+  "short_name": "Ack",
+  "description": "Ack: Chat for people who ship. Vault secrets are encrypted in your browser.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0B141A",
-  "theme_color": "#0B141A",
+  "background_color": "#0B0B0D",
+  "theme_color": "#0B0B0D",
   "categories": ["developer", "productivity", "communication"],
   "icons": [
     {

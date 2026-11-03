@@ -1,4 +1,4 @@
-// ACK. — CHAT4DEVS Service Worker
+// Ack Service Worker
 const CACHE_NAME = 'ack-v1';
 const ASSETS_TO_CACHE = [
   '/',

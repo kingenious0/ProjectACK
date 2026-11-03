@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, X, Lock, Flame } from 'lucide-react';
+import { X, Lock } from 'lucide-react';
 import { encryptEnvSecret } from '../utils/crypto';
 
 interface CreateVaultModalProps {
@@ -8,15 +8,24 @@ interface CreateVaultModalProps {
   onSendVault: (title: string, rawSecret: string, ttlSeconds: number) => void;
 }
 
+const TTL_OPTIONS = [
+  { label: '30s', value: 30 },
+  { label: '1m', value: 60 },
+  { label: '5m', value: 300 },
+  { label: '10m', value: 600 },
+];
+
+const DEFAULT_SECRET = `DATABASE_URL="postgres://user:••••@host:5432/db"
+STRIPE_SECRET_KEY="sk_live_••••"
+JWT_SECRET="••••"`;
+
 export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
   isOpen,
   onClose,
   onSendVault,
 }) => {
-  const [vaultTitle, setVaultTitle] = useState('Production API & Database Keys');
-  const [rawSecret, setRawSecret] = useState(
-    `DATABASE_URL="postgres://postgres:k9#Xm$88Pz@db.ack.supabase.co:5432/postgres"\nSTRIPE_SECRET_KEY="sk_live_51MXXXXXXXXX"\nJWT_SECRET_KEY="0x4b7f92a1e0c4"`
-  );
+  const [vaultTitle, setVaultTitle] = useState('Production keys');
+  const [rawSecret, setRawSecret] = useState(DEFAULT_SECRET);
   const [ttl, setTtl] = useState(60);
   const [isEncrypting, setIsEncrypting] = useState(false);
 
@@ -29,7 +38,7 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
     setIsEncrypting(true);
     try {
       await encryptEnvSecret(rawSecret);
-      onSendVault(vaultTitle, rawSecret, ttl);
+      onSendVault(vaultTitle || 'Secret keys', rawSecret, ttl);
       onClose();
     } catch (err) {
       console.error('Encryption failed', err);
@@ -39,97 +48,295 @@ export const CreateVaultModal: React.FC<CreateVaultModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} id="create-vault-backdrop">
-      <div className="modal-window" onClick={(e) => e.stopPropagation()} id="create-vault-modal">
-        <div className="modal-header">
-          <div className="modal-title">
-            <Shield size={18} color="#FFB800" />
-            <span>New Burn-After-Reading .env Vault</span>
-          </div>
-          <button className="icon-btn" onClick={onClose} id="btn-close-vault-modal">
-            <X size={18} />
+    <div
+      className="ack-modal-backdrop"
+      onClick={onClose}
+      id="create-vault-backdrop"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.72)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        padding: 0,
+      }}
+    >
+      <div
+        className="ack-vault-sheet"
+        onClick={(e) => e.stopPropagation()}
+        id="create-vault-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-secret-title"
+        style={{
+          width: '100%',
+          maxWidth: '480px',
+          background: 'var(--ack-surface, #131316)',
+          borderTopLeftRadius: '24px',
+          borderTopRightRadius: '24px',
+          borderTop: '1px solid var(--ack-border, #26262B)',
+          borderLeft: '1px solid var(--ack-border, #26262B)',
+          borderRight: '1px solid var(--ack-border, #26262B)',
+          padding: '12px 20px 24px 20px',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 16px)',
+          boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.6)',
+          animation: 'ackSlideUp 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {/* Mobile Drag Indicator */}
+        <div
+          style={{
+            width: '36px',
+            height: '4px',
+            borderRadius: '2px',
+            background: '#3A3A42',
+            margin: '0 auto 16px auto',
+          }}
+        />
+
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+          }}
+        >
+          <h2
+            id="new-secret-title"
+            style={{
+              fontSize: '20px',
+              fontWeight: 700,
+              color: 'var(--ack-text, #ECECEF)',
+              margin: 0,
+            }}
+          >
+            New secret
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            id="btn-close-vault-modal"
+            aria-label="Close"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--ack-muted, #9A9AA3)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '44px',
+              height: '44px',
+              margin: '-8px -10px -8px 0',
+              borderRadius: '50%',
+            }}
+          >
+            <X size={20} strokeWidth={1.75} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-field">
-              <label className="form-label">Vault Label / Description</label>
-              <input
-                type="text"
-                className="form-input"
-                value={vaultTitle}
-                onChange={(e) => setVaultTitle(e.target.value)}
-                placeholder="e.g. Staging AWS Keys, Production .env"
-                id="input-vault-label"
-              />
-            </div>
-
-            <div className="form-field">
-              <label className="form-label">Secret Payload (Encrypted with WebCrypto AES-256-GCM)</label>
-              <textarea
-                className="form-textarea"
-                rows={6}
-                value={rawSecret}
-                onChange={(e) => setRawSecret(e.target.value)}
-                placeholder="PASTE YOUR SECRETS OR .ENV FILE HERE..."
-                id="input-vault-payload"
-                style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '13px' }}
-              />
-            </div>
-
-            <div className="form-field">
-              <label className="form-label">Self-Destruct Timer (After Recipient Reveals)</label>
-              <select
-                className="form-select"
-                value={ttl}
-                onChange={(e) => setTtl(Number(e.target.value))}
-                id="select-vault-ttl"
-              >
-                <option value={15}>🔥 15 Seconds (Aggressive Burn)</option>
-                <option value={30}>🔥 30 Seconds</option>
-                <option value={60}>🔥 60 Seconds (Standard Safe Burn)</option>
-                <option value={120}>🔥 2 Minutes</option>
-              </select>
-            </div>
-
-            <div
+          {/* Label Field */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="input-vault-label"
               style={{
-                fontSize: '11.5px',
-                color: '#8696A0',
-                background: '#161F26',
-                padding: '10px 14px',
-                borderRadius: '6px',
-                border: '1px solid #2A3942',
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'var(--ack-muted, #9A9AA3)',
+                marginBottom: '6px',
               }}
             >
-              <Lock size={15} color="#FFB800" />
-              <span>
-                Zero-Knowledge Guarantee: Encrypted locally in memory with AES-256-GCM before transport. Payload is permanently burned once copied.
-              </span>
+              Label
+            </label>
+            <input
+              type="text"
+              id="input-vault-label"
+              value={vaultTitle}
+              onChange={(e) => setVaultTitle(e.target.value)}
+              placeholder="Production keys"
+              style={{
+                width: '100%',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--ack-text, #ECECEF)',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Secret Textarea */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="input-vault-payload"
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'var(--ack-muted, #9A9AA3)',
+                marginBottom: '6px',
+              }}
+            >
+              Secret
+            </label>
+            <textarea
+              id="input-vault-payload"
+              rows={4}
+              value={rawSecret}
+              onChange={(e) => setRawSecret(e.target.value)}
+              placeholder="PASTE SECRET PAYLOAD..."
+              style={{
+                width: '100%',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                fontSize: '13px',
+                lineHeight: 1.5,
+                fontFamily: 'var(--font-mono, JetBrains Mono, monospace)',
+                color: 'var(--ack-text, #ECECEF)',
+                outline: 'none',
+                resize: 'none',
+                minHeight: '110px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Burns after reading */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'var(--ack-muted, #9A9AA3)',
+                marginBottom: '6px',
+              }}
+            >
+              Burns after reading
+            </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: '12px',
+                padding: '4px',
+                gap: '4px',
+              }}
+            >
+              {TTL_OPTIONS.map((opt) => {
+                const isActive = ttl === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTtl(opt.value)}
+                    style={{
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: isActive ? 'var(--ack-accent-tint, #272250)' : 'transparent',
+                      border: isActive ? '1px solid var(--ack-accent, #8B7CFF)' : '1px solid transparent',
+                      color: isActive ? '#FFFFFF' : 'var(--ack-muted, #9A9AA3)',
+                      fontSize: '14px',
+                      fontWeight: isActive ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 120ms ease',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="cancel-btn" onClick={onClose} id="btn-cancel-vault">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="primary-btn"
-              style={{ background: '#FFB800', color: '#000', display: 'flex', alignItems: 'center', gap: '6px' }}
-              disabled={isEncrypting}
-              id="btn-encrypt-send-vault"
+          {/* Encryption Note */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'flex-start',
+              margin: '16px 0 24px 0',
+            }}
+          >
+            <Lock
+              size={15}
+              strokeWidth={1.75}
+              style={{ color: 'var(--ack-warning, #F5B544)', marginTop: '2px', flexShrink: 0 }}
+            />
+            <span
+              style={{
+                fontSize: '12.5px',
+                lineHeight: 1.4,
+                color: 'var(--ack-muted, #9A9AA3)',
+              }}
             >
-              <Flame size={14} />
-              {isEncrypting ? 'Encrypting with WebCrypto...' : 'Encrypt & Send Vault'}
-            </button>
+              Encrypted in your browser with AES-GCM before sending. Deleted after it is revealed.
+            </span>
           </div>
+
+          {/* Action Buttons */}
+          <button
+            type="submit"
+            disabled={isEncrypting}
+            id="btn-encrypt-send-vault"
+            style={{
+              width: '100%',
+              height: '48px',
+              borderRadius: '14px',
+              background: 'var(--ack-accent, #8B7CFF)',
+              color: '#0B0B0D',
+              border: 'none',
+              fontSize: '15px',
+              fontWeight: 700,
+              cursor: isEncrypting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 12px rgba(139, 124, 255, 0.25)',
+              transition: 'transform 80ms ease, opacity 150ms ease',
+            }}
+          >
+            {isEncrypting ? 'Encrypting with AES-GCM...' : 'Encrypt and send'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            id="btn-cancel-vault"
+            style={{
+              width: '100%',
+              height: '44px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--ack-muted, #9A9AA3)',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              marginTop: '6px',
+            }}
+          >
+            Cancel
+          </button>
         </form>
       </div>
     </div>
   );
 };
+
+export default CreateVaultModal;

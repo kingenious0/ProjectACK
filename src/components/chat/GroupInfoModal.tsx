@@ -1,0 +1,406 @@
+import React, { useState } from 'react';
+import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check } from 'lucide-react';
+import { Chat, GroupMember } from '../../web-db/store';
+
+interface GroupInfoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  chat: Chat;
+  onLeaveGroup: (chatId: string) => void;
+  onOpenSearch?: () => void;
+  onAddMember?: () => void;
+}
+
+export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
+  isOpen,
+  onClose,
+  chat,
+  onLeaveGroup,
+  onOpenSearch,
+  onAddMember,
+}) => {
+  const [isMuted, setIsMuted] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+
+  if (!isOpen) return null;
+
+  const members: GroupMember[] = chat.members || [
+    {
+      id: 'usr_sarah',
+      name: 'Sarah Connor',
+      username: 'sarah_infra',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      role: 'admin',
+      isOnline: true,
+    },
+    {
+      id: 'usr_me',
+      name: 'kinge_dev (You)',
+      username: 'kinge_dev',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      role: 'admin',
+      isOnline: true,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(11, 11, 13, 0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          maxHeight: '88vh',
+          backgroundColor: '#131316',
+          border: '1px solid #26262B',
+          borderRadius: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.7)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderBottom: '1px solid #26262B',
+          }}
+        >
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#A1A1AA' }}>Group details</span>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#71717A',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'flex',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
+          {/* Avatar & Title */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '24px' }}>
+            <div
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '20px',
+                overflow: 'hidden',
+                backgroundColor: '#1F1F24',
+                border: '2px solid #26262B',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {chat.avatar ? (
+                <img src={chat.avatar} alt={chat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '28px', fontWeight: 700, color: '#8B7CFF' }}>
+                  {chat.name.charAt(0)}
+                </span>
+              )}
+            </div>
+
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#F4F4F5', margin: '0 0 4px 0' }}>
+              {chat.name}
+            </h2>
+            <span style={{ fontSize: '13px', color: '#71717A' }}>
+              {members.length} {members.length === 1 ? 'member' : 'members'}
+            </span>
+
+            {chat.description && (
+              <p style={{ fontSize: '12px', color: '#A1A1AA', margin: '10px 0 0 0', maxWidth: '320px', lineHeight: '1.4' }}>
+                {chat.description}
+              </p>
+            )}
+          </div>
+
+          {/* Quick Actions (Mute, Search, Add) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '10px',
+              marginBottom: '24px',
+            }}
+          >
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '12px 8px',
+                borderRadius: '12px',
+                backgroundColor: '#18181C',
+                border: '1px solid #26262B',
+                color: isMuted ? '#8B7CFF' : '#A1A1AA',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              {isMuted ? <BellOff size={18} color="#8B7CFF" /> : <Bell size={18} />}
+              <span>{isMuted ? 'Muted' : 'Mute'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (onOpenSearch) onOpenSearch();
+                onClose();
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '12px 8px',
+                borderRadius: '12px',
+                backgroundColor: '#18181C',
+                border: '1px solid #26262B',
+                color: '#A1A1AA',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <Search size={18} />
+              <span>Search</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (onAddMember) onAddMember();
+                onClose();
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '12px 8px',
+                borderRadius: '12px',
+                backgroundColor: '#18181C',
+                border: '1px solid #26262B',
+                color: '#A1A1AA',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <UserPlus size={18} />
+              <span>Add</span>
+            </button>
+          </div>
+
+          {/* Linked Repo */}
+          {(chat.linkedRepo || chat.repoTag) && (
+            <div
+              style={{
+                marginBottom: '24px',
+                padding: '14px',
+                borderRadius: '12px',
+                backgroundColor: '#18181C',
+                border: '1px solid #26262B',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <GitFork size={16} color="#8B7CFF" />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Linked Repository
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 600, color: '#F4F4F5' }}>
+                {chat.linkedRepo || chat.repoTag}
+              </div>
+            </div>
+          )}
+
+          {/* Member List */}
+          <div style={{ marginBottom: '24px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#71717A',
+                marginBottom: '10px',
+              }}
+            >
+              Members ({members.length})
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: '#18181C',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ position: 'relative' }}>
+                      <img
+                        src={member.avatar}
+                        alt={member.name}
+                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      {member.isOnline && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '9px',
+                            height: '9px',
+                            borderRadius: '50%',
+                            backgroundColor: '#4ADE80',
+                            border: '2px solid #18181C',
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#F4F4F5' }}>{member.name}</div>
+                      <div style={{ fontSize: '11px', color: '#71717A' }}>@{member.username}</div>
+                    </div>
+                  </div>
+
+                  {member.role === 'admin' && (
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: '#8B7CFF',
+                        backgroundColor: 'rgba(139, 124, 255, 0.12)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <Shield size={10} />
+                      <span>Admin</span>
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Leave Group Action (Danger Color) */}
+          <div style={{ paddingTop: '8px' }}>
+            {confirmLeave ? (
+              <div
+                style={{
+                  padding: '12px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                  border: '1px solid rgba(248, 113, 113, 0.25)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#F87171', marginBottom: '8px' }}>
+                  Are you sure you want to leave this group?
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      onLeaveGroup(chat.id);
+                      onClose();
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#F87171',
+                      color: '#0B0B0D',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Yes, leave
+                  </button>
+                  <button
+                    onClick={() => setConfirmLeave(false)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#26262B',
+                      color: '#F4F4F5',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmLeave(true)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                  border: '1px solid rgba(248, 113, 113, 0.2)',
+                  color: '#F87171',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <LogOut size={16} />
+                <span>Leave group</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

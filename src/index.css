@@ -1,9 +1,10 @@
 /* ==========================================================================
-   ACK. — CHAT4DEVS (DEVELOPER MESSENGER & DEV HUB)
+   ACK — Got it.
+   Chat for people who ship.
    Engineered Mobile-First (90% Mobile / 10% Desktop)
    ========================================================================== */
 
-@import './theme/whatsapp.css';
+@import './theme/ack.css';
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -16,8 +17,8 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #0c1317;
-  color: #e9edef;
+  background-color: var(--ack-bg);
+  color: var(--ack-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -30,21 +31,5 @@ html, body {
   display: flex;
   overflow: hidden;
   position: relative;
-  background-color: #0c1317;
-}
-
-/* Custom Clean Scrollbars */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #2a3942;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #374248;
+  background-color: var(--ack-bg);
 }

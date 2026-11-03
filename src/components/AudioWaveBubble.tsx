@@ -7,6 +7,7 @@ interface AudioWaveBubbleProps {
   accentColor?: string;
   isMe?: boolean;
   timestamp?: string;
+  audioUrl?: string;
 }
 
 export const AudioWaveBubble: React.FC<AudioWaveBubbleProps> = ({

@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { webStore, Chat, Message } from './web-db/store';
-import { WorkspaceDock, WorkspaceCategory } from './components/whatsapp/WorkspaceDock';
-import { WhatsAppSidebar } from './components/whatsapp/WhatsAppSidebar';
-import { WhatsAppChatArea } from './components/whatsapp/WhatsAppChatArea';
-import { CodeReviewPayload } from './components/whatsapp/CodeReviewDrawer';
+import { ChatList } from './components/chat/ChatList';
+import { ChatView } from './components/chat/ChatView';
+import { CodeReviewPayload } from './components/chat/CodeReviewDrawer';
 import { AddFriendsModal } from './components/AddFriendsModal';
 import { CreateVaultModal } from './components/CreateVaultModal';
 import { CreateCodeModal } from './components/CreateCodeModal';
 import { VideoCallOverlay } from './components/VideoCallOverlay';
-import './theme/whatsapp.css';
+import { StartCallSheet, CallChoice } from './components/calls/StartCallSheet';
+import { SettingsModal } from './components/chat/SettingsModal';
+import { SignInModal } from './components/chat/SignInModal';
+import { NotificationsModal } from './components/chat/NotificationsModal';
+import { SearchModal } from './components/chat/SearchModal';
+import { CreateGroupModal } from './components/chat/CreateGroupModal';
+import { GroupInfoModal } from './components/chat/GroupInfoModal';
+import { BurnedSecretModal } from './components/chat/BurnedSecretModal';
+import { SplashScreen } from './components/SplashScreen';
+import './theme/ack.css';
 
 export const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
   const [activeChatId, setActiveChatId] = useState<string | null>('chat_torvalds_repo');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<WorkspaceCategory>('relays');
   const [activeReviewPayload, setActiveReviewPayload] = useState<CodeReviewPayload | null>(null);
 
   // Modals & Overlays
@@ -22,7 +30,19 @@ export const App: React.FC = () => {
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isCallOpen, setIsCallOpen] = useState(false);
-  const [callType, setCallType] = useState<'audio' | 'video'>('video');
+  const [isStartCallSheetOpen, setIsStartCallSheetOpen] = useState(false);
+  const [callType, setCallType] = useState<'audio' | 'video' | 'pair'>('video');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [groupInfoChat, setGroupInfoChat] = useState<Chat | null>(null);
+  const [burnedSecretData, setBurnedSecretData] = useState<{
+    senderName: string;
+    title?: string;
+    copiedAt?: string;
+  } | null>(null);
 
   // Reactive subscription
   useEffect(() => {
@@ -34,9 +54,11 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const activeChat = chats.find((c) => c.id === activeChatId) || null;
+  const activeChat =
+    chats.find((c) => c.id === activeChatId) ||
+    webStore.getChats().find((c) => c.id === activeChatId) ||
+    null;
   const activeMessages: Message[] = activeChatId ? webStore.getMessages(activeChatId) : [];
-  const totalUnread = chats.reduce((acc, c) => acc + c.unreadCount, 0);
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId);
@@ -65,63 +87,68 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleOpenCall = (type: 'audio' | 'video') => {
+  const handleOpenCall = (type: 'audio' | 'video' | 'pair') => {
     setCallType(type);
     setIsCallOpen(true);
   };
 
+  const handleSelectCallChoice = (choice: CallChoice) => {
+    setIsStartCallSheetOpen(false);
+    if (choice === 'voice') {
+      handleOpenCall('audio');
+    } else if (choice === 'video') {
+      handleOpenCall('video');
+    } else if (choice === 'pair') {
+      handleOpenCall('pair');
+    }
+  };
+
   return (
-    <div className="wa-app-root" id="whatsapp-root">
-      <div className="wa-desktop-window">
-        {/* Extreme Left Workspace Selector Dock (Desktop) */}
-        <WorkspaceDock
-          activeCategory={activeCategory}
-          onSelectCategory={(cat) => {
-            setActiveCategory(cat);
-            // If selecting repos on desktop, can highlight or switch to first repo
-            if (cat === 'repos') {
-              const firstRepo = chats.find((c) => c.type === 'repo');
-              if (firstRepo) setActiveChatId(firstRepo.id);
-            } else if (cat === 'webhooks') {
-              const whChat = chats.find((c) => c.id === 'chat_webhook_ci');
-              if (whChat) setActiveChatId(whChat.id);
+    <div className="ack-app-root" id="ack-root">
+      <div className="ack-shell">
+        {/* Left / Home Pane: ChatList + BottomNav */}
+        <div className={`ack-sidebar-pane ${isMobileChatOpen ? 'ack-mobile-hidden' : ''}`}>
+          <ChatList
+            chats={chats}
+            activeChatId={activeChatId}
+            onSelectChat={handleSelectChat}
+            onOpenNewChat={() => setIsAddFriendsOpen(true)}
+            onOpenCreateGroup={() => setIsCreateGroupOpen(true)}
+            onOpenNotifications={() => setIsNotificationsOpen(true)}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenCreateVault={() => setIsVaultModalOpen(true)}
+            onOpenCreateCode={() => setIsCodeModalOpen(true)}
+            unreadNotificationsCount={webStore.getNotifications().filter((n) => !n.isRead).length}
+          />
+        </div>
+
+        {/* Right / Conversation Pane: ChatView */}
+        <div className={`ack-chat-pane ${!isMobileChatOpen ? 'ack-mobile-hidden' : ''}`}>
+          <ChatView
+            chat={activeChat}
+            messages={activeMessages}
+            onSendMessage={handleSendMessage}
+            onSendCode={() => setIsCodeModalOpen(true)}
+            onSendVault={() => setIsVaultModalOpen(true)}
+            onBackToSidebar={() => {
+              setIsMobileChatOpen(false);
+              setActiveReviewPayload(null);
+            }}
+            onOpenCall={handleOpenCall}
+            onOpenStartCallSheet={() => setIsStartCallSheetOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenGroupInfo={(grpChat) => setGroupInfoChat(grpChat)}
+            onOpenBurnedSecret={(senderName, title, copiedAt) =>
+              setBurnedSecretData({ senderName, title, copiedAt })
             }
-          }}
-          unreadCount={totalUnread}
-          onOpenSettings={() => alert('ACK. — CHAT4DEVS Dev Control Center\nActive Environment: Staging\nGit: kingenious0/ProjectACK')}
-        />
-
-        {/* Workspace Hub Panel (IDE Collapsible Repository Tree) */}
-        <WhatsAppSidebar
-          chats={chats}
-          activeChatId={activeChatId}
-          onSelectChat={handleSelectChat}
-          onOpenNewChat={() => setIsAddFriendsOpen(true)}
-          onOpenCreateVault={() => setIsVaultModalOpen(true)}
-          onOpenCreateCode={() => setIsCodeModalOpen(true)}
-          activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
-          isMobileHidden={isMobileChatOpen}
-        />
-
-        {/* Main Action Canvas (Split View: Chat Stream / Monospace Code Review Canvas) */}
-        <WhatsAppChatArea
-          chat={activeChat}
-          messages={activeMessages}
-          onSendMessage={handleSendMessage}
-          onSendCode={() => setIsCodeModalOpen(true)}
-          onSendVault={() => setIsVaultModalOpen(true)}
-          onBackToSidebar={() => {
-            setIsMobileChatOpen(false);
-            setActiveReviewPayload(null);
-          }}
-          onOpenCall={handleOpenCall}
-          isMobileActive={isMobileChatOpen}
-          activeReviewPayload={activeReviewPayload}
-          onOpenReview={setActiveReviewPayload}
-          onCloseReview={() => setActiveReviewPayload(null)}
-          onSendReviewComment={handleSendMessage}
-        />
+            isMobileActive={isMobileChatOpen}
+            activeReviewPayload={activeReviewPayload}
+            onOpenReview={setActiveReviewPayload}
+            onCloseReview={() => setActiveReviewPayload(null)}
+            onSendReviewComment={handleSendMessage}
+          />
+        </div>
       </div>
 
       {/* Developer Tooling Modals */}
@@ -129,6 +156,10 @@ export const App: React.FC = () => {
         isOpen={isAddFriendsOpen}
         onClose={() => setIsAddFriendsOpen(false)}
         onSelectNewChat={handleSelectChat}
+        onOpenCreateGroup={() => {
+          setIsAddFriendsOpen(false);
+          setIsCreateGroupOpen(true);
+        }}
       />
 
       <CreateCodeModal
@@ -143,12 +174,119 @@ export const App: React.FC = () => {
         onSendVault={handleSendVault}
       />
 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSignOut={() => {
+          setIsSettingsOpen(false);
+          setIsSignInOpen(true);
+        }}
+      />
+
+      <SignInModal
+        isOpen={isSignInOpen}
+        onSuccess={(_user) => {
+          setIsSignInOpen(false);
+        }}
+        onClose={() => setIsSignInOpen(false)}
+      />
+
+      {/* Notifications Modal */}
+      <NotificationsModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={webStore.getNotifications()}
+        onMarkAllRead={() => {
+          webStore.markAllNotificationsRead();
+          setChats([...webStore.getChats()]);
+        }}
+        onSelectNotification={(n) => {
+          if (n.chatId) {
+            handleSelectChat(n.chatId);
+          }
+        }}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        chats={chats}
+        messages={webStore['messages']}
+        onSelectChat={(chatId) => {
+          handleSelectChat(chatId);
+        }}
+      />
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        availableDevs={webStore.getSuggestions()}
+        onCreateGroup={(name, members, repo, avatar) => {
+          const newGrp = webStore.createGroup(name, members, repo, avatar);
+          const allChats = [...webStore.getChats()];
+          setChats(allChats);
+          setActiveChatId(newGrp.id);
+          setIsMobileChatOpen(true);
+          setIsCreateGroupOpen(false);
+        }}
+      />
+
+      {/* Group Info Modal */}
+      {groupInfoChat && (
+        <GroupInfoModal
+          isOpen={!!groupInfoChat}
+          onClose={() => setGroupInfoChat(null)}
+          chat={groupInfoChat}
+          onLeaveGroup={(chatId) => {
+            webStore.leaveGroup(chatId);
+            setGroupInfoChat(null);
+            if (activeChatId === chatId) {
+              setActiveChatId(null);
+              setIsMobileChatOpen(false);
+            }
+          }}
+        />
+      )}
+
+      {/* Burned Secret Screen / Modal */}
+      {burnedSecretData && (
+        <BurnedSecretModal
+          isOpen={!!burnedSecretData}
+          onClose={() => setBurnedSecretData(null)}
+          senderName={burnedSecretData.senderName}
+          secretTitle={burnedSecretData.title}
+          copiedAt={burnedSecretData.copiedAt}
+          onAskNewSecret={(sender) => {
+            if (activeChatId) {
+              webStore.sendMessage(
+                activeChatId,
+                `Hey @${sender}, could you share a fresh secret? The previous one was burned.`
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* Start Call Bottom Sheet */}
+      <StartCallSheet
+        isOpen={isStartCallSheetOpen}
+        chat={activeChat}
+        onClose={() => setIsStartCallSheetOpen(false)}
+        onSelectOption={handleSelectCallChoice}
+      />
+
+      {/* Active Call / Video / Voice / Pair Overlay */}
       <VideoCallOverlay
         isOpen={isCallOpen}
         chat={activeChat}
         callType={callType}
         onClose={() => setIsCallOpen(false)}
       />
+
+      {/* Animated Ack Splash Screen on Startup */}
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
     </div>
   );
 };

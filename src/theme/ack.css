@@ -1,0 +1,448 @@
+/* ==========================================================================
+   ACK DESIGN SYSTEM — CSS TOKENS & FOUNDATIONS
+   Name: Ack | Tagline: "Got it." | Subtitle: "Chat for people who ship."
+   Specification: Flat surfaces, 1px borders, single accent #8B7CFF.
+   ========================================================================== */
+
+:root {
+  /* Surface hierarchy */
+  --ack-bg: #0B0B0D;
+  --ack-surface: #131316;
+  --ack-surface-2: #17171B;
+  --ack-avatar-bg: #1A1A1F;
+
+  /* Borders & Dividers */
+  --ack-border: #26262B;
+  --ack-divider: #1C1C21;
+
+  /* Typography Colors */
+  --ack-text: #ECECEF;
+  --ack-muted: #9A9AA3; /* Never go dimmer */
+
+  /* Single Accent System */
+  --ack-accent: #8B7CFF;
+  --ack-accent-text: #A99DFF;
+  --ack-accent-tint: #272250;
+  --ack-accent-tint-text: #EEEBFF;
+
+  /* Semantic Feedback */
+  --ack-success: #4ADE80; /* CI pass, additions only */
+  --ack-danger: #F87171;  /* deletions, sign out */
+  --ack-warning: #F5B544; /* vault only */
+
+  /* Typography Families */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Radii */
+  --radius-button: 12px;
+  --radius-input: 12px;
+  --radius-card: 14px;
+  --radius-bubble-own: 16px 16px 4px 16px;
+  --radius-bubble-incoming: 16px 16px 16px 4px;
+  --radius-sheet: 24px 24px 0 0;
+
+  /* Sizing & Touch Targets */
+  --min-touch-target: 44px;
+  --btn-primary-height: 48px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-smooth: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Safe Area Insets for Mobile (Redmi Note 14 Pro, iOS, etc.) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+
+  /* Legacy Token Mapping (maintains backward compatibility during refactor) */
+  --wa-bg-deep: var(--ack-bg);
+  --wa-bg-sidebar: var(--ack-surface);
+  --wa-bg-header: var(--ack-surface-2);
+  --wa-bg-chat: var(--ack-bg);
+  --wa-bg-incoming: var(--ack-surface-2);
+  --wa-bg-outgoing: var(--ack-accent-tint);
+  --wa-bg-input: var(--ack-surface);
+  --wa-accent-green: var(--ack-accent);
+  --wa-accent-lightgreen: var(--ack-success);
+  --wa-ticks-blue: var(--ack-accent);
+  --wa-vault-amber: var(--ack-warning);
+  --wa-text-primary: var(--ack-text);
+  --wa-text-secondary: var(--ack-muted);
+  --wa-border-subtle: var(--ack-border);
+}
+
+/* Global Box Sizing & Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--ack-bg);
+  color: var(--ack-text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accessible reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* App Viewport Root */
+.ack-app-root, .wa-app-root {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--ack-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+
+/* Main Container Shell */
+.ack-shell, .wa-desktop-window {
+  width: 100%;
+  height: 100%;
+  background: var(--ack-bg);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Responsive Two-Pane Layout */
+@media (max-width: 767px) {
+  .ack-sidebar-pane {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column;
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+  }
+  .ack-sidebar-pane.ack-mobile-hidden {
+    display: none !important;
+  }
+  .ack-chat-pane {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+  }
+  .ack-chat-pane.ack-mobile-hidden {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .ack-shell, .wa-desktop-window {
+    max-width: 1200px;
+    height: 100%;
+    border-left: 1px solid var(--ack-border);
+    border-right: 1px solid var(--ack-border);
+    margin: 0 auto;
+  }
+  .ack-sidebar-pane {
+    width: 390px !important;
+    min-width: 360px;
+    max-width: 420px;
+    height: 100% !important;
+    border-right: 1px solid var(--ack-border);
+    display: flex !important;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .ack-chat-pane {
+    flex: 1 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ack-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ack-muted);
+}
+
+/* Accessible Focus Rings */
+:focus-visible {
+  outline: 2px solid var(--ack-accent);
+  outline-offset: 2px;
+}
+
+/* Base Button Sizing & Touch Targets */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Common Ack Components */
+.ack-avatar {
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  border-radius: 50%;
+  background: var(--ack-avatar-bg);
+  color: var(--ack-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.ack-mono {
+  font-family: var(--font-mono);
+}
+
+.ack-card {
+  background: var(--ack-surface);
+  border: 1px solid var(--ack-border);
+  border-radius: var(--radius-card);
+}
+
+.ack-badge-unread {
+  background: var(--ack-accent);
+  color: #0B0B0D;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 9999px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ack-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ack-status-dot.ci-pass {
+  background-color: var(--ack-success);
+}
+
+.ack-status-dot.vault-unread {
+  background-color: var(--ack-warning);
+}
+
+/* Bottom Sheet */
+.ack-bottom-sheet {
+  background: var(--ack-surface);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-top: 1px solid var(--ack-border);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Backdrops & Window Defaults */
+.modal-backdrop,
+.ack-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-window {
+  width: 92%;
+  max-width: 540px;
+  background: var(--ack-surface, #131316);
+  border: 1px solid var(--ack-border, #26262B);
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  color: var(--ack-text, #ECECEF);
+  animation: ackFadeIn 180ms ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ack-border, #26262B);
+  background: var(--ack-surface-2, #17171B);
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ack-text, #ECECEF);
+}
+
+.modal-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: 75vh;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--ack-border, #26262B);
+  background: var(--ack-surface-2, #17171B);
+}
+
+/* Form Styles */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ack-muted, #9A9AA3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: #0B0B0D;
+  border: 1px solid var(--ack-border, #26262B);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--ack-text, #ECECEF);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--ack-accent, #8B7CFF);
+}
+
+.form-textarea {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.primary-btn {
+  background: var(--ack-accent, #8B7CFF);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 100ms ease;
+  box-shadow: 0 2px 8px rgba(139, 124, 255, 0.3);
+}
+
+.primary-btn:hover {
+  opacity: 0.95;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: var(--ack-muted, #9A9AA3);
+  border: 1px solid var(--ack-border, #26262B);
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.cancel-btn:hover {
+  background: var(--ack-surface-2, #17171B);
+  color: var(--ack-text, #ECECEF);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--ack-muted, #9A9AA3);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.icon-btn:hover {
+  background: var(--ack-surface, #131316);
+  color: var(--ack-text, #ECECEF);
+}
+

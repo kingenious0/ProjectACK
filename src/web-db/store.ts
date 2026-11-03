@@ -3,11 +3,20 @@
  * Developer Messenger Store
  */
 
+export interface ReviewComment {
+  id: string;
+  authorName: string;
+  authorAvatar?: string;
+  timestamp: string;
+  content: string;
+}
+
 export interface DiffLine {
   type: 'normal' | 'add' | 'del';
   content: string;
   oldNo?: number;
   newNo?: number;
+  comments?: ReviewComment[];
 }
 
 export interface DiffFile {
@@ -29,6 +38,8 @@ export interface MessageMetadata {
   prBranch?: string;
   prAdditions?: number;
   prDeletions?: number;
+  filesChanged?: number;
+  ciStatus?: 'passing' | 'failing' | 'running' | string;
   diffFiles?: DiffFile[];
   accentColor?: string; // Snapchat signature vertical line color
   audioDuration?: string;
@@ -41,6 +52,11 @@ export interface MessageMetadata {
   docType?: string;
   docUrl?: string;
   reactions?: Record<string, string[]>;
+  repliesCount?: number;
+  isFailed?: boolean;
+  burnedAt?: string;
+  burnedBy?: string;
+  copiedAt?: string;
 }
 
 export interface Message {
@@ -51,9 +67,18 @@ export interface Message {
   senderAvatar: string;
   content: string;
   type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system' | 'image' | 'document';
-  status: 'sent' | 'delivered' | 'read';
+  status: 'sent' | 'delivered' | 'read' | 'failed' | 'queued';
   timestamp: string;
   metadata?: MessageMetadata;
+}
+
+export interface GroupMember {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  role: 'admin' | 'member';
+  isOnline: boolean;
 }
 
 export interface Chat {
@@ -69,6 +94,37 @@ export interface Chat {
   isOnline?: boolean;
   isPinned?: boolean;
   repoTag?: string;
+  statusDot?: 'success' | 'warning' | null;
+  members?: GroupMember[];
+  description?: string;
+  linkedRepo?: string;
+}
+
+export interface ReviewPR {
+  id: string;
+  repo: string;
+  title: string;
+  prNumber: number;
+  author: string;
+  authorAvatar?: string;
+  additions: number;
+  deletions: number;
+  ciStatus: 'passing' | 'failing' | 'running';
+  category: 'waiting_on_me' | 'mine' | 'merged';
+  updatedAt: string;
+}
+
+export interface AckNotification {
+  id: string;
+  type: 'mention' | 'review' | 'vault' | 'ci_failure';
+  title: string;
+  description: string;
+  timestamp: string;
+  timeGroup: 'today' | 'earlier';
+  isRead: boolean;
+  chatId?: string;
+  prNumber?: number;
+  buildLogs?: string[];
 }
 
 export interface SuggestedDev {
@@ -99,20 +155,79 @@ export const CURRENT_USER = {
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
 };
 
-// Initial Snapchat-style Chat List
+// Initial Chat List (Matches Home@1x.png and Group chat mockups)
 const INITIAL_CHATS: Chat[] = [
   {
-    id: 'chat_my_ai',
-    name: 'My AI Copilot',
-    username: 'ack_ai_bot',
-    type: 'ai',
-    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-    statusIconType: 'chat',
-    statusText: 'New Chat',
-    statusTime: '25m',
-    unreadCount: 1,
+    id: 'chat_project_ack',
+    name: 'ProjectACK Core',
+    username: 'project_ack_core',
+    type: 'group',
+    avatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'code',
+    statusText: 'Sarah: Looks good. Checking...',
+    statusTime: '4m',
+    unreadCount: 3,
     isOnline: true,
     isPinned: true,
+    repoTag: 'kingenious0/ProjectACK#main',
+    linkedRepo: 'kingenious0/ProjectACK',
+    description: 'Core developer discussions, PR reviews, and architectural sync for Ack.',
+    members: [
+      {
+        id: 'usr_sarah',
+        name: 'Sarah Connor',
+        username: 'sarah_infra',
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+        role: 'admin',
+        isOnline: true,
+      },
+      {
+        id: 'usr_me',
+        name: 'kinge_dev (You)',
+        username: 'kinge_dev',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        role: 'admin',
+        isOnline: true,
+      },
+      {
+        id: 'dev_hardik',
+        name: 'Hardik',
+        username: 'hkothari1510',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        role: 'member',
+        isOnline: true,
+      },
+      {
+        id: 'dev_mohit',
+        name: 'Mohit',
+        username: 'chhipa231044',
+        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+        role: 'member',
+        isOnline: true,
+      },
+      {
+        id: 'dev_rey',
+        name: 'Rey Patel',
+        username: 'rey_patel3277',
+        avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
+        role: 'member',
+        isOnline: false,
+      },
+    ],
+  },
+  {
+    id: 'chat_sarah_devops',
+    name: 'Sarah Connor',
+    username: 'sarah_infra',
+    type: 'dm',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'vault',
+    statusText: 'Secret shared · burns after reading',
+    statusTime: '1h',
+    unreadCount: 0,
+    statusDot: 'warning',
+    isOnline: true,
+    isPinned: false,
   },
   {
     id: 'chat_robert_jonas',
@@ -128,29 +243,16 @@ const INITIAL_CHATS: Chat[] = [
     isPinned: true,
   },
   {
-    id: 'chat_torvalds_repo',
-    name: 'linux-kernel / net-core',
-    username: 'torvalds_linux',
-    type: 'repo',
-    avatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+    id: 'chat_webhook_ci',
+    name: 'Vercel builds',
+    username: 'vercel_builds',
+    type: 'group',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
     statusIconType: 'code',
-    statusText: 'New PR Diff and Review',
-    statusTime: '25m',
-    unreadCount: 2,
-    isOnline: true,
-    isPinned: true,
-    repoTag: 'torvalds/linux#v6.12-rc',
-  },
-  {
-    id: 'chat_sarah_devops',
-    name: 'Sarah Connor',
-    username: 'sarah_infra',
-    type: 'dm',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    statusIconType: 'vault',
-    statusText: 'Burn-After-Reading .env Vault',
-    statusTime: '1h',
-    unreadCount: 1,
+    statusText: 'Build 2843376 succeeded',
+    statusTime: 'now',
+    unreadCount: 0,
+    statusDot: 'success',
     isOnline: true,
     isPinned: false,
   },
@@ -161,43 +263,167 @@ const INITIAL_CHATS: Chat[] = [
     type: 'dm',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     statusIconType: 'chat',
-    statusText: 'Opened chat',
+    statusText: 'Can you look at the diff?',
     statusTime: '3h',
     unreadCount: 0,
     isOnline: true,
     isPinned: false,
   },
   {
-    id: 'chat_project_ack',
-    name: 'kingenious0 / ProjectACK',
-    username: 'project_ack_repo',
+    id: 'chat_my_ai',
+    name: 'Copilot',
+    username: 'copilot',
+    type: 'ai',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+    statusIconType: 'chat',
+    statusText: 'New chat',
+    statusTime: '25m',
+    unreadCount: 0,
+    isOnline: true,
+    isPinned: true,
+  },
+  {
+    id: 'chat_torvalds_repo',
+    name: 'linux-kernel / net-core',
+    username: 'torvalds_linux',
     type: 'repo',
     avatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
     statusIconType: 'code',
-    statusText: 'Release v2.0-rc live on main',
-    statusTime: '4m',
-    unreadCount: 3,
-    isOnline: true,
-    isPinned: true,
-    repoTag: 'kingenious0/ProjectACK#main',
-  },
-  {
-    id: 'chat_webhook_ci',
-    name: '⚡ CI/CD Webhook Stream',
-    username: 'webhook_dispatch',
-    type: 'group',
-    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-    statusIconType: 'record',
-    statusText: 'Vercel build: SUCCESS (2843376)',
-    statusTime: 'Just now',
-    unreadCount: 1,
+    statusText: 'New PR Diff and Review',
+    statusTime: '25m',
+    unreadCount: 0,
     isOnline: true,
     isPinned: false,
+    repoTag: 'torvalds/linux#v6.12-rc',
+  },
+];
+
+export const INITIAL_REVIEWS: ReviewPR[] = [
+  {
+    id: 'pr_28',
+    repo: 'ProjectACK',
+    title: 'Dev control center: mobile-first layout architecture',
+    prNumber: 28,
+    author: 'kinge_dev',
+    additions: 340,
+    deletions: 48,
+    ciStatus: 'passing',
+    category: 'waiting_on_me',
+    updatedAt: '4m ago',
+  },
+  {
+    id: 'pr_142',
+    repo: 'linux-kernel',
+    title: 'net: Introduce Zero-Copy Socket Ring Buffer',
+    prNumber: 142,
+    author: 'torvalds',
+    additions: 84,
+    deletions: 12,
+    ciStatus: 'passing',
+    category: 'waiting_on_me',
+    updatedAt: '25m ago',
+  },
+  {
+    id: 'pr_99',
+    repo: 'infra/k8s',
+    title: 'Add Redis sentinel cluster config for staging failover',
+    prNumber: 99,
+    author: 'sarah_infra',
+    additions: 64,
+    deletions: 91,
+    ciStatus: 'failing',
+    category: 'waiting_on_me',
+    updatedAt: '1h ago',
+  },
+  {
+    id: 'pr_29',
+    repo: 'ProjectACK',
+    title: 'feat: Client-side AES-GCM vault burn countdown timer',
+    prNumber: 29,
+    author: 'kinge_dev',
+    additions: 210,
+    deletions: 15,
+    ciStatus: 'running',
+    category: 'mine',
+    updatedAt: '2h ago',
+  },
+  {
+    id: 'pr_25',
+    repo: 'ProjectACK',
+    title: 'chore: Migrate to React 19 and Vite 8 bundler',
+    prNumber: 25,
+    author: 'kinge_dev',
+    additions: 450,
+    deletions: 320,
+    ciStatus: 'passing',
+    category: 'merged',
+    updatedAt: 'Yesterday',
+  },
+];
+
+export const INITIAL_NOTIFICATIONS: AckNotification[] = [
+  {
+    id: 'notif_1',
+    type: 'mention',
+    title: 'Sarah Connor mentioned you',
+    description: '@kinge_dev could you check if the service worker caches the offline shell?',
+    timestamp: '5m ago',
+    timeGroup: 'today',
+    isRead: false,
+    chatId: 'chat_project_ack',
+  },
+  {
+    id: 'notif_2',
+    type: 'review',
+    title: 'Review requested on PR #28',
+    description: 'Sarah Connor requested review on "Dev control center: mobile-first layout architecture"',
+    timestamp: '18m ago',
+    timeGroup: 'today',
+    isRead: false,
+    chatId: 'chat_project_ack',
+    prNumber: 28,
+  },
+  {
+    id: 'notif_3',
+    type: 'vault',
+    title: 'Vault secret burned',
+    description: 'Production keys was viewed and permanently burned from memory by Sarah Connor',
+    timestamp: '1h ago',
+    timeGroup: 'today',
+    isRead: true,
+    chatId: 'chat_sarah_devops',
+  },
+  {
+    id: 'notif_4',
+    type: 'ci_failure',
+    title: 'CI build failed on PR #99',
+    description: 'Check "lint-and-typecheck" failed in staging workflow on branch infra/sentinel',
+    timestamp: '2h ago',
+    timeGroup: 'today',
+    isRead: false,
+    prNumber: 99,
+    buildLogs: [
+      'Run npm run lint',
+      'error TS2322: Type "number" is not assignable to type "string".',
+      '  at src/config/sentinel.ts:42:15',
+      'Process completed with exit code 1.',
+    ],
+  },
+  {
+    id: 'notif_5',
+    type: 'review',
+    title: 'PR #25 merged to main',
+    description: 'Migrate to React 19 and Vite 8 bundler was merged by kinge_dev',
+    timestamp: 'Yesterday',
+    timeGroup: 'earlier',
+    isRead: true,
+    chatId: 'chat_project_ack',
+    prNumber: 25,
   },
 ];
 
 // Initial Quick Add Contacts (Matches Screenshots 4 & 5)
-const INITIAL_SUGGESTIONS: SuggestedDev[] = [
+export const INITIAL_SUGGESTIONS: SuggestedDev[] = [
   {
     id: 'dev_hardik',
     name: 'Hardik',
@@ -440,29 +666,45 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       id: 'm_201',
       chatId: 'chat_sarah_devops',
       senderId: 'usr_sarah',
-      senderName: 'SARAH CONNOR',
+      senderName: 'Sarah Connor',
       senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      content: 'Hey! I rotated the Postgres DB credentials for staging. Sharing the connection string via our Burn-After-Reading Vault:',
+      content: 'Hey! Sharing the production keys via our encrypted vault. Tap to reveal:',
       type: 'text',
       status: 'read',
-      timestamp: '10:14 AM',
-      metadata: { accentColor: '#FFB800' },
+      timestamp: '1h ago',
     },
     {
       id: 'm_202',
       chatId: 'chat_sarah_devops',
       senderId: 'usr_sarah',
-      senderName: 'SARAH CONNOR',
+      senderName: 'Sarah Connor',
       senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      content: 'Staging Database Connection Secrets',
+      content: 'Production keys',
       type: 'env_secret',
       status: 'read',
-      timestamp: '10:15 AM',
+      timestamp: '1h ago',
       metadata: {
-        accentColor: '#FFB800',
-        secretMasked: 'DATABASE_URL="postgres://postgres:k9#Xm$88Pz@db.ack-staging.supabase.co:5432/postgres"\nJWT_SECRET="super-secret-jwt-key-2026-xyz"\nREDIS_CACHE_URL="rediss://default:p33r@redis.ack.internal:6379"',
+        secretMasked: 'DATABASE_URL="postgres://user:••••@host:5432/db"\nSTRIPE_SECRET_KEY="sk_live_••••"\nJWT_SECRET="••••"',
         ttlSeconds: 60,
         isBurned: false,
+      },
+    },
+    {
+      id: 'm_203_burned',
+      chatId: 'chat_sarah_devops',
+      senderId: 'usr_sarah',
+      senderName: 'Sarah Connor',
+      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      content: 'Staging AWS credentials',
+      type: 'env_secret',
+      status: 'read',
+      timestamp: '1h ago',
+      metadata: {
+        secretMasked: '💥 [SECRET PERMANENTLY PURGED & BURNED FROM VAULT]',
+        isBurned: true,
+        burnedAt: '1h ago',
+        copiedAt: '1h ago',
+        burnedBy: 'Sarah Connor',
       },
     },
   ],
@@ -471,42 +713,118 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       id: 'm_ack_1',
       chatId: 'chat_project_ack',
       senderId: 'usr_me',
-      senderName: 'ME',
+      senderName: 'You',
       senderAvatar: CURRENT_USER.avatar,
-      content: 'Pushed commit 2843376 to origin main: Clean React 19 build & Cyberpunk tokens implemented.',
+      content: 'Pushed 2843376 to main: React 19 build and the new design tokens.',
       type: 'text',
       status: 'read',
       timestamp: '11:15 AM',
-      metadata: { accentColor: '#00FFCC' },
     },
     {
       id: 'm_ack_2',
       chatId: 'chat_project_ack',
       senderId: 'usr_github_bot',
-      senderName: 'GITHUB CI/CD',
+      senderName: 'CI / CD Bot',
       senderAvatar: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
-      content: 'Vercel Deployment: ProjectACK v2.0-rc',
+      content: 'Dev control center: mobile-first layout architecture',
       type: 'pr_card',
       status: 'read',
-      timestamp: '11:16 AM',
+      timestamp: '11:15 AM',
       metadata: {
-        accentColor: '#00E5FF',
         prNumber: 28,
-        prTitle: 'Dev Control Center: Mobile-First Layout Architecture',
+        prTitle: 'Dev control center: mobile-first layout architecture',
         prBranch: 'main',
         prAdditions: 340,
         prDeletions: 48,
+        filesChanged: 3,
+        ciStatus: 'passing',
         diffFiles: [
           {
-            filename: 'src/components/whatsapp/WorkspaceDock.tsx',
+            filename: 'WorkspaceDock.tsx',
             additions: 180,
             deletions: 0,
             lines: [
-              { type: 'add', content: '+ export const WorkspaceDock: React.FC = () => {', newNo: 1 },
-              { type: 'add', content: '+   return <nav className="wa-workspace-dock">...', newNo: 2 },
+              { type: 'add', content: 'export const WorkspaceDock = () => {', newNo: 1 },
+              { type: 'add', content: 'return <nav className="dock">', newNo: 2 },
+              {
+                type: 'add',
+                content: '<DockItem icon="chat" />',
+                newNo: 3,
+                comments: [
+                  {
+                    id: 'comm_1',
+                    authorName: 'Sarah Connor',
+                    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+                    timestamp: '2m',
+                    content: 'Could this be pulled into a useDockItems hook?',
+                  },
+                ],
+              },
+              { type: 'add', content: '</nav>', newNo: 4 },
+              { type: 'add', content: '}', newNo: 5 },
+            ],
+          },
+          {
+            filename: 'src/components/chat/ChatList.tsx',
+            additions: 120,
+            deletions: 24,
+            lines: [
+              { type: 'normal', content: '  // Master navigation list', oldNo: 1, newNo: 1 },
+              { type: 'del', content: '- export const WhatsAppSidebar: React.FC = () => {', oldNo: 2 },
+              { type: 'add', content: '+ export const ChatList: React.FC<ChatListProps> = ({', newNo: 2 },
+              { type: 'add', content: '+   chats, activeChatId, onSelectChat', newNo: 3 },
+            ],
+          },
+          {
+            filename: 'src/theme/ack.css',
+            additions: 40,
+            deletions: 24,
+            lines: [
+              { type: 'add', content: '+ --ack-bg: #0B0B0D;', newNo: 1 },
+              { type: 'add', content: '+ --ack-accent: #8B7CFF;', newNo: 2 },
+              { type: 'del', content: '- --wa-accent-green: #00FFCC;', oldNo: 1 },
             ],
           },
         ],
+      },
+    },
+    {
+      id: 'm_ack_3',
+      chatId: 'chat_project_ack',
+      senderId: 'usr_sarah',
+      senderName: 'Sarah Connor',
+      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      content: 'Looks good. Checking the dock component now.',
+      type: 'text',
+      status: 'read',
+      timestamp: '11:16 AM',
+    },
+    {
+      id: 'm_ack_4',
+      chatId: 'chat_project_ack',
+      senderId: 'usr_sarah',
+      senderName: 'Sarah Connor',
+      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      content: '@kinge_dev could you check if the service worker caches the offline shell properly?',
+      type: 'text',
+      status: 'read',
+      timestamp: '11:18 AM',
+      metadata: {
+        repliesCount: 3,
+      },
+    },
+    {
+      id: 'm_ack_5_failed',
+      chatId: 'chat_project_ack',
+      senderId: 'usr_me',
+      senderName: 'You',
+      senderAvatar: CURRENT_USER.avatar,
+      content: 'Deploying the staging worker fix now with asset precaching',
+      type: 'text',
+      status: 'failed',
+      timestamp: '11:20 AM',
+      metadata: {
+        isFailed: true,
       },
     },
   ],
@@ -529,7 +847,9 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
 class WebStore {
   private chats: Chat[] = [];
   private messages: Record<string, Message[]> = {};
-  private suggestions: SuggestedDev[] = [];
+  private suggestions: SuggestedDev[] = INITIAL_SUGGESTIONS;
+  private reviews: ReviewPR[] = INITIAL_REVIEWS;
+  private notifications: AckNotification[] = INITIAL_NOTIFICATIONS;
   private listeners: Set<() => void> = new Set();
 
   constructor() {
@@ -541,11 +861,27 @@ class WebStore {
       const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
       const savedMessages = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
       const savedSuggestions = localStorage.getItem('ack_suggestions') || localStorage.getItem('whatsdev_snap_suggestions');
+      const savedReviews = localStorage.getItem('ack_reviews');
+      const savedNotifs = localStorage.getItem('ack_notifications');
 
       if (savedChats) {
         const loaded: Chat[] = JSON.parse(savedChats);
-        const missing = INITIAL_CHATS.filter((ic) => !loaded.some((lc) => lc.id === ic.id));
-        this.chats = [...loaded, ...missing];
+        this.chats = loaded.map((c) => {
+          const init = INITIAL_CHATS.find((ic) => ic.id === c.id);
+          if (init) {
+            return {
+              ...c,
+              name: init.name,
+              statusDot: init.statusDot,
+              statusText: init.statusText || c.statusText,
+              statusTime: init.statusTime || c.statusTime,
+              unreadCount: init.unreadCount !== undefined ? init.unreadCount : c.unreadCount,
+            };
+          }
+          return c;
+        });
+        const missing = INITIAL_CHATS.filter((ic) => !this.chats.some((lc) => lc.id === ic.id));
+        this.chats = [...this.chats, ...missing];
       } else {
         this.chats = INITIAL_CHATS;
       }
@@ -558,8 +894,17 @@ class WebStore {
       }
 
       this.suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : INITIAL_SUGGESTIONS;
+      this.reviews = savedReviews ? JSON.parse(savedReviews) : INITIAL_REVIEWS;
+      this.notifications = savedNotifs ? JSON.parse(savedNotifs) : INITIAL_NOTIFICATIONS;
 
-      // Ensure rich media demonstration messages are populated
+      if (!this.suggestions || this.suggestions.length === 0) {
+        this.suggestions = INITIAL_SUGGESTIONS;
+      }
+
+      // Ensure rich demonstration messages are populated
+      if (!this.messages['chat_project_ack'] || this.messages['chat_project_ack'].length < 3) {
+        this.messages['chat_project_ack'] = INITIAL_MESSAGES.chat_project_ack;
+      }
       if (this.messages['chat_robert_jonas'] && !this.messages['chat_robert_jonas'].some((m: Message) => m.type === 'image')) {
         this.messages['chat_robert_jonas'] = INITIAL_MESSAGES.chat_robert_jonas;
       }
@@ -567,6 +912,8 @@ class WebStore {
       this.chats = INITIAL_CHATS;
       this.messages = INITIAL_MESSAGES;
       this.suggestions = INITIAL_SUGGESTIONS;
+      this.reviews = INITIAL_REVIEWS;
+      this.notifications = INITIAL_NOTIFICATIONS;
     }
   }
 
@@ -575,6 +922,8 @@ class WebStore {
       localStorage.setItem('ack_chats', JSON.stringify(this.chats));
       localStorage.setItem('ack_messages', JSON.stringify(this.messages));
       localStorage.setItem('ack_suggestions', JSON.stringify(this.suggestions));
+      localStorage.setItem('ack_reviews', JSON.stringify(this.reviews));
+      localStorage.setItem('ack_notifications', JSON.stringify(this.notifications));
     } catch (e) {
       console.warn('Storage persist failed', e);
     }
@@ -602,7 +951,23 @@ class WebStore {
   }
 
   public getSuggestions(): SuggestedDev[] {
+    if (!this.suggestions || this.suggestions.length === 0) {
+      this.suggestions = INITIAL_SUGGESTIONS;
+    }
     return this.suggestions;
+  }
+
+  public getReviews(): ReviewPR[] {
+    return this.reviews;
+  }
+
+  public getNotifications(): AckNotification[] {
+    return this.notifications;
+  }
+
+  public markAllNotificationsRead(): void {
+    this.notifications = this.notifications.map((n) => ({ ...n, isRead: true }));
+    this.persist();
   }
 
   // Actions
@@ -640,6 +1005,21 @@ class WebStore {
 
     this.persist();
     return newMsg;
+  }
+
+  public resendFailedMessage(chatId: string, messageId: string) {
+    const list = this.messages[chatId];
+    if (!list) return;
+    const msg = list.find((m) => m.id === messageId);
+    if (msg) {
+      msg.status = 'read';
+      if (msg.metadata) {
+        msg.metadata.isFailed = false;
+      }
+      const now = new Date();
+      msg.timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      this.persist();
+    }
   }
 
   public burnSecret(chatId: string, messageId: string) {
@@ -693,6 +1073,104 @@ class WebStore {
     this.suggestions = this.suggestions.filter((s) => s.id !== dev.id);
     this.persist();
     return chat;
+  }
+
+  public createGroupChat(name: string, _memberIds?: string[]): Chat {
+    const groupId = 'group_' + Date.now();
+    const groupChat: Chat = {
+      id: groupId,
+      name,
+      username: name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      type: 'repo',
+      avatar: '',
+      statusIconType: 'chat',
+      statusText: 'Group created',
+      statusTime: 'Just now',
+      unreadCount: 0,
+      isOnline: true,
+    };
+    this.chats.unshift(groupChat);
+    this.messages[groupId] = [
+      {
+        id: 'm_' + Date.now(),
+        chatId: groupId,
+        senderId: 'usr_me',
+        senderName: CURRENT_USER.name,
+        senderAvatar: CURRENT_USER.avatar,
+        content: `Created group ${name}`,
+        type: 'text',
+        status: 'read',
+        timestamp: 'Just now',
+        metadata: {},
+      },
+    ];
+    this.persist();
+    return groupChat;
+  }
+
+  public createGroup(name: string, members: SuggestedDev[], repoLink?: string, avatarUrl?: string): Chat {
+    const groupId = 'group_' + Date.now();
+    const groupMembers: GroupMember[] = [
+      {
+        id: CURRENT_USER.id,
+        name: CURRENT_USER.name,
+        username: CURRENT_USER.username,
+        avatar: CURRENT_USER.avatar,
+        role: 'admin',
+        isOnline: true,
+      },
+      ...members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        username: m.username,
+        avatar: m.avatar,
+        role: 'member' as const,
+        isOnline: m.isOnline,
+      })),
+    ];
+
+    const groupChat: Chat = {
+      id: groupId,
+      name,
+      username: name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      type: 'group',
+      avatar: avatarUrl || 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+      statusIconType: 'chat',
+      statusText: `Created group with ${members.length + 1} members`,
+      statusTime: 'Just now',
+      unreadCount: 0,
+      isOnline: true,
+      isPinned: false,
+      members: groupMembers,
+      linkedRepo: repoLink || undefined,
+      repoTag: repoLink ? `${repoLink}#main` : undefined,
+      description: `Discussion for ${name}`,
+    };
+
+    this.chats.unshift(groupChat);
+    this.messages[groupId] = [
+      {
+        id: 'm_' + Date.now(),
+        chatId: groupId,
+        senderId: CURRENT_USER.id,
+        senderName: CURRENT_USER.name,
+        senderAvatar: CURRENT_USER.avatar,
+        content: `Group created. Welcome ${members.map((m) => '@' + m.username).join(', ')}!`,
+        type: 'text',
+        status: 'read',
+        timestamp: 'Just now',
+        metadata: {},
+      },
+    ];
+
+    this.persist();
+    return groupChat;
+  }
+
+  public leaveGroup(chatId: string) {
+    this.chats = this.chats.filter((c) => c.id !== chatId);
+    delete this.messages[chatId];
+    this.persist();
   }
 
   public dismissSuggestion(devId: string) {
