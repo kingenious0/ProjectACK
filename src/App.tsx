@@ -16,6 +16,7 @@ import { CreateGroupModal } from './components/chat/CreateGroupModal';
 import { GroupInfoModal } from './components/chat/GroupInfoModal';
 import { BurnedSecretModal } from './components/chat/BurnedSecretModal';
 import { SplashScreen } from './components/SplashScreen';
+import { FEATURES, isCallingEnabled } from './config/features';
 import './theme/ack.css';
 
 export const App: React.FC = () => {
@@ -88,17 +89,19 @@ export const App: React.FC = () => {
   };
 
   const handleOpenCall = (type: 'audio' | 'video' | 'pair') => {
+    if (type === 'pair' && !FEATURES.pairProgramming) return;
+    if ((type === 'video' || type === 'audio') && !FEATURES.calls) return;
     setCallType(type);
     setIsCallOpen(true);
   };
 
   const handleSelectCallChoice = (choice: CallChoice) => {
     setIsStartCallSheetOpen(false);
-    if (choice === 'voice') {
+    if (choice === 'voice' && FEATURES.calls) {
       handleOpenCall('audio');
-    } else if (choice === 'video') {
+    } else if (choice === 'video' && FEATURES.calls) {
       handleOpenCall('video');
-    } else if (choice === 'pair') {
+    } else if (choice === 'pair' && FEATURES.pairProgramming) {
       handleOpenCall('pair');
     }
   };
@@ -135,8 +138,8 @@ export const App: React.FC = () => {
               setIsMobileChatOpen(false);
               setActiveReviewPayload(null);
             }}
-            onOpenCall={handleOpenCall}
-            onOpenStartCallSheet={() => setIsStartCallSheetOpen(true)}
+            onOpenCall={isCallingEnabled() ? handleOpenCall : undefined}
+            onOpenStartCallSheet={FEATURES.calls ? () => setIsStartCallSheetOpen(true) : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenGroupInfo={(grpChat) => setGroupInfoChat(grpChat)}
             onOpenBurnedSecret={(senderName, title, copiedAt) =>
@@ -270,20 +273,24 @@ export const App: React.FC = () => {
       )}
 
       {/* Start Call Bottom Sheet */}
-      <StartCallSheet
-        isOpen={isStartCallSheetOpen}
-        chat={activeChat}
-        onClose={() => setIsStartCallSheetOpen(false)}
-        onSelectOption={handleSelectCallChoice}
-      />
+      {FEATURES.calls && (
+        <StartCallSheet
+          isOpen={isStartCallSheetOpen}
+          chat={activeChat}
+          onClose={() => setIsStartCallSheetOpen(false)}
+          onSelectOption={handleSelectCallChoice}
+        />
+      )}
 
       {/* Active Call / Video / Voice / Pair Overlay */}
-      <VideoCallOverlay
-        isOpen={isCallOpen}
-        chat={activeChat}
-        callType={callType}
-        onClose={() => setIsCallOpen(false)}
-      />
+      {isCallingEnabled() && (
+        <VideoCallOverlay
+          isOpen={isCallOpen}
+          chat={activeChat}
+          callType={callType}
+          onClose={() => setIsCallOpen(false)}
+        />
+      )}
 
       {/* Animated Ack Splash Screen on Startup */}
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Chat, CURRENT_USER } from '../../web-db/store';
 import { getInitials } from '../chat/ChatList';
+import { FEATURES } from '../../config/features';
 
 export interface DesktopPairScreenProps {
   chat: Chat;
@@ -105,6 +106,7 @@ export const DesktopPairScreen: React.FC<DesktopPairScreenProps> = ({
   chat,
   onEndSession,
 }) => {
+  if (!FEATURES.pairProgramming) return null;
   const [activeTabId, setActiveTabId] = useState('tab_sock');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);

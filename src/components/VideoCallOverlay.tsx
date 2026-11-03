@@ -4,6 +4,7 @@ import { VideoCallScreen } from './calls/VideoCallScreen';
 import { VoiceSessionScreen } from './calls/VoiceSessionScreen';
 import { DesktopPairScreen } from './calls/DesktopPairScreen';
 import { DesktopOnlyNoticeModal } from './calls/DesktopOnlyNoticeModal';
+import { FEATURES, isCallingEnabled } from '../config/features';
 
 export interface VideoCallOverlayProps {
   isOpen: boolean;
@@ -18,6 +19,10 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
   callType,
   onClose,
 }) => {
+  if (!isCallingEnabled()) return null;
+  if (callType === 'pair' && !FEATURES.pairProgramming) return null;
+  if ((callType === 'video' || callType === 'audio') && !FEATURES.calls) return null;
+
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
   );

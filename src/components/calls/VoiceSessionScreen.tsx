@@ -12,6 +12,7 @@ import {
 import { Chat } from '../../web-db/store';
 import { getInitials } from '../chat/ChatList';
 import { AddToCallSheet } from './AddToCallSheet';
+import { FEATURES } from '../../config/features';
 
 export interface VoiceSessionScreenProps {
   chat: Chat;
@@ -26,6 +27,7 @@ export const VoiceSessionScreen: React.FC<VoiceSessionScreenProps> = ({
   onMinimize,
   onAddParticipant,
 }) => {
+  if (!FEATURES.calls) return null;
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
@@ -328,30 +330,32 @@ export const VoiceSessionScreen: React.FC<VoiceSessionScreenProps> = ({
           </button>
 
           {/* Add Participant */}
-          <button
-            type="button"
-            id="btn-voice-add"
-            onClick={() => {
-              if (onAddParticipant) onAddParticipant();
-              setShowAddSheet(true);
-            }}
-            aria-label="Add participant"
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: 'var(--ack-surface-2, #17171B)',
-              border: '1px solid var(--ack-border, #26262B)',
-              color: 'var(--ack-text, #ECECEF)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            title="Invite collaborator"
-          >
-            <UserPlus size={19} strokeWidth={1.75} />
-          </button>
+          {FEATURES.addToCall && (
+            <button
+              type="button"
+              id="btn-voice-add"
+              onClick={() => {
+                if (onAddParticipant) onAddParticipant();
+                setShowAddSheet(true);
+              }}
+              aria-label="Add participant"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                color: 'var(--ack-text, #ECECEF)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Invite collaborator"
+            >
+              <UserPlus size={19} strokeWidth={1.75} />
+            </button>
+          )}
 
           {/* End Call Button */}
           <button
@@ -386,11 +390,13 @@ export const VoiceSessionScreen: React.FC<VoiceSessionScreenProps> = ({
       </div>
 
       {/* Add To Call Bottom Sheet */}
-      <AddToCallSheet
-        isOpen={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
-        currentParticipantCount={2}
-      />
+      {FEATURES.addToCall && (
+        <AddToCallSheet
+          isOpen={showAddSheet}
+          onClose={() => setShowAddSheet(false)}
+          currentParticipantCount={2}
+        />
+      )}
     </div>
   );
 };

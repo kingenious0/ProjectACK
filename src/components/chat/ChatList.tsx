@@ -5,6 +5,7 @@ import { BottomNav, NavTab } from './BottomNav';
 import { EmptyChatList } from './EmptyChatList';
 import { ChatListSkeleton } from './ChatListSkeleton';
 import { ReviewsInbox } from './ReviewsInbox';
+import { FEATURES } from '../../config/features';
 
 export interface ChatListProps {
   chats: Chat[];
@@ -72,6 +73,11 @@ export const ChatList: React.FC<ChatListProps> = ({
 
   // Filter based on active tab and search query
   const filteredChats = chats.filter((chat) => {
+    // CI Feed flag check
+    if (!FEATURES.ciFeed && (chat.id === 'chat_webhook_ci' || chat.username === 'vercel_builds')) {
+      return false;
+    }
+
     // Tab filtering
     if (activeTab === 'reviews') {
       const isReviewChat = chat.type === 'repo' || chat.statusText.toLowerCase().includes('pr') || chat.statusText.toLowerCase().includes('diff');

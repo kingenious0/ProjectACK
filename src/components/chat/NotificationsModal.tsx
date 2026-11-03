@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CheckCheck, Terminal, ShieldAlert, GitPullRequest, AtSign, ArrowRight } from 'lucide-react';
 import { AckNotification } from '../../web-db/store';
+import { FEATURES } from '../../config/features';
 
 interface NotificationsModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   if (!isOpen) return null;
 
   const filteredNotifs = notifications.filter((n) => {
+    if (!FEATURES.ciFeed && n.type === 'ci_failure') return false;
     if (filter === 'all') return true;
     if (filter === 'mention') return n.type === 'mention';
     if (filter === 'review') return n.type === 'review';

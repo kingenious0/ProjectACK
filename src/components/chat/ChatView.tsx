@@ -31,6 +31,7 @@ import { ImagePreviewSheet } from './ImagePreviewSheet';
 import { Reactions } from './Reactions';
 import { AudioWaveBubble } from '../AudioWaveBubble';
 import { CodeReviewDrawer, CodeReviewPayload } from './CodeReviewDrawer';
+import { FEATURES } from '../../config/features';
 
 export interface ChatViewProps {
   chat: Chat | null;
@@ -544,7 +545,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Right: Call Button + Overflow Menu */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', position: 'relative' }}>
-          {(onOpenStartCallSheet || onOpenCall) && (
+          {FEATURES.calls && (onOpenStartCallSheet || onOpenCall) && (
             <button
               type="button"
               id="btn-header-call"
@@ -613,56 +614,56 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 zIndex: 100,
               }}
             >
-              {(onOpenStartCallSheet || onOpenCall) && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMenuDropdown(false);
-                      if (onOpenStartCallSheet) onOpenStartCallSheet();
-                      else if (onOpenCall) onOpenCall('video');
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '10px 12px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--ack-text)',
-                      fontSize: '13px',
-                      borderRadius: '8px',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Phone size={16} strokeWidth={1.75} />
-                    <span>Start a call...</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMenuDropdown(false);
-                      if (onOpenCall) onOpenCall('pair');
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '10px 12px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--ack-accent-text, #A99DFF)',
-                      fontSize: '13px',
-                      borderRadius: '8px',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Video size={16} strokeWidth={1.75} />
-                    <span>Pair programming</span>
-                  </button>
-                </>
+              {FEATURES.calls && (onOpenStartCallSheet || onOpenCall) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenuDropdown(false);
+                    if (onOpenStartCallSheet) onOpenStartCallSheet();
+                    else if (onOpenCall) onOpenCall('video');
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--ack-text)',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                  }}
+                >
+                  <Phone size={16} strokeWidth={1.75} />
+                  <span>Start a call...</span>
+                </button>
+              )}
+              {FEATURES.pairProgramming && onOpenCall && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenuDropdown(false);
+                    onOpenCall('pair');
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--ack-accent-text, #A99DFF)',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                  }}
+                >
+                  <Video size={16} strokeWidth={1.75} />
+                  <span>Pair programming</span>
+                </button>
               )}
               <button
                 type="button"
@@ -1091,7 +1092,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
 
                 {/* "N replies" thread link under a message */}
-                {msg.metadata?.repliesCount && msg.metadata.repliesCount > 0 && (
+                {FEATURES.threads && msg.metadata?.repliesCount && msg.metadata.repliesCount > 0 && (
                   <button
                     type="button"
                     onClick={(e) => e.stopPropagation()}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Link2, Check, PhoneCall, Loader2 } from 'lucide-react';
+import { FEATURES } from '../../config/features';
 
 interface CallContact {
   id: string;
@@ -70,7 +71,7 @@ export const AddToCallSheet: React.FC<AddToCallSheetProps> = ({
   const [contacts, setContacts] = useState<CallContact[]>(INITIAL_CALL_CONTACTS);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen || !FEATURES.addToCall) return null;
 
   const inCallCount = contacts.filter((c) => c.state === 'in_call' || c.state === 'ringing').length;
   const isCapped = inCallCount >= 8;

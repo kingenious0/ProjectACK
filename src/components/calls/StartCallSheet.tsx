@@ -1,6 +1,7 @@
 import React from 'react';
 import { Video, Phone, Code, X } from 'lucide-react';
 import { Chat } from '../../web-db/store';
+import { FEATURES, isCallingEnabled } from '../../config/features';
 
 export type CallChoice = 'video' | 'voice' | 'pair';
 
@@ -17,7 +18,7 @@ export const StartCallSheet: React.FC<StartCallSheetProps> = ({
   onClose,
   onSelectOption,
 }) => {
-  if (!isOpen || !chat) return null;
+  if (!isOpen || !chat || !isCallingEnabled()) return null;
 
   return (
     <div
@@ -120,179 +121,47 @@ export const StartCallSheet: React.FC<StartCallSheetProps> = ({
         {/* Options List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Option 1: Video Call */}
-          <button
-            type="button"
-            id="btn-call-opt-video"
-            onClick={() => onSelectOption('video')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '14px 16px',
-              background: 'var(--ack-surface-2, #17171B)',
-              border: '1px solid var(--ack-border, #26262B)',
-              borderRadius: 'var(--radius-card, 12px)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'border-color 150ms ease, background 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
-            }}
-          >
-            <div
+          {FEATURES.calls && (
+            <button
+              type="button"
+              id="btn-call-opt-video"
+              onClick={() => onSelectOption('video')}
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'var(--ack-avatar-bg, #1A1A1F)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--ack-accent, #8B7CFF)',
-                flexShrink: 0,
+                gap: '14px',
+                padding: '14px 16px',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: 'var(--radius-card, 12px)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'border-color 150ms ease, background 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
               }}
             >
-              <Video size={20} strokeWidth={1.75} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  color: 'var(--ack-text, #ECECEF)',
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              >
-                Video call
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--ack-muted, #9A9AA3)',
-                  fontFamily: 'Inter, sans-serif',
-                  marginTop: '2px',
-                }}
-              >
-                Face-to-face with screen share
-              </div>
-            </div>
-          </button>
-
-          {/* Option 2: Voice Session */}
-          <button
-            type="button"
-            id="btn-call-opt-voice"
-            onClick={() => onSelectOption('voice')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '14px 16px',
-              background: 'var(--ack-surface-2, #17171B)',
-              border: '1px solid var(--ack-border, #26262B)',
-              borderRadius: 'var(--radius-card, 12px)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'border-color 150ms ease, background 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
-            }}
-          >
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'var(--ack-avatar-bg, #1A1A1F)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--ack-accent, #8B7CFF)',
-                flexShrink: 0,
-              }}
-            >
-              <Phone size={19} strokeWidth={1.75} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  color: 'var(--ack-text, #ECECEF)',
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              >
-                Voice session
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--ack-muted, #9A9AA3)',
-                  fontFamily: 'Inter, sans-serif',
-                  marginTop: '2px',
-                }}
-              >
-                Lightweight audio, works on bad WiFi
-              </div>
-            </div>
-          </button>
-
-          {/* Option 3: Pair Programming (Desktop Only) */}
-          <button
-            type="button"
-            id="btn-call-opt-pair"
-            onClick={() => onSelectOption('pair')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '14px 16px',
-              background: 'var(--ack-surface-2, #17171B)',
-              border: '1px solid var(--ack-border, #26262B)',
-              borderRadius: 'var(--radius-card, 12px)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'border-color 150ms ease, background 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
-            }}
-          >
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'var(--ack-avatar-bg, #1A1A1F)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--ack-accent, #8B7CFF)',
-                flexShrink: 0,
-              }}
-            >
-              <Code size={20} strokeWidth={1.75} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'var(--ack-avatar-bg, #1A1A1F)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  justifyContent: 'center',
+                  color: 'var(--ack-accent, #8B7CFF)',
+                  flexShrink: 0,
                 }}
               >
-                <span
+                <Video size={20} strokeWidth={1.75} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
                   style={{
                     fontSize: '15px',
                     fontWeight: 600,
@@ -300,36 +169,174 @@ export const StartCallSheet: React.FC<StartCallSheetProps> = ({
                     fontFamily: 'Inter, sans-serif',
                   }}
                 >
-                  Pair programming
-                </span>
-                <span
+                  Video call
+                </div>
+                <div
                   style={{
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: 'var(--ack-accent-tint, #272250)',
-                    color: 'var(--ack-accent-text, #A99DFF)',
-                    border: '1px solid rgba(139, 124, 255, 0.3)',
+                    fontSize: '12px',
+                    color: 'var(--ack-muted, #9A9AA3)',
+                    fontFamily: 'Inter, sans-serif',
+                    marginTop: '2px',
                   }}
                 >
-                  Desktop only
-                </span>
+                  Face-to-face with screen share
+                </div>
               </div>
+            </button>
+          )}
+
+          {/* Option 2: Voice Session */}
+          {FEATURES.calls && (
+            <button
+              type="button"
+              id="btn-call-opt-voice"
+              onClick={() => onSelectOption('voice')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                padding: '14px 16px',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: 'var(--radius-card, 12px)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'border-color 150ms ease, background 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
+              }}
+            >
               <div
                 style={{
-                  fontSize: '12px',
-                  color: 'var(--ack-muted, #9A9AA3)',
-                  fontFamily: 'Inter, sans-serif',
-                  marginTop: '2px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'var(--ack-avatar-bg, #1A1A1F)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--ack-accent, #8B7CFF)',
+                  flexShrink: 0,
                 }}
               >
-                Shared editor, terminals, low latency
+                <Phone size={19} strokeWidth={1.75} />
               </div>
-            </div>
-          </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    color: 'var(--ack-text, #ECECEF)',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                >
+                  Voice session
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--ack-muted, #9A9AA3)',
+                    fontFamily: 'Inter, sans-serif',
+                    marginTop: '2px',
+                  }}
+                >
+                  Lightweight audio, works on bad WiFi
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* Option 3: Pair Programming (Desktop Only) */}
+          {FEATURES.pairProgramming && (
+            <button
+              type="button"
+              id="btn-call-opt-pair"
+              onClick={() => onSelectOption('pair')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                padding: '14px 16px',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: 'var(--radius-card, 12px)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'border-color 150ms ease, background 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-accent, #8B7CFF)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ack-border, #26262B)';
+              }}
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'var(--ack-avatar-bg, #1A1A1F)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--ack-accent, #8B7CFF)',
+                  flexShrink: 0,
+                }}
+              >
+                <Code size={20} strokeWidth={1.75} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: 600,
+                      color: 'var(--ack-text, #ECECEF)',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    Pair programming
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: 'var(--ack-accent-tint, #272250)',
+                      color: 'var(--ack-accent-text, #A99DFF)',
+                      border: '1px solid rgba(139, 124, 255, 0.3)',
+                    }}
+                  >
+                    Desktop only
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--ack-muted, #9A9AA3)',
+                    fontFamily: 'Inter, sans-serif',
+                    marginTop: '2px',
+                  }}
+                >
+                  Shared editor, terminals, low latency
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
     </div>

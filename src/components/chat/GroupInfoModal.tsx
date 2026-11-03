@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check } from 'lucide-react';
 import { Chat, GroupMember } from '../../web-db/store';
+import { FEATURES } from '../../config/features';
 
 interface GroupInfoModalProps {
   isOpen: boolean;
@@ -144,7 +145,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: FEATURES.addToCall ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
               gap: '10px',
               marginBottom: '24px',
             }}
@@ -194,29 +195,31 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
               <span>Search</span>
             </button>
 
-            <button
-              onClick={() => {
-                if (onAddMember) onAddMember();
-                onClose();
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '12px 8px',
-                borderRadius: '12px',
-                backgroundColor: '#18181C',
-                border: '1px solid #26262B',
-                color: '#A1A1AA',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              <UserPlus size={18} />
-              <span>Add</span>
-            </button>
+            {FEATURES.addToCall && (
+              <button
+                onClick={() => {
+                  if (onAddMember) onAddMember();
+                  onClose();
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '12px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: '#18181C',
+                  border: '1px solid #26262B',
+                  color: '#A1A1AA',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                <UserPlus size={18} />
+                <span>Add</span>
+              </button>
+            )}
           </div>
 
           {/* Linked Repo */}

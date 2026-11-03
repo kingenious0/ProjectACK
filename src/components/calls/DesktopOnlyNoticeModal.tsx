@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Monitor, Check, Copy, X } from 'lucide-react';
+import { FEATURES } from '../../config/features';
 
 export interface DesktopOnlyNoticeModalProps {
   isOpen: boolean;
@@ -14,7 +15,7 @@ export const DesktopOnlyNoticeModal: React.FC<DesktopOnlyNoticeModalProps> = ({
 }) => {
   const [hasCopied, setHasCopied] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen || !FEATURES.pairProgramming) return null;
 
   const handleCopyLink = () => {
     const pairUrl = `${window.location.origin}/?pair=${chatId || 'active'}`;
