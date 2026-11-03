@@ -45,6 +45,7 @@
     "@react-navigation/native-stack": "^7.21.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "appwrite": "^29.2.0",
     "lucide-react": "^1.65.0",
     "react": "19.3.0",
     "react-dom": "^19.3.0",
