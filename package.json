@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/kingenious0/ProjectACK.git"
   },
-  "description": "Project ACK: Developer Messenger built with Bare React Native, op-sqlite, Obsidian & Cyber-Emerald UI, Burn-After-Reading .env vaults, and line-by-line PR reviews.",
+  "description": "ACK. — CHAT4DEVS: Developer Messenger built with Burn-After-Reading .env vaults, line-by-line PR reviews, and real-time developer relays.",
   "keywords": [
     "developer-tools",
     "react-native",

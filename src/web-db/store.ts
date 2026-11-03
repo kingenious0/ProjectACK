@@ -1,6 +1,6 @@
 /**
- * WhatsDev (Project ACK) Web Reactive Store
- * Snapchat x Discord ("Snapcord") Developer Messenger Store
+ * ACK. (CHAT4DEVS) Web Reactive Store
+ * Developer Messenger Store
  */
 
 export interface DiffLine {
@@ -517,7 +517,7 @@ impl<T, const CAP: usize> SocketRingBuffer<T, CAP> {
       senderId: 'usr_github_bot',
       senderName: 'VERCEL WEBHOOK [BUILD READY]',
       senderAvatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-      content: '📦 Build succeeded in Washington, D.C., USA (East) – iad1 in 1.197s. Zero TypeScript errors. Live at https://whatsdev.vercel.app',
+      content: '📦 Build succeeded in Washington, D.C., USA (East) – iad1 in 1.197s. Zero TypeScript errors. Live at https://ack-chat4devs.vercel.app',
       type: 'text',
       status: 'read',
       timestamp: 'Just now',
@@ -538,9 +538,9 @@ class WebStore {
 
   private loadState() {
     try {
-      const savedChats = localStorage.getItem('whatsdev_snap_chats');
-      const savedMessages = localStorage.getItem('whatsdev_snap_messages');
-      const savedSuggestions = localStorage.getItem('whatsdev_snap_suggestions');
+      const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
+      const savedMessages = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
+      const savedSuggestions = localStorage.getItem('ack_suggestions') || localStorage.getItem('whatsdev_snap_suggestions');
 
       if (savedChats) {
         const loaded: Chat[] = JSON.parse(savedChats);
@@ -572,9 +572,9 @@ class WebStore {
 
   private persist() {
     try {
-      localStorage.setItem('whatsdev_snap_chats', JSON.stringify(this.chats));
-      localStorage.setItem('whatsdev_snap_messages', JSON.stringify(this.messages));
-      localStorage.setItem('whatsdev_snap_suggestions', JSON.stringify(this.suggestions));
+      localStorage.setItem('ack_chats', JSON.stringify(this.chats));
+      localStorage.setItem('ack_messages', JSON.stringify(this.messages));
+      localStorage.setItem('ack_suggestions', JSON.stringify(this.suggestions));
     } catch (e) {
       console.warn('Storage persist failed', e);
     }
@@ -680,7 +680,7 @@ class WebStore {
           senderId: dev.id,
           senderName: dev.name.toUpperCase(),
           senderAvatar: dev.avatar,
-          content: `Hey @${CURRENT_USER.username}! Connected on WhatsDev. Ready to hack on ${dev.tag}?`,
+          content: `Hey @${CURRENT_USER.username}! Connected on ACK. (CHAT4DEVS). Ready to hack on ${dev.tag}?`,
           type: 'text',
           status: 'read',
           timestamp: 'Just now',

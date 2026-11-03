@@ -74,7 +74,7 @@ export const VaultSettingsScreen: React.FC = () => {
           />
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>WhatsDev Master</Text>
+          <Text style={styles.profileName}>ACK. Master</Text>
           <Text style={styles.profileStatus}>Developer • Local op-sqlite Engine</Text>
         </View>
         <TouchableOpacity style={styles.qrCodeBtn}>

@@ -138,39 +138,40 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
         style={{
           flex: 1,
           height: '100%',
-          background: '#222E35',
+          background: 'var(--wa-bg-deep)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '24px',
-          borderBottom: '6px solid #00A884',
+          borderBottom: '4px solid var(--wa-accent-green)',
         }}
       >
         <div
           style={{
-            width: '100px',
-            height: '100px',
-            borderRadius: '50%',
-            background: 'rgba(0, 168, 132, 0.1)',
-            border: '2px solid rgba(0, 168, 132, 0.3)',
+            width: '96px',
+            height: '96px',
+            borderRadius: '24px',
+            background: 'linear-gradient(135deg, rgba(0, 255, 204, 0.15), rgba(0, 229, 255, 0.05))',
+            border: '1px solid rgba(0, 255, 204, 0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '28px',
+            marginBottom: '24px',
+            boxShadow: '0 0 32px rgba(0, 255, 204, 0.12)',
           }}
         >
-          <Lock size={44} color="#00A884" />
+          <Lock size={42} color="var(--wa-accent-green)" />
         </div>
-        <h2 style={{ color: '#E9EDEF', fontSize: '28px', fontWeight: 300, marginBottom: '14px', letterSpacing: '-0.01em' }}>
-          WhatsApp Web for Developers
+        <h2 style={{ color: 'var(--wa-text-primary)', fontSize: '28px', fontWeight: 700, marginBottom: '10px', letterSpacing: '-0.02em', fontFamily: 'JetBrains Mono, monospace' }}>
+          ACK. <span style={{ color: 'var(--wa-accent-green)', fontSize: '20px', fontWeight: 600 }}>CHAT4DEVS</span>
         </h2>
-        <p style={{ color: '#8696A0', fontSize: '14px', maxWidth: '440px', textAlign: 'center', lineHeight: 1.6 }}>
-          Send end-to-end encrypted messages, share live code snippets, and exchange Burn-After-Reading .env vaults.
+        <p style={{ color: 'var(--wa-text-secondary)', fontSize: '14px', maxWidth: '460px', textAlign: 'center', lineHeight: 1.6 }}>
+          Send zero-trust client-encrypted messages, review line-by-line pull requests, and exchange ephemeral Burn-After-Reading .env vaults.
         </p>
-        <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', gap: '8px', color: '#667781', fontSize: '12px' }}>
-          <Lock size={12} />
-          <span>End-to-end encrypted</span>
+        <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--wa-text-secondary)', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>
+          <Lock size={13} color="var(--wa-accent-green)" />
+          <span>Zero-Trust • Client-Encrypted Relay</span>
         </div>
       </main>
     );

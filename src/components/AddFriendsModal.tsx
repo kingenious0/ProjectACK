@@ -292,7 +292,7 @@ export const AddFriendsModal: React.FC<AddFriendsModalProps> = ({
             </div>
           </div>
 
-          {/* Section Label: Contacts on WhatsDev */}
+          {/* Section Label: Contacts on ACK. */}
           <div
             style={{
               padding: '16px 18px 8px 18px',
@@ -303,7 +303,7 @@ export const AddFriendsModal: React.FC<AddFriendsModalProps> = ({
               letterSpacing: '0.04em',
             }}
           >
-            Contacts on WhatsDev
+            Contacts on ACK.
           </div>
 
           {/* Contacts List */}

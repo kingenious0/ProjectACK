@@ -1,5 +1,5 @@
 /**
- * WhatsDev (Project ACK) Web Crypto Engine
+ * ACK. (CHAT4DEVS) Web Crypto Engine
  * Zero-Trust Client-Side AES-256-GCM Encryption for Burn-After-Reading .env Vaults
  */
 

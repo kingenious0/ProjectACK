@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="WhatsDev Logo" width="540" style="border-radius: 14px; max-width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
+  <img src="assets/logo.jpg" alt="ACK. Logo" width="540" style="border-radius: 14px; max-width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
 </p>
 
-# WhatsDev (Project ACK) 💬⚡
+# ACK. — CHAT4DEVS 💬⚡
 
 <p align="center">
-  <strong style="font-size: 1.25rem;">WhatsApp Web & Mobile Reimagined for Software Engineers, Indie Hackers, and Tech Teams.</strong><br>
+  <strong style="font-size: 1.25rem;">Developer Messenger &amp; Control Center Reimagined for Software Engineers, Indie Hackers, and Tech Teams.</strong><br>
   Instant Code Reviews, Burn-After-Reading .env Vaults, Live Voice Notes, Real Media Pickers, and End-to-End Encryption.
 </p>
 
@@ -27,7 +27,7 @@
   <a href="https://github.com/topics/indiehackers"><img src="https://img.shields.io/badge/topic-indiehackers-111B21?style=flat-square&logo=producthunt&logoColor=FFB800" alt="indiehackers"></a>
 </p>
 
-> 🌟 **Support Open Source:** If you find **WhatsDev** useful or love the developer-first WhatsApp aesthetic, please drop a ⭐ **Star** on this repository!
+> 🌟 **Support Open Source:** If you find A useful or love the developer-first WhatsApp aesthetic, please drop a ⭐ **Star** on this repository!
 
 ---
 
@@ -88,9 +88,9 @@
 
 ---
 
-## 🎨 WhatsApp Dark Mode Design System
+## 🎨 Obsidian & Electric Mint Developer Design System
 
-WhatsDev implements a 1:1 WhatsApp Web & Mobile dark theme:
+ACK. implements a specialized developer-centric dark theme:
 
 | Element                                 | Color Hex   | WhatsApp Token                            |
 | :-------------------------------------- | :---------- | :---------------------------------------- |
@@ -99,7 +99,7 @@ WhatsDev implements a 1:1 WhatsApp Web & Mobile dark theme:
 | **Top Headers & Incoming Bubble** | `#202C33` | `--wa-bg-header` / `--wa-bg-incoming` |
 | **Outgoing Bubble (Sent)**        | `#005C4B` | `--wa-bg-outgoing`                      |
 | **Input Bar & Modals**            | `#2A3942` | `--wa-bg-input`                         |
-| **WhatsApp Brand Green**          | `#00A884` | `--wa-accent-green`                     |
+| **Brand Accent (Electric Mint)**  | `#00FFCC` | `--wa-accent-green`                     |
 | **Active Floating Action Green**  | `#25D366` | `--wa-accent-lightgreen`                |
 | **Read Receipt Ticks**            | `#53BDEB` | `--wa-ticks-blue`                       |
 | **Primary Text**                  | `#E9EDEF` | `--wa-text-primary`                     |
@@ -110,7 +110,7 @@ WhatsDev implements a 1:1 WhatsApp Web & Mobile dark theme:
 ## 🏗️ Project Architecture
 
 ```
-WhatsDev/
+ACK/
 ├── src/
 │   ├── components/
 │   │   ├── whatsapp/
@@ -187,13 +187,13 @@ Generates an optimized bundle in `dist/` verified with zero TypeScript errors.
 
 ## 💖 Sponsorship & Community
 
-WhatsDev is an open-source tool built with love for developers worldwide. If you'd like to support continued development, hosting, and features:
+ACK. is an open-source tool built with love for developers worldwide. If you'd like to support continued development, hosting, and features:
 
-👉 **[Sponsor WhatsDev via Paystack](https://paystack.shop/pay/project-ack)**
+👉 **[Sponsor ACK. via Paystack](https://paystack.shop/pay/project-ack)**
 
 ---
 
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
-Feel free to use, modify, and build upon WhatsDev for your team and personal projects.
+Feel free to use, modify, and build upon ACK. for your team and personal projects.

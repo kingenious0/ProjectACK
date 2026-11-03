@@ -69,9 +69,9 @@ export const WorkspaceDock: React.FC<WorkspaceDockProps> = ({
         position: 'relative',
       }}
     >
-      {/* WhatsDev Dev Engine Logo Icon */}
+      {/* ACK. Engine Logo Icon */}
       <div
-        title="WhatsDev Dev Hub v2.0"
+        title="ACK. — CHAT4DEVS"
         style={{
           width: '40px',
           height: '40px',

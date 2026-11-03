@@ -46,7 +46,7 @@ export const WhatsAppDocumentBubble: React.FC<WhatsAppDocumentBubbleProps> = ({
       document.body.removeChild(a);
     } else {
       // Create a dummy text download for demo
-      const blob = new Blob([`WhatsDev Document: ${fileName}\nExported securely.`], { type: 'text/plain' });
+      const blob = new Blob([`ACK. Document: ${fileName}\nExported securely from CHAT4DEVS.`], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

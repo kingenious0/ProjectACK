@@ -159,7 +159,7 @@ export const ChatListScreen: React.FC = () => {
           </View>
         ) : (
           <>
-            <Text style={styles.brandTitle}>WhatsDev</Text>
+            <Text style={styles.brandTitle}>ACK.</Text>
             <View style={styles.headerRight}>
               <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.7}>
                 <CameraIcon size={20} color={COLORS.textSecondary} />

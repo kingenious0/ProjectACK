@@ -1,7 +1,7 @@
 {
-  "name": "WhatsDev — Project ACK Developer Messenger",
-  "short_name": "WhatsDev",
-  "description": "WhatsApp Web-style Developer Messenger with Burn-After-Reading .env Vaults, Line-by-Line PR Reviews, and GitHub Sync",
+  "name": "ACK. — CHAT4DEVS",
+  "short_name": "ACK.",
+  "description": "ACK. — CHAT4DEVS: Developer Messenger with Burn-After-Reading .env Vaults, Line-by-Line PR Reviews, and Real-Time Sync",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

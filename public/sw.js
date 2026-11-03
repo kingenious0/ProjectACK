@@ -1,5 +1,5 @@
-// WhatsDev Service Worker
-const CACHE_NAME = 'whatsdev-v1';
+// ACK. — CHAT4DEVS Service Worker
+const CACHE_NAME = 'ack-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

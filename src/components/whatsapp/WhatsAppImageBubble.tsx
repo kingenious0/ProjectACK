@@ -173,7 +173,7 @@ export const WhatsAppImageBubble: React.FC<WhatsAppImageBubbleProps> = ({
 
               <a
                 href={imageUrl}
-                download="whatsdev-photo.png"
+                download="ack-photo.png"
                 target="_blank"
                 rel="noreferrer"
                 title="Download photo"

@@ -356,7 +356,7 @@ export const WhatsAppSidebar: React.FC<WhatsAppSidebarProps> = ({
                 textOverflow: 'ellipsis',
               }}
             >
-              WhatsDev ↳ #workspace
+              ACK. ↳ CHAT4DEVS
             </div>
             <div
               style={{

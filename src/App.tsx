@@ -88,7 +88,7 @@ export const App: React.FC = () => {
             }
           }}
           unreadCount={totalUnread}
-          onOpenSettings={() => alert('WhatsDev v2.0 Dev Control Center\nActive Environment: Staging\nGit: kingenious0/ProjectACK')}
+          onOpenSettings={() => alert('ACK. — CHAT4DEVS Dev Control Center\nActive Environment: Staging\nGit: kingenious0/ProjectACK')}
         />
 
         {/* Workspace Hub Panel (IDE Collapsible Repository Tree) */}
