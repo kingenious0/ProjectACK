@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser, logoutUser, handleOAuthCallback, resolveInviteCode } from './lib/appwrite';
+import { getCurrentUser, logoutUser, handleOAuthCallback, resolveInviteCode, upsertUserProfile } from './lib/appwrite';
 import { webStore, Chat, Message, setCurrentUser, CURRENT_USER } from './web-db/store';
 import { ChatList } from './components/chat/ChatList';
 import { InviteLandingView } from './components/chat/InviteLandingView';
@@ -98,8 +98,19 @@ export const App: React.FC = () => {
           searchable: u.searchable ?? true,
           inviteCode: u.inviteCode,
         });
+        upsertUserProfile(u).catch(() => {});
         setChats([...webStore.getChats()]);
         setStoreRevision((r) => r + 1);
+      } else if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        upsertUserProfile({
+          id: CURRENT_USER.id,
+          githubId: CURRENT_USER.githubId || CURRENT_USER.id,
+          name: CURRENT_USER.name,
+          username: CURRENT_USER.username,
+          avatar: CURRENT_USER.avatar,
+          searchable: CURRENT_USER.searchable ?? true,
+          inviteCode: CURRENT_USER.inviteCode,
+        }).catch(() => {});
       }
     });
   }, []);

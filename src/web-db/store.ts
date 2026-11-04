@@ -237,6 +237,19 @@ export function setCurrentUser(user: {
   try {
     if (typeof window !== 'undefined') {
       localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir = JSON.parse(rawDir);
+      dir[user.username.toLowerCase()] = {
+        id: CURRENT_USER.id,
+        githubId: CURRENT_USER.githubId || CURRENT_USER.id,
+        name: CURRENT_USER.name,
+        username: CURRENT_USER.username,
+        avatar: CURRENT_USER.avatar,
+        searchable: CURRENT_USER.searchable !== false,
+        inviteCode: CURRENT_USER.inviteCode,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('ack_user_directory', JSON.stringify(dir));
     }
   } catch (e) {}
 }

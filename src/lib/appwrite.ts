@@ -132,7 +132,7 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
     console.warn('[Ack Directory] Local cache update error:', e);
   }
 
-  // 2. Sync to Appwrite messages table (__ack_directory__) and profiles table if accessible
+  // 2. Sync to Appwrite messages table (__ack_directory__) with public read permissions
   try {
     const docData = {
       conversationId: '__ack_directory__',
@@ -152,12 +152,20 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       timestamp: new Date().toISOString(),
     };
 
+    const permissions = [
+      Permission.read(Role.any()),
+      Permission.read(Role.users()),
+      Permission.write(Role.any()),
+      Permission.write(Role.users()),
+    ];
+
     // Save to messagesTableId (guaranteed available in database)
     databases.createDocument(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.messagesTableId,
       ID.unique(),
-      docData
+      docData,
+      permissions
     ).catch(() => {});
 
     // Also attempt profiles table if collection exists
@@ -176,7 +184,8 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.profilesTableId,
       docId,
-      profileData
+      profileData,
+      permissions
     ).catch((err: any) => {
       if (err?.code === 409 || err?.message?.includes('already exists')) {
         databases.updateDocument(
@@ -202,34 +211,174 @@ export async function searchAckProfiles(
 
   const matchedMap = new Map<string, AuthenticatedUserProfile>();
 
-  // 1. Query Appwrite messages table directory
+  // 1. Check local chats (active DM contacts, existing conversations)
+  try {
+    if (typeof window !== 'undefined') {
+      const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
+      if (savedChats) {
+        const chats = JSON.parse(savedChats);
+        if (Array.isArray(chats)) {
+          for (const c of chats) {
+            if (c.username) {
+              const u = c.username.toLowerCase();
+              const n = (c.name || '').toLowerCase();
+              if (u.includes(query) || n.includes(query)) {
+                matchedMap.set(u, {
+                  id: c.id || `gh_${u}`,
+                  githubId: u,
+                  name: c.name || u,
+                  username: c.username,
+                  avatar: c.avatar || `https://github.com/${u}.png`,
+                  searchable: true,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Check local messages history (extract senders and DM participants)
+  try {
+    if (typeof window !== 'undefined') {
+      const savedMsgs = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
+      if (savedMsgs) {
+        const msgsRecord: Record<string, any[]> = JSON.parse(savedMsgs);
+        for (const [chatId, msgList] of Object.entries(msgsRecord)) {
+          // If chatId is dm_userA_userB, extract handles
+          if (chatId.startsWith('dm_')) {
+            const parts = chatId.replace(/^dm_/, '').split('_');
+            for (const p of parts) {
+              const u = p.toLowerCase();
+              if (u.includes(query) && !matchedMap.has(u)) {
+                matchedMap.set(u, {
+                  id: `gh_${u}`,
+                  githubId: u,
+                  name: u,
+                  username: u,
+                  avatar: `https://github.com/${u}.png`,
+                  searchable: true,
+                });
+              }
+            }
+          }
+          if (Array.isArray(msgList)) {
+            for (const m of msgList) {
+              if (m.senderName && m.senderId && m.senderId !== 'usr_me') {
+                const sName = m.senderName.toLowerCase();
+                const sId = m.senderId.toLowerCase().replace(/^gh_/, '');
+                if (sName.includes(query) || sId.includes(query)) {
+                  const u = sId || sName;
+                  if (u && !matchedMap.has(u)) {
+                    matchedMap.set(u, {
+                      id: m.senderId,
+                      githubId: u,
+                      name: m.senderName,
+                      username: u,
+                      avatar: m.senderAvatar || `https://github.com/${u}.png`,
+                      searchable: true,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. Check localStorage directory
+  try {
+    if (typeof window !== 'undefined') {
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+      for (const [login, prof] of Object.entries(dir)) {
+        if (prof.searchable !== false) {
+          const l = login.toLowerCase();
+          const n = (prof.name || '').toLowerCase();
+          if (l.includes(query) || n.includes(query)) {
+            if (!matchedMap.has(l)) {
+              matchedMap.set(l, prof);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 4. Query Appwrite messages table (safe list without missing-index requirement)
   try {
     const res = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.messagesTableId,
-      [Query.equal('conversationId', '__ack_directory__'), Query.limit(50)]
+      [Query.limit(100), Query.orderDesc('$createdAt')]
     );
-    for (const doc of res.documents as any[]) {
-      try {
-        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-        const login = (meta?.username || doc.senderId || '').toLowerCase();
-        const name = (meta?.name || doc.senderName || '').toLowerCase();
-        if (login.includes(query) || name.includes(query)) {
-          matchedMap.set(login, {
-            id: `gh_${meta?.githubId || login}`,
-            githubId: meta?.githubId || login,
-            name: meta?.name || doc.senderName || login,
-            username: meta?.username || login,
-            avatar: meta?.avatar || `https://github.com/${login}.png`,
-            searchable: meta?.searchable !== false,
-            inviteCode: meta?.inviteCode || doc.content || '',
-          });
-        }
-      } catch (e) {}
-    }
-  } catch (err) {}
 
-  // 2. Query Appwrite profiles table if available
+    for (const doc of res.documents as any[]) {
+      // 4a. Directory sync document
+      if (doc.conversationId === '__ack_directory__' || doc.type === 'profile_sync') {
+        try {
+          const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
+          const login = (meta?.username || doc.senderId || '').toLowerCase();
+          const name = (meta?.name || doc.senderName || '').toLowerCase();
+          if (login.includes(query) || name.includes(query)) {
+            matchedMap.set(login, {
+              id: `gh_${meta?.githubId || login}`,
+              githubId: meta?.githubId || login,
+              name: meta?.name || doc.senderName || login,
+              username: meta?.username || login,
+              avatar: meta?.avatar || `https://github.com/${login}.png`,
+              searchable: meta?.searchable !== false,
+              inviteCode: meta?.inviteCode || doc.content || '',
+            });
+          }
+        } catch (e) {}
+      }
+
+      // 4b. DM conversation room participant
+      if (doc.conversationId && doc.conversationId.startsWith('dm_')) {
+        const parts = doc.conversationId.replace(/^dm_/, '').split('_');
+        for (const p of parts) {
+          const u = p.toLowerCase();
+          if (u.includes(query) && !matchedMap.has(u)) {
+            matchedMap.set(u, {
+              id: `gh_${u}`,
+              githubId: u,
+              name: u,
+              username: u,
+              avatar: `https://github.com/${u}.png`,
+              searchable: true,
+            });
+          }
+        }
+      }
+
+      // 4c. Sender on Ack
+      if (doc.senderName || doc.senderId) {
+        const sId = (doc.senderId || '').toLowerCase().replace(/^gh_/, '');
+        const sName = (doc.senderName || '').toLowerCase();
+        if (sId.includes(query) || sName.includes(query)) {
+          const u = sId.startsWith('usr_') ? sName : sId;
+          if (u && !matchedMap.has(u)) {
+            matchedMap.set(u, {
+              id: `gh_${u}`,
+              githubId: u,
+              name: doc.senderName || u,
+              username: u,
+              avatar: `https://github.com/${u}.png`,
+              searchable: true,
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Appwrite Directory Search] Cloud scan note:', err);
+  }
+
+  // 5. Query Appwrite profiles table if collection exists
   try {
     const res = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
@@ -254,25 +403,6 @@ export async function searchAckProfiles(
       }
     }
   } catch (err) {}
-
-  // 3. Merge local directory entries
-  try {
-    if (typeof window !== 'undefined') {
-      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
-      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
-      for (const [login, prof] of Object.entries(dir)) {
-        if (prof.searchable !== false) {
-          const l = login.toLowerCase();
-          const n = (prof.name || '').toLowerCase();
-          if (l.includes(query) || n.includes(query)) {
-            if (!matchedMap.has(l)) {
-              matchedMap.set(l, prof);
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {}
 
   // Exclude current user from results
   if (excludeUsername) {
