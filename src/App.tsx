@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser, logoutUser, handleOAuthCallback } from './lib/appwrite';
+import { getCurrentUser, logoutUser, handleOAuthCallback, resolveInviteCode } from './lib/appwrite';
 import { webStore, Chat, Message, setCurrentUser, CURRENT_USER } from './web-db/store';
 import { ChatList } from './components/chat/ChatList';
+import { InviteLandingView } from './components/chat/InviteLandingView';
 
 
 import { ChatView } from './components/chat/ChatView';
@@ -25,9 +26,23 @@ import './theme/ack.css';
 export const App: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
-  const [activeChatId, setActiveChatId] = useState<string | null>('chat_torvalds_repo');
+  const [activeChatId, setActiveChatId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ack_active_chat_id');
+      if (saved) return saved;
+    }
+    const initialChats = webStore.getChats();
+    return initialChats[0]?.id || null;
+  });
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [activeReviewPayload, setActiveReviewPayload] = useState<CodeReviewPayload | null>(null);
+
+  // Invite landing overlay states (Screen 3)
+  const [pendingInviteData, setPendingInviteData] = useState<{
+    inviterUsername: string;
+    inviteCode: string;
+  } | null>(null);
+  const [showInviteLanding, setShowInviteLanding] = useState(false);
 
   // Modals & Overlays
   const [isAddFriendsOpen, setIsAddFriendsOpen] = useState(false);
@@ -49,6 +64,13 @@ export const App: React.FC = () => {
   } | null>(null);
 
   const [, setStoreRevision] = useState(0);
+
+  // Persist active chat ID across reloads
+  useEffect(() => {
+    if (activeChatId && typeof window !== 'undefined') {
+      localStorage.setItem('ack_active_chat_id', activeChatId);
+    }
+  }, [activeChatId]);
 
   // Reactive subscription
   useEffect(() => {
@@ -73,6 +95,7 @@ export const App: React.FC = () => {
           avatar: u.avatar,
           isLoggedIn: true,
           searchable: u.searchable ?? true,
+          inviteCode: u.inviteCode,
         });
         setChats([...webStore.getChats()]);
         setStoreRevision((r) => r + 1);
@@ -80,13 +103,30 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  // Capture ?invite=<inviter> param and preserve across OAuth redirect
+  // Screen 3: Check for ?invite=<codeOrUsername> and resolve inviter
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const inviteParam = params.get('invite');
     if (inviteParam) {
-      localStorage.setItem('ack_pending_invite', inviteParam.trim().replace(/^@/, ''));
+      const codeOrHandle = inviteParam.trim().replace(/^@/, '');
+      localStorage.setItem('ack_pending_invite', codeOrHandle);
+      resolveInviteCode(codeOrHandle).then((profile) => {
+        if (profile) {
+          setPendingInviteData({
+            inviterUsername: profile.username,
+            inviteCode: profile.inviteCode || codeOrHandle,
+          });
+        } else {
+          setPendingInviteData({
+            inviterUsername: codeOrHandle,
+            inviteCode: codeOrHandle,
+          });
+        }
+        if (!CURRENT_USER.isLoggedIn) {
+          setShowInviteLanding(true);
+        }
+      });
     }
   }, []);
 
@@ -95,21 +135,26 @@ export const App: React.FC = () => {
     if (typeof window === 'undefined') return;
     const pendingInvite = localStorage.getItem('ack_pending_invite');
     if (pendingInvite && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
-      const inviter = pendingInvite.toLowerCase();
-      if (inviter !== CURRENT_USER.username.toLowerCase()) {
-        const newChat = webStore.addFriend({
-          id: `gh_${inviter}`,
-          name: inviter,
-          username: inviter,
-          avatar: `https://github.com/${inviter}.png`,
-          tag: 'Invited You to Ack',
-          mutualCount: 1,
-          isOnline: true,
-        });
-        setActiveChatId(newChat.id);
-        setChats([...webStore.getChats()]);
-      }
-      localStorage.removeItem('ack_pending_invite');
+      resolveInviteCode(pendingInvite).then((prof) => {
+        const inviter = prof?.username || pendingInvite;
+        if (inviter.toLowerCase() !== CURRENT_USER.username.toLowerCase()) {
+          const newChat = webStore.addFriend({
+            id: prof?.githubId ? `gh_${prof.githubId}` : `gh_${inviter}`,
+            name: prof?.name || inviter,
+            username: inviter,
+            avatar: prof?.avatar || `https://github.com/${inviter}.png`,
+            tag: 'Invited You to Ack',
+            mutualCount: 1,
+            isOnline: true,
+          });
+          setActiveChatId(newChat.id);
+          localStorage.setItem('ack_active_chat_id', newChat.id);
+          setChats([...webStore.getChats()]);
+          setIsMobileChatOpen(true);
+        }
+        localStorage.removeItem('ack_pending_invite');
+        setShowInviteLanding(false);
+      });
     }
   }, [CURRENT_USER.isLoggedIn, CURRENT_USER.username]);
 
@@ -360,6 +405,15 @@ export const App: React.FC = () => {
           chat={activeChat}
           callType={callType}
           onClose={() => setIsCallOpen(false)}
+        />
+      )}
+
+      {/* Screen 3: Friend's view when opening an invite link */}
+      {showInviteLanding && !CURRENT_USER.isLoggedIn && (
+        <InviteLandingView
+          inviterUsername={pendingInviteData?.inviterUsername || 'kingenious0'}
+          inviteCode={pendingInviteData?.inviteCode}
+          onDismiss={() => setShowInviteLanding(false)}
         />
       )}
 

@@ -77,6 +77,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [activeReactionMenuId, setActiveReactionMenuId] = useState<string | null>(null);
   const [internalReviewPayload, setInternalReviewPayload] = useState<CodeReviewPayload | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [dismissChips, setDismissChips] = useState(false);
+
+  const isInviteChat = Boolean(chat?.isInviteChat || chat?.invitedBy || chat?.statusText?.toLowerCase().includes('invite'));
+  const inviterHandle = chat?.invitedBy || chat?.username || 'dev';
+  const hasUserReplied = messages.some((m) => m.senderId === CURRENT_USER.id);
+  const showQuickChips = isInviteChat && !hasUserReplied && !dismissChips;
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -794,6 +800,36 @@ export const ChatView: React.FC<ChatViewProps> = ({
           Today · Vault secrets are encrypted in your browser
         </div>
 
+        {/* Screen 4: Auto-connected first chat system note */}
+        {isInviteChat && (
+          <div
+            id="invite-connected-note"
+            style={{
+              margin: '8px auto 16px auto',
+              maxWidth: '380px',
+              width: '92%',
+              background: '#131316',
+              border: '1px solid #222228',
+              borderRadius: '16px',
+              padding: '16px 20px',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '13.5px',
+                color: '#A0A0A8',
+                lineHeight: 1.5,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              You joined through the invite from @{inviterHandle}.<br />
+              You're now connected.
+            </div>
+          </div>
+        )}
+
         {/* Message Stream */}
         {messages.map((msg) => {
           const isMe = msg.senderId === CURRENT_USER.id;
@@ -1340,6 +1376,69 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }}
         onSend={handleSendImageWithCaption}
       />
+
+      {/* Screen 4: Quick reply chips for invite newcomer */}
+      {showQuickChips && (
+        <div
+          id="invite-quick-chips"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 16px 6px 16px',
+            background: 'var(--ack-bg, #0B0B0D)',
+            overflowX: 'auto',
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              onSendMessage('Say hi');
+              setDismissChips(true);
+            }}
+            id="btn-chip-say-hi"
+            style={{
+              padding: '8px 18px',
+              borderRadius: '22px',
+              background: '#141416',
+              border: '1px solid #2C2C34',
+              color: '#ECECEF',
+              fontSize: '13.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              fontFamily: 'Inter, sans-serif',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            Say hi
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSendMessage('Thanks for the invite');
+              setDismissChips(true);
+            }}
+            id="btn-chip-thanks"
+            style={{
+              padding: '8px 18px',
+              borderRadius: '22px',
+              background: '#141416',
+              border: '1px solid #2C2C34',
+              color: '#ECECEF',
+              fontSize: '13.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              fontFamily: 'Inter, sans-serif',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            Thanks for the invite
+          </button>
+        </div>
+      )}
 
       {/* 3. Composer Footer (Matches Conversation@1x.png) */}
       <footer

@@ -1,4 +1,6 @@
-import { Client, Account, Databases, Storage, OAuthProvider, ID, Query } from 'appwrite';
+import { Client, Account, Databases, Storage, OAuthProvider, ID, Query, Permission, Role } from 'appwrite';
+
+export const ACK_CANONICAL_DOMAIN = 'https://project-ack.vercel.app';
 
 export const APPWRITE_CONFIG = {
   endpoint: 'https://fra.cloud.appwrite.io/v1',
@@ -50,6 +52,7 @@ export interface AuthenticatedUserProfile {
   username: string;
   avatar: string;
   searchable: boolean;
+  inviteCode?: string;
   updatedAt?: string;
 }
 
@@ -138,6 +141,7 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       name: profile.name,
       avatarUrl: profile.avatar,
       searchable: profile.searchable ?? true,
+      inviteCode: profile.inviteCode || '',
       updatedAt: new Date().toISOString(),
     };
 
@@ -198,15 +202,15 @@ export async function searchAckProfiles(
           username: doc.login,
           avatar: doc.avatarUrl || `https://github.com/${doc.login}.png`,
           searchable: true,
+          inviteCode: doc.inviteCode || '',
         });
       }
     }
   } catch (err) {
-    // Appwrite collection might not be created or offline; fallback to local directory
     console.log('[Appwrite Directory] Remote search fallback to local registry');
   }
 
-  // 2. Merge local directory entries (e.g. users who have logged in on this instance)
+  // 2. Merge local directory entries
   try {
     if (typeof window !== 'undefined') {
       const rawDir = localStorage.getItem('ack_user_directory') || '{}';
@@ -231,6 +235,120 @@ export async function searchAckProfiles(
   }
 
   return Array.from(matchedMap.values()).slice(0, 10);
+}
+
+// Resolve an invite code (or fallback username) to an AuthenticatedUserProfile
+export async function resolveInviteCode(rawCodeOrUsername: string): Promise<AuthenticatedUserProfile | null> {
+  const token = rawCodeOrUsername.trim().toLowerCase().replace(/^@/, '');
+  if (!token) return null;
+
+  // 1. Check local directory first (fast & reliable)
+  try {
+    if (typeof window !== 'undefined') {
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+      for (const prof of Object.values(dir)) {
+        if (
+          (prof.inviteCode && prof.inviteCode.toLowerCase() === token) ||
+          prof.username.toLowerCase() === token
+        ) {
+          return prof;
+        }
+      }
+      // Also check saved current user
+      const rawCur = localStorage.getItem('ack_current_user');
+      if (rawCur) {
+        const cur = JSON.parse(rawCur);
+        if (
+          (cur.inviteCode && cur.inviteCode.toLowerCase() === token) ||
+          (cur.username && cur.username.toLowerCase() === token)
+        ) {
+          return {
+            id: cur.id,
+            githubId: cur.githubId || cur.id,
+            name: cur.name,
+            username: cur.username,
+            avatar: cur.avatar,
+            searchable: cur.searchable !== false,
+            inviteCode: cur.inviteCode,
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Query Appwrite profiles collection
+  try {
+    const res = await databases.listDocuments(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.profilesTableId,
+      [Query.limit(50)]
+    );
+    for (const doc of res.documents as any[]) {
+      const docCode = (doc.inviteCode || '').toLowerCase();
+      const docLogin = (doc.login || '').toLowerCase();
+      if (docCode === token || docLogin === token) {
+        return {
+          id: doc.$id,
+          githubId: doc.githubId || doc.$id,
+          name: doc.name || doc.login,
+          username: doc.login,
+          avatar: doc.avatarUrl || `https://github.com/${doc.login}.png`,
+          searchable: doc.searchable !== false,
+          inviteCode: doc.inviteCode || '',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[Appwrite Directory] resolveInviteCode remote notice:', err);
+  }
+
+  // 3. Fallback: If it's a known username format, construct a sensible GitHub profile preview
+  if (!token.startsWith('inv_') && token.length >= 2) {
+    return {
+      id: `gh_${token}`,
+      githubId: token,
+      name: token,
+      username: token,
+      avatar: `https://github.com/${token}.png`,
+      searchable: true,
+    };
+  }
+
+  return null;
+}
+
+// Appwrite Room Security: Restrict room and message access strictly to room participants
+export async function createSecureRoom(
+  conversationId: string,
+  participantUserIds: string[],
+  roomMetadata: Record<string, any> = {}
+): Promise<boolean> {
+  try {
+    const permissions = participantUserIds.flatMap((uid) => [
+      Permission.read(Role.user(uid)),
+      Permission.write(Role.user(uid)),
+    ]);
+
+    await databases.createDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.conversationsTableId,
+      conversationId,
+      {
+        conversationId,
+        participants: participantUserIds,
+        ...roomMetadata,
+        updatedAt: new Date().toISOString(),
+      },
+      permissions
+    );
+    console.log('[Appwrite Security] Created room with strict participant permissions:', conversationId, permissions);
+    return true;
+  } catch (err: any) {
+    // If room collection not created yet, log notice
+    console.warn('[Appwrite Security] Room security notice (falling back to client encryption & isolation):', err?.message || err);
+    return false;
+  }
 }
 
 // Exchange URL token (userId & secret) for session on return

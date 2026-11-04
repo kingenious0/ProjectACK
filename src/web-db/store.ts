@@ -106,6 +106,8 @@ export interface Chat {
   description?: string;
   linkedRepo?: string;
   isDemo?: boolean;
+  isInviteChat?: boolean;
+  invitedBy?: string;
 }
 
 export interface ReviewPR {
@@ -155,6 +157,10 @@ export interface ShipLog {
   authorAvatar?: string;
 }
 
+export function generateInviteCode(): string {
+  return 'inv_' + Math.random().toString(36).substring(2, 10);
+}
+
 export const CURRENT_USER: {
   id: string;
   githubId?: string;
@@ -164,6 +170,7 @@ export const CURRENT_USER: {
   avatar: string;
   isLoggedIn: boolean;
   searchable: boolean;
+  inviteCode: string;
 } = {
   id: 'usr_me',
   githubId: '',
@@ -173,16 +180,33 @@ export const CURRENT_USER: {
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   isLoggedIn: false,
   searchable: true,
+  inviteCode: generateInviteCode(),
 };
 
 try {
   if (typeof window !== 'undefined') {
     const savedUser = localStorage.getItem('ack_current_user');
     if (savedUser) {
-      Object.assign(CURRENT_USER, JSON.parse(savedUser));
+      const parsed = JSON.parse(savedUser);
+      Object.assign(CURRENT_USER, parsed);
+      if (!CURRENT_USER.inviteCode) {
+        CURRENT_USER.inviteCode = generateInviteCode();
+        localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+      }
     }
   }
 } catch (e) {}
+
+export function regenerateInviteCode(): string {
+  const newCode = generateInviteCode();
+  CURRENT_USER.inviteCode = newCode;
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+    }
+  } catch (e) {}
+  return newCode;
+}
 
 export function setCurrentUser(user: {
   id: string;
@@ -192,6 +216,7 @@ export function setCurrentUser(user: {
   avatar?: string;
   isLoggedIn?: boolean;
   searchable?: boolean;
+  inviteCode?: string;
 }): void {
   CURRENT_USER.id = user.id;
   if (user.githubId) CURRENT_USER.githubId = user.githubId;
@@ -200,6 +225,8 @@ export function setCurrentUser(user: {
   CURRENT_USER.handle = `@${user.username}`;
   CURRENT_USER.isLoggedIn = user.isLoggedIn !== undefined ? user.isLoggedIn : true;
   if (user.searchable !== undefined) CURRENT_USER.searchable = user.searchable;
+  if (user.inviteCode) CURRENT_USER.inviteCode = user.inviteCode;
+  if (!CURRENT_USER.inviteCode) CURRENT_USER.inviteCode = generateInviteCode();
   if (user.avatar) {
     CURRENT_USER.avatar = user.avatar;
   }
@@ -1044,30 +1071,13 @@ class WebStore {
       const savedNotifs = localStorage.getItem('ack_notifications');
 
       if (savedChats) {
-        const loaded: Chat[] = JSON.parse(savedChats);
-        this.chats = loaded.map((c) => {
-          const init = INITIAL_CHATS.find((ic) => ic.id === c.id);
-          if (init) {
-            return {
-              ...c,
-              name: init.name,
-              statusDot: init.statusDot,
-              statusText: init.statusText || c.statusText,
-              statusTime: init.statusTime || c.statusTime,
-              unreadCount: init.unreadCount !== undefined ? init.unreadCount : c.unreadCount,
-            };
-          }
-          return c;
-        });
-        const missing = INITIAL_CHATS.filter((ic) => !this.chats.some((lc) => lc.id === ic.id));
-        this.chats = [...this.chats, ...missing];
+        this.chats = JSON.parse(savedChats);
       } else {
         this.chats = INITIAL_CHATS;
       }
 
       if (savedMessages) {
-        const loadedMsgs = JSON.parse(savedMessages);
-        this.messages = { ...INITIAL_MESSAGES, ...loadedMsgs };
+        this.messages = JSON.parse(savedMessages);
       } else {
         this.messages = INITIAL_MESSAGES;
       }
@@ -1078,14 +1088,6 @@ class WebStore {
 
       if (!this.suggestions || this.suggestions.length === 0) {
         this.suggestions = INITIAL_SUGGESTIONS;
-      }
-
-      // Ensure rich demonstration messages are populated
-      if (!this.messages['chat_project_ack'] || this.messages['chat_project_ack'].length < 3) {
-        this.messages['chat_project_ack'] = INITIAL_MESSAGES.chat_project_ack;
-      }
-      if (this.messages['chat_robert_jonas'] && !this.messages['chat_robert_jonas'].some((m: Message) => m.type === 'image')) {
-        this.messages['chat_robert_jonas'] = INITIAL_MESSAGES.chat_robert_jonas;
       }
     } catch (e) {
       this.chats = INITIAL_CHATS;
@@ -1255,6 +1257,8 @@ class WebStore {
 
     // Check if chat already exists
     let chat = this.chats.find((c) => c.id === dmRoomId || c.username === dev.username);
+    const isFromInvite = dev.tag === 'Invited You to Ack' || dev.tag === 'Invite Connect';
+
     if (!chat) {
       chat = {
         id: dmRoomId,
@@ -1263,28 +1267,37 @@ class WebStore {
         type: 'dm',
         avatar: dev.avatar || `https://github.com/${dev.username}.png`,
         statusIconType: 'chat',
-        statusText: 'Connected on Ack',
+        statusText: isFromInvite ? 'Connected via invite' : 'Connected on Ack',
         statusTime: 'Just now',
         unreadCount: 0,
         isOnline: dev.isOnline,
+        isInviteChat: isFromInvite,
+        invitedBy: isFromInvite ? dev.username : undefined,
       };
       this.chats.unshift(chat);
 
-      // Add welcome message
-      this.messages[chat.id] = [
-        {
-          id: 'm_welcome_' + Date.now(),
-          chatId: chat.id,
-          senderId: dev.id,
-          senderName: dev.name.toUpperCase(),
-          senderAvatar: dev.avatar,
-          content: `Hey @${CURRENT_USER.username}! Connected on Ack. Ready to collaborate on ${dev.tag}?`,
-          type: 'text',
-          status: 'read',
-          timestamp: 'Just now',
-          metadata: { accentColor: '#00A884' },
-        },
-      ];
+      if (!isFromInvite) {
+        // Add standard welcome message for non-invite connects
+        this.messages[chat.id] = [
+          {
+            id: 'm_welcome_' + Date.now(),
+            chatId: chat.id,
+            senderId: dev.id,
+            senderName: dev.name.toUpperCase(),
+            senderAvatar: dev.avatar,
+            content: `Hey @${CURRENT_USER.username}! Connected on Ack. Ready to collaborate on ${dev.tag}?`,
+            type: 'text',
+            status: 'read',
+            timestamp: 'Just now',
+            metadata: { accentColor: '#00A884' },
+          },
+        ];
+      } else {
+        this.messages[chat.id] = [];
+      }
+    } else if (isFromInvite) {
+      chat.isInviteChat = true;
+      chat.invitedBy = dev.username;
     }
 
     // Remove from suggestions

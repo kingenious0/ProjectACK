@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, LogOut, ExternalLink, Check, Pencil } from 'lucide-react';
-import { CURRENT_USER, setCurrentUser } from '../../web-db/store';
-import { upsertUserProfile } from '../../lib/appwrite';
+import { ChevronLeft, ChevronRight, LogOut, ExternalLink, Check, Pencil, RotateCw, Copy, Link2 } from 'lucide-react';
+import { CURRENT_USER, setCurrentUser, regenerateInviteCode } from '../../web-db/store';
+import { upsertUserProfile, ACK_CANONICAL_DOMAIN } from '../../lib/appwrite';
 
 
 export interface SettingsModalProps {
@@ -17,6 +17,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [usernameInput, setUsernameInput] = useState(CURRENT_USER.username || '');
+  const [inviteCode, setInviteCode] = useState(CURRENT_USER.inviteCode || '');
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Notification states
   const [prReviews, setPrReviews] = useState(true);
@@ -254,6 +257,155 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Section: Your Invite Link (Randomized & Revocable) */}
+        <div>
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              color: 'var(--ack-muted, #9A9AA3)',
+              letterSpacing: '0.06em',
+              paddingLeft: '4px',
+              marginBottom: '8px',
+            }}
+          >
+            Invite Link & Security
+          </div>
+          <div
+            style={{
+              background: 'var(--ack-surface, #131316)',
+              border: '1px solid var(--ack-border, #26262B)',
+              borderRadius: 'var(--radius-card, 12px)',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Link2 size={16} color="var(--ack-accent, #8B7CFF)" />
+                <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--ack-text, #ECECEF)' }}>
+                  Personal Invite Link
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: 'var(--ack-accent, #8B7CFF)',
+                  background: 'rgba(139, 124, 255, 0.1)',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                }}
+              >
+                {inviteCode || CURRENT_USER.inviteCode}
+              </span>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--ack-muted, #9A9AA3)', lineHeight: 1.4 }}>
+              Friends who open your link auto-connect with you when they join. Your link uses a secure random code to prevent impersonation spam.
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--ack-surface-2, #17171B)',
+                border: '1px solid var(--ack-border, #26262B)',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                gap: '8px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: '#ECECEF',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {`${ACK_CANONICAL_DOMAIN}/?invite=${inviteCode || CURRENT_USER.inviteCode}`}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${ACK_CANONICAL_DOMAIN}/?invite=${inviteCode || CURRENT_USER.inviteCode}`;
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(url);
+                    setCodeCopied(true);
+                    setTimeout(() => setCodeCopied(false), 2000);
+                  }
+                }}
+                id="btn-settings-copy-invite"
+                style={{
+                  background: codeCopied ? '#25D366' : 'var(--ack-surface, #131316)',
+                  border: '1px solid var(--ack-border, #26262B)',
+                  borderRadius: '6px',
+                  padding: '5px 12px',
+                  color: codeCopied ? '#0B0B0D' : '#ECECEF',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {codeCopied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} />}
+                <span>{codeCopied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={isRegenerating}
+              onClick={async () => {
+                setIsRegenerating(true);
+                const newCode = regenerateInviteCode();
+                setInviteCode(newCode);
+                await upsertUserProfile({
+                  id: CURRENT_USER.id,
+                  githubId: CURRENT_USER.githubId || CURRENT_USER.id,
+                  name: CURRENT_USER.name,
+                  username: CURRENT_USER.username,
+                  avatar: CURRENT_USER.avatar,
+                  searchable: CURRENT_USER.searchable,
+                  inviteCode: newCode,
+                });
+                setTimeout(() => setIsRegenerating(false), 400);
+              }}
+              id="btn-settings-regenerate-invite"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                height: '38px',
+                borderRadius: '8px',
+                background: 'transparent',
+                border: '1px solid var(--ack-border, #26262B)',
+                color: 'var(--ack-text, #ECECEF)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'border-color 0.15s ease',
+              }}
+            >
+              <RotateCw size={14} className={isRegenerating ? 'ack-spin' : ''} />
+              <span>Regenerate Invite Code</span>
+            </button>
           </div>
         </div>
 

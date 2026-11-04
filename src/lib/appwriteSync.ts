@@ -1,4 +1,4 @@
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { client, databases, account, APPWRITE_CONFIG } from './appwrite';
 import type { MessageRow, MessageType, MessageMetadata } from '../db/types';
 
@@ -106,10 +106,19 @@ class AppwriteSyncManager {
     type?: MessageType;
     metadata?: MessageMetadata;
     timestamp?: string;
+    participantIds?: string[];
   }): Promise<boolean> {
     await this.ensureSession();
     try {
       const docId = ID.unique();
+      const permissions =
+        params.participantIds && params.participantIds.length > 0
+          ? params.participantIds.flatMap((uid) => [
+              Permission.read(Role.user(uid)),
+              Permission.write(Role.user(uid)),
+            ])
+          : undefined;
+
       await databases.createDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.messagesTableId,
@@ -122,7 +131,8 @@ class AppwriteSyncManager {
           content: params.content,
           metadata: params.metadata ? JSON.stringify(params.metadata) : '',
           timestamp: params.timestamp || new Date().toISOString(),
-        }
+        },
+        permissions
       );
       return true;
     } catch (err) {
