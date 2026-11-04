@@ -238,6 +238,37 @@ export const App: React.FC = () => {
     }
   };
 
+  // Gating for unauthenticated visitors: take them straight to Sign In / Landing Page
+  if (!CURRENT_USER.isLoggedIn) {
+    return (
+      <div className="ack-app-root" id="ack-root">
+        {showInviteLanding ? (
+          <InviteLandingView
+            inviterUsername={pendingInviteData?.inviterUsername || 'kingenious0'}
+            inviteCode={pendingInviteData?.inviteCode}
+            onDismiss={() => setShowInviteLanding(false)}
+          />
+        ) : (
+          <SignInModal
+            isOpen={true}
+            onSuccess={(user) => {
+              setCurrentUser({
+                id: 'usr_' + user.username,
+                name: user.name,
+                username: user.username,
+                avatar: `https://github.com/${user.username}.png`,
+                isLoggedIn: true,
+              });
+              setChats([...webStore.getChats()]);
+              setStoreRevision((r) => r + 1);
+            }}
+          />
+        )}
+        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      </div>
+    );
+  }
+
   return (
     <div className="ack-app-root" id="ack-root">
       <div className="ack-shell">
@@ -322,9 +353,11 @@ export const App: React.FC = () => {
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             isLoggedIn: false,
           });
+          try {
+            localStorage.removeItem('ack_current_user');
+          } catch (e) {}
           setChats([...webStore.getChats()]);
           setStoreRevision((r) => r + 1);
-          setIsSignInOpen(true);
         }}
       />
 
