@@ -2,6 +2,8 @@
  * ACK. (CHAT4DEVS) Web Reactive Store
  * Developer Messenger Store
  */
+import appwriteSync from '../lib/appwriteSync';
+
 
 export interface ReviewComment {
   id: string;
@@ -57,7 +59,12 @@ export interface MessageMetadata {
   burnedAt?: string;
   burnedBy?: string;
   copiedAt?: string;
+  clientMsgId?: string;
+  deviceId?: string;
+  senderName?: string;
+  senderAvatar?: string;
 }
+
 
 export interface Message {
   id: string;
@@ -854,7 +861,110 @@ class WebStore {
 
   constructor() {
     this.loadState();
+    this.initCloudSync();
   }
+
+  private getDeviceId(): string {
+    if (typeof window === 'undefined') return 'server';
+    try {
+      let devId = sessionStorage.getItem('ack_device_id');
+      if (!devId) {
+        devId = 'dev_' + Math.random().toString(36).substring(2, 9);
+        sessionStorage.setItem('ack_device_id', devId);
+      }
+      return devId;
+    } catch {
+      return 'dev_default';
+    }
+  }
+
+  private initCloudSync() {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Listen to real-time incoming messages from Appwrite Cloud
+      appwriteSync.subscribeToMessages((incomingMsg) => {
+        this.receiveRemoteMessage(incomingMsg);
+      });
+
+      // Hydrate existing cloud history on startup
+      appwriteSync.fetchRecentMessages().then((cloudMsgs) => {
+        cloudMsgs.forEach((msg) => {
+          this.receiveRemoteMessage(msg, false);
+        });
+        this.notify();
+      });
+    } catch (err) {
+      console.warn('[ACK WebStore] Cloud sync setup note:', err);
+    }
+  }
+
+  public receiveRemoteMessage(row: any, shouldNotify = true) {
+    let meta: MessageMetadata | undefined;
+    try {
+      meta = row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : undefined;
+    } catch {
+      meta = undefined;
+    }
+
+    const chatId = row.chat_id || row.conversationId;
+    if (!chatId) return;
+
+    if (!this.messages[chatId]) {
+      this.messages[chatId] = [];
+    }
+
+    const clientMsgId = meta?.clientMsgId;
+    const exists = this.messages[chatId].some(
+      (m) => m.id === row.id || (clientMsgId && m.id === clientMsgId)
+    );
+
+    if (exists) return;
+
+    const timeStr = row.created_at
+      ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : (row.timestamp || 'Just now');
+
+    const isMe = row.sender_id === CURRENT_USER.id && (!meta?.deviceId || meta.deviceId === this.getDeviceId());
+
+    const newMsg: Message = {
+      id: row.id,
+      chatId,
+      senderId: row.sender_id || row.senderId || 'dev_peer',
+      senderName: isMe ? 'ME' : (meta?.senderName || row.senderName || 'Peer Dev'),
+      senderAvatar: isMe
+        ? CURRENT_USER.avatar
+        : (meta?.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'),
+      content: row.content,
+      type: (row.message_type || row.type || 'text') as any,
+      status: 'delivered',
+      timestamp: timeStr,
+      metadata: {
+        accentColor: isMe ? '#E91E63' : '#00A884',
+        ...meta,
+      },
+    };
+
+    this.messages[chatId].push(newMsg);
+
+    // Update Chat preview
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (chat) {
+      chat.statusText =
+        newMsg.type === 'code'
+          ? 'Code snippet shared'
+          : newMsg.type === 'env_secret'
+          ? 'Secret vault shared'
+          : newMsg.content;
+      chat.statusTime = 'Just now';
+    }
+
+    if (shouldNotify) {
+      this.persist();
+      this.notify();
+    }
+  }
+
 
   private loadState() {
     try {
@@ -1004,8 +1114,28 @@ class WebStore {
     }
 
     this.persist();
+
+    // Broadcast to Appwrite Cloud in real time
+    appwriteSync.pushMessage({
+      id: newMsg.id,
+      chatId,
+      senderId: CURRENT_USER.id,
+      senderName: CURRENT_USER.name,
+      content,
+      type: type as any,
+      metadata: {
+        ...metadata,
+        clientMsgId: newMsg.id,
+        deviceId: this.getDeviceId(),
+        senderName: CURRENT_USER.name,
+        senderAvatar: CURRENT_USER.avatar,
+      },
+      timestamp: now.toISOString(),
+    });
+
     return newMsg;
   }
+
 
   public resendFailedMessage(chatId: string, messageId: string) {
     const list = this.messages[chatId];

@@ -45,15 +45,19 @@ export const App: React.FC = () => {
     copiedAt?: string;
   } | null>(null);
 
+  const [, setStoreRevision] = useState(0);
+
   // Reactive subscription
   useEffect(() => {
     const unsubscribe = webStore.subscribe(() => {
       setChats([...webStore.getChats()]);
+      setStoreRevision((r) => r + 1);
     });
     return () => {
       unsubscribe();
     };
   }, []);
+
 
   const activeChat =
     chats.find((c) => c.id === activeChatId) ||
