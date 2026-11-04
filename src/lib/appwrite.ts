@@ -4,6 +4,9 @@ export const APPWRITE_CONFIG = {
   endpoint: 'https://fra.cloud.appwrite.io/v1',
   projectId: '6aea18710036d3ccfba8',
   projectName: 'ProjectAck',
+  databaseId: '6aea21f70006336284f0',
+  messagesTableId: '6aea9f3e002e2efe9ef2',
+  conversationsTableId: 'conversations',
 } as const;
 
 export const client = new Client();
