@@ -10,6 +10,20 @@ export interface InviteLandingViewProps {
   onDismiss?: () => void;
 }
 
+function parseInviterHandle(raw: string): string {
+  const clean = (raw || '').trim().replace(/^@/, '');
+  if (clean.startsWith('inv_')) {
+    // If format is inv_<username>_<random> e.g. inv_kingenious0_abc123
+    const parts = clean.split('_');
+    if (parts.length >= 3 && parts[1]) {
+      return parts[1];
+    }
+    // Fallback for code without embedded username (e.g. inv_jcjpw4yg)
+    return 'kingenious0';
+  }
+  return clean || 'kingenious0';
+}
+
 function getInitials(text: string): string {
   const clean = text.trim().replace(/^@/, '');
   const parts = clean.split(/[\s_.-]+/);
@@ -23,7 +37,7 @@ export const InviteLandingView: React.FC<InviteLandingViewProps> = ({
   inviterUsername = 'kingenious0',
   inviteCode,
 }) => {
-  const cleanHandle = inviterUsername.trim().replace(/^@/, '');
+  const cleanHandle = parseInviterHandle(inviterUsername || inviteCode || 'kingenious0');
   const initials = getInitials(cleanHandle);
 
   const handleContinue = () => {

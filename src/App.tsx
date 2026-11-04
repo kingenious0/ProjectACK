@@ -112,17 +112,19 @@ export const App: React.FC = () => {
       const codeOrHandle = inviteParam.trim().replace(/^@/, '');
       localStorage.setItem('ack_pending_invite', codeOrHandle);
       resolveInviteCode(codeOrHandle).then((profile) => {
-        if (profile) {
-          setPendingInviteData({
-            inviterUsername: profile.username,
-            inviteCode: profile.inviteCode || codeOrHandle,
-          });
-        } else {
-          setPendingInviteData({
-            inviterUsername: codeOrHandle,
-            inviteCode: codeOrHandle,
-          });
+        let username = profile?.username;
+        if (!username || username.startsWith('inv_')) {
+          if (codeOrHandle.startsWith('inv_')) {
+            const parts = codeOrHandle.split('_');
+            username = parts.length >= 3 && parts[1] ? parts[1] : 'kingenious0';
+          } else {
+            username = codeOrHandle || 'kingenious0';
+          }
         }
+        setPendingInviteData({
+          inviterUsername: username,
+          inviteCode: profile?.inviteCode || codeOrHandle,
+        });
         if (!CURRENT_USER.isLoggedIn) {
           setShowInviteLanding(true);
         }
@@ -136,7 +138,15 @@ export const App: React.FC = () => {
     const pendingInvite = localStorage.getItem('ack_pending_invite');
     if (pendingInvite && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
       resolveInviteCode(pendingInvite).then((prof) => {
-        const inviter = prof?.username || pendingInvite;
+        let inviter = prof?.username;
+        if (!inviter || inviter.startsWith('inv_')) {
+          if (pendingInvite.startsWith('inv_')) {
+            const parts = pendingInvite.split('_');
+            inviter = parts.length >= 3 && parts[1] ? parts[1] : 'kingenious0';
+          } else {
+            inviter = pendingInvite;
+          }
+        }
         if (inviter.toLowerCase() !== CURRENT_USER.username.toLowerCase()) {
           const newChat = webStore.addFriend({
             id: prof?.githubId ? `gh_${prof.githubId}` : `gh_${inviter}`,

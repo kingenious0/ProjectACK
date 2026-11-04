@@ -157,8 +157,10 @@ export interface ShipLog {
   authorAvatar?: string;
 }
 
-export function generateInviteCode(): string {
-  return 'inv_' + Math.random().toString(36).substring(2, 10);
+export function generateInviteCode(username?: string): string {
+  const handle = (username || CURRENT_USER?.username || 'kingenious0').trim().toLowerCase().replace(/^@/, '');
+  const rand = Math.random().toString(36).substring(2, 8);
+  return `inv_${handle}_${rand}`;
 }
 
 export const CURRENT_USER: {
@@ -175,12 +177,12 @@ export const CURRENT_USER: {
   id: 'usr_me',
   githubId: '',
   name: 'Dev ACK (You)',
-  username: 'kinge_dev',
-  handle: '@kinge',
+  username: 'kingenious0',
+  handle: '@kingenious0',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   isLoggedIn: false,
   searchable: true,
-  inviteCode: generateInviteCode(),
+  inviteCode: generateInviteCode('kingenious0'),
 };
 
 try {
@@ -190,7 +192,7 @@ try {
       const parsed = JSON.parse(savedUser);
       Object.assign(CURRENT_USER, parsed);
       if (!CURRENT_USER.inviteCode) {
-        CURRENT_USER.inviteCode = generateInviteCode();
+        CURRENT_USER.inviteCode = generateInviteCode(CURRENT_USER.username);
         localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
       }
     }
@@ -198,7 +200,7 @@ try {
 } catch (e) {}
 
 export function regenerateInviteCode(): string {
-  const newCode = generateInviteCode();
+  const newCode = generateInviteCode(CURRENT_USER.username);
   CURRENT_USER.inviteCode = newCode;
   try {
     if (typeof window !== 'undefined') {
@@ -226,7 +228,7 @@ export function setCurrentUser(user: {
   CURRENT_USER.isLoggedIn = user.isLoggedIn !== undefined ? user.isLoggedIn : true;
   if (user.searchable !== undefined) CURRENT_USER.searchable = user.searchable;
   if (user.inviteCode) CURRENT_USER.inviteCode = user.inviteCode;
-  if (!CURRENT_USER.inviteCode) CURRENT_USER.inviteCode = generateInviteCode();
+  if (!CURRENT_USER.inviteCode) CURRENT_USER.inviteCode = generateInviteCode(user.username);
   if (user.avatar) {
     CURRENT_USER.avatar = user.avatar;
   }
