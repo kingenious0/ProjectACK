@@ -79,3 +79,11 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Environment and local secrets
+.env
+.env.*
+*.local
+scripts/tmp*
+scripts/setup*
+
