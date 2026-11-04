@@ -92,8 +92,11 @@ export const ReviewsInbox: React.FC<ReviewsInboxProps> = ({ reviews, onSelectPR 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {filteredReviews.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#71717A' }}>
-            <GitMerge size={32} color="#27272A" style={{ marginBottom: '12px' }} />
-            <p style={{ fontSize: '14px', margin: 0 }}>No pull requests in this view</p>
+            <GitMerge size={36} color="#3F3F46" style={{ marginBottom: '12px' }} />
+            <p style={{ fontSize: '14px', fontWeight: 500, color: '#A1A1AA', margin: '0 0 6px 0' }}>No pull requests found</p>
+            <p style={{ fontSize: '12px', color: '#71717A', margin: 0, maxWidth: '280px', marginInline: 'auto' }}>
+              Pull requests and review requests will sync automatically to your database when peers ask for reviews.
+            </p>
           </div>
         ) : (
           filteredReviews.map((pr) => {

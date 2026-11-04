@@ -65,10 +65,11 @@ export const App: React.FC = () => {
 
   const [, setStoreRevision] = useState(0);
 
-  // Persist active chat ID across reloads
+  // Persist active chat ID across reloads and mark chat as read
   useEffect(() => {
     if (activeChatId && typeof window !== 'undefined') {
       localStorage.setItem('ack_active_chat_id', activeChatId);
+      webStore.markChatAsRead(activeChatId);
     }
   }, [activeChatId]);
 
@@ -178,6 +179,11 @@ export const App: React.FC = () => {
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ack_active_chat_id', chatId);
+    }
+    webStore.markChatAsRead(chatId);
+    setChats([...webStore.getChats()]);
     setIsMobileChatOpen(true);
   };
 

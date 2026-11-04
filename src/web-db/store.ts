@@ -63,6 +63,7 @@ export interface MessageMetadata {
   deviceId?: string;
   senderName?: string;
   senderAvatar?: string;
+  burnMessageId?: string;
 }
 
 
@@ -99,6 +100,7 @@ export interface Chat {
   statusTime: string;
   unreadCount: number;
   isOnline?: boolean;
+  lastSeen?: string;
   isPinned?: boolean;
   repoTag?: string;
   statusDot?: 'success' | 'warning' | null;
@@ -251,7 +253,7 @@ const INITIAL_CHATS: Chat[] = [
     statusIconType: 'code',
     statusText: 'Sarah: Looks good. Checking...',
     statusTime: '4m',
-    unreadCount: 3,
+    unreadCount: 0,
     isOnline: true,
     isPinned: true,
     repoTag: 'kingenious0/ProjectACK#main',
@@ -383,68 +385,7 @@ const INITIAL_CHATS: Chat[] = [
   },
 ];
 
-export const INITIAL_REVIEWS: ReviewPR[] = [
-  {
-    id: 'pr_28',
-    repo: 'ProjectACK',
-    title: 'Dev control center: mobile-first layout architecture',
-    prNumber: 28,
-    author: 'kinge_dev',
-    additions: 340,
-    deletions: 48,
-    ciStatus: 'passing',
-    category: 'waiting_on_me',
-    updatedAt: '4m ago',
-  },
-  {
-    id: 'pr_142',
-    repo: 'linux-kernel',
-    title: 'net: Introduce Zero-Copy Socket Ring Buffer',
-    prNumber: 142,
-    author: 'torvalds',
-    additions: 84,
-    deletions: 12,
-    ciStatus: 'passing',
-    category: 'waiting_on_me',
-    updatedAt: '25m ago',
-  },
-  {
-    id: 'pr_99',
-    repo: 'infra/k8s',
-    title: 'Add Redis sentinel cluster config for staging failover',
-    prNumber: 99,
-    author: 'sarah_infra',
-    additions: 64,
-    deletions: 91,
-    ciStatus: 'failing',
-    category: 'waiting_on_me',
-    updatedAt: '1h ago',
-  },
-  {
-    id: 'pr_29',
-    repo: 'ProjectACK',
-    title: 'feat: Client-side AES-GCM vault burn countdown timer',
-    prNumber: 29,
-    author: 'kinge_dev',
-    additions: 210,
-    deletions: 15,
-    ciStatus: 'running',
-    category: 'mine',
-    updatedAt: '2h ago',
-  },
-  {
-    id: 'pr_25',
-    repo: 'ProjectACK',
-    title: 'chore: Migrate to React 19 and Vite 8 bundler',
-    prNumber: 25,
-    author: 'kinge_dev',
-    additions: 450,
-    deletions: 320,
-    ciStatus: 'passing',
-    category: 'merged',
-    updatedAt: 'Yesterday',
-  },
-];
+export const INITIAL_REVIEWS: ReviewPR[] = [];
 
 export const INITIAL_NOTIFICATIONS: AckNotification[] = [
   {
@@ -972,6 +913,15 @@ class WebStore {
         });
         this.notify();
       });
+
+      // Hydrate reviews from cloud database
+      appwriteSync.fetchCloudReviews().then((cloudReviews) => {
+        if (cloudReviews && cloudReviews.length > 0) {
+          this.reviews = cloudReviews;
+          this.persist();
+          this.notify();
+        }
+      });
     } catch (err) {
       console.warn('[ACK WebStore] Cloud sync setup note:', err);
     }
@@ -992,12 +942,48 @@ class WebStore {
       this.messages[chatId] = [];
     }
 
+    // 1. Handle remote secret burn event
+    if (row.type === 'burn_event' || row.message_type === 'burn_event') {
+      const burnTargetId = meta?.burnMessageId || row.content;
+      let target = this.messages[chatId]?.find(
+        (m) => m.id === burnTargetId || m.metadata?.clientMsgId === burnTargetId
+      );
+      if (!target) {
+        for (const cid of Object.keys(this.messages)) {
+          target = this.messages[cid]?.find(
+            (m) => m.id === burnTargetId || m.metadata?.clientMsgId === burnTargetId
+          );
+          if (target) break;
+        }
+      }
+      if (target) {
+        if (!target.metadata) target.metadata = {};
+        target.metadata.isBurned = true;
+        target.metadata.secretMasked = '💥 [SECRET PERMANENTLY PURGED & BURNED FROM VAULT]';
+        target.content = '[BURNED]';
+        this.persist();
+        if (shouldNotify) this.notify();
+      }
+      return;
+    }
+
     const clientMsgId = meta?.clientMsgId;
-    const exists = this.messages[chatId].some(
+    const existingMsg = this.messages[chatId].find(
       (m) => m.id === row.id || (clientMsgId && m.id === clientMsgId)
     );
 
-    if (exists) return;
+    // If already exists, check if burn state needs updating
+    if (existingMsg) {
+      if (meta?.isBurned && !existingMsg.metadata?.isBurned) {
+        if (!existingMsg.metadata) existingMsg.metadata = {};
+        existingMsg.metadata.isBurned = true;
+        existingMsg.metadata.secretMasked = '💥 [SECRET PERMANENTLY PURGED & BURNED FROM VAULT]';
+        existingMsg.content = '[BURNED]';
+        this.persist();
+        if (shouldNotify) this.notify();
+      }
+      return;
+    }
 
     const timeStr = row.created_at
       ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -1025,6 +1011,9 @@ class WebStore {
 
     this.messages[chatId].push(newMsg);
 
+    const isCurrentlyActive =
+      typeof window !== 'undefined' && localStorage.getItem('ack_active_chat_id') === chatId;
+
     // Update Chat preview or auto-create DM chat on recipient side
     let chat = this.chats.find((c) => c.id === chatId);
     if (!chat && chatId.startsWith('dm_')) {
@@ -1040,7 +1029,7 @@ class WebStore {
         statusIconType: 'chat',
         statusText: newMsg.content,
         statusTime: 'Just now',
-        unreadCount: isMe ? 0 : 1,
+        unreadCount: isMe || isCurrentlyActive ? 0 : 1,
         isOnline: true,
       };
       this.chats.unshift(chat);
@@ -1053,7 +1042,13 @@ class WebStore {
           : newMsg.content;
       chat.statusTime = 'Just now';
       if (!isMe) {
-        chat.unreadCount = (chat.unreadCount || 0) + 1;
+        chat.isOnline = true;
+        chat.lastSeen = new Date().toISOString();
+        if (isCurrentlyActive) {
+          chat.unreadCount = 0;
+        } else {
+          chat.unreadCount = (chat.unreadCount || 0) + 1;
+        }
       }
     }
 
@@ -1085,7 +1080,21 @@ class WebStore {
       }
 
       this.suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : INITIAL_SUGGESTIONS;
-      this.reviews = savedReviews ? JSON.parse(savedReviews) : INITIAL_REVIEWS;
+      
+      // Clean up mock reviews from saved state
+      if (savedReviews) {
+        try {
+          const parsed = JSON.parse(savedReviews);
+          this.reviews = Array.isArray(parsed)
+            ? parsed.filter((r) => !['pr_28', 'pr_142', 'pr_99', 'pr_29', 'pr_25'].includes(r.id))
+            : [];
+        } catch {
+          this.reviews = [];
+        }
+      } else {
+        this.reviews = [];
+      }
+
       this.notifications = savedNotifs ? JSON.parse(savedNotifs) : INITIAL_NOTIFICATIONS;
 
       if (!this.suggestions || this.suggestions.length === 0) {
@@ -1247,6 +1256,21 @@ class WebStore {
       msg.metadata.isBurned = true;
       msg.metadata.secretMasked = '💥 [SECRET PERMANENTLY PURGED & BURNED FROM VAULT]';
       this.persist();
+      this.notify();
+    }
+
+    // Broadcast burn event across Appwrite Cloud Realtime so sender burns too!
+    appwriteSync.burnSecretInCloud(chatId, messageId).catch((err) => {
+      console.warn('[ACK WebStore] Burn cloud sync notice:', err);
+    });
+  }
+
+  public markChatAsRead(chatId: string) {
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (chat && (chat.unreadCount || 0) > 0) {
+      chat.unreadCount = 0;
+      this.persist();
+      this.notify();
     }
   }
 
@@ -1448,6 +1472,15 @@ class WebStore {
 
   public addShipLog(_title: string, _desc: string, _tags: string[]) {
     this.notify();
+  }
+
+  public addReview(pr: ReviewPR) {
+    this.reviews.unshift(pr);
+    this.persist();
+    this.notify();
+    appwriteSync.pushCloudReview(pr).catch((err) => {
+      console.warn('[ACK WebStore] Cloud review sync notice:', err);
+    });
   }
 }
 

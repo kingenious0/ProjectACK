@@ -34,7 +34,7 @@ class AppwriteSyncManager {
       try {
         const channel = `databases.${APPWRITE_CONFIG.databaseId}.collections.${APPWRITE_CONFIG.messagesTableId}.documents`;
         this.unsubscribeFn = client.subscribe(channel, (response) => {
-          if (response.events.some((e) => e.endsWith('.create'))) {
+          if (response.events.some((e) => e.endsWith('.create') || e.endsWith('.update'))) {
             const payload = response.payload as any;
             const row: MessageRow = {
               id: payload.$id,
@@ -137,6 +137,89 @@ class AppwriteSyncManager {
       return true;
     } catch (err) {
       console.warn('[Appwrite Sync] Push message error:', err);
+      return false;
+    }
+  }
+
+  public async burnSecretInCloud(chatId: string, messageId: string): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      // 1. Send realtime burn event so peer's client burns immediately
+      await this.pushMessage({
+        chatId,
+        senderId: 'system_burn',
+        senderName: 'Vault Security',
+        content: messageId,
+        type: 'burn_event' as any,
+        metadata: {
+          burnMessageId: messageId,
+          isBurned: true,
+        },
+      });
+
+      // 2. Also try updating document if messageId is an Appwrite document ID
+      try {
+        await databases.updateDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.messagesTableId,
+          messageId,
+          {
+            content: '[BURNED]',
+            metadata: JSON.stringify({ isBurned: true, secretMasked: '💥 [SECRET PERMANENTLY PURGED & BURNED FROM VAULT]' }),
+          }
+        );
+      } catch (e) {
+        // Message ID might be client-generated ID; the burn_event covers this
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('[Appwrite Sync] burnSecretInCloud notice:', err);
+      return false;
+    }
+  }
+
+  public async fetchCloudReviews(): Promise<any[]> {
+    await this.ensureSession();
+    try {
+      const res = await databases.listDocuments(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.messagesTableId,
+        [Query.equal('conversationId', '__ack_reviews__'), Query.limit(50)]
+      );
+      return res.documents
+        .map((doc: any) => {
+          try {
+            return typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  public async pushCloudReview(pr: any): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await databases.createDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.messagesTableId,
+        ID.unique(),
+        {
+          conversationId: '__ack_reviews__',
+          senderId: pr.author || 'dev',
+          senderName: pr.author || 'Developer',
+          type: 'pr_review',
+          content: pr.title || 'Pull Request',
+          metadata: JSON.stringify(pr),
+          timestamp: new Date().toISOString(),
+        }
+      );
+      return true;
+    } catch {
       return false;
     }
   }

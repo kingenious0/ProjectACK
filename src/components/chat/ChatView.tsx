@@ -52,6 +52,43 @@ export interface ChatViewProps {
   onSendReviewComment?: (comment: string) => void;
 }
 
+function formatLastSeen(lastSeen?: string | number | Date, fallbackTime?: string): string {
+  if (!lastSeen && !fallbackTime) return 'recently';
+
+  let date: Date | null = null;
+  if (lastSeen) {
+    const d = new Date(lastSeen);
+    if (!isNaN(d.getTime())) date = d;
+  }
+
+  if (!date && fallbackTime) {
+    const lower = fallbackTime.toLowerCase();
+    if (lower === 'just now') return '1 second ago';
+    if (lower.includes('ago') || lower.includes('yesterday')) {
+      return fallbackTime;
+    }
+    const parsed = new Date(fallbackTime);
+    if (!isNaN(parsed.getTime())) date = parsed;
+    else return fallbackTime;
+  }
+
+  if (!date) return 'recently';
+
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs <= 5000) return '1 second ago';
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `${diffSec} seconds ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin === 1) return '1 min ago';
+  if (diffMin < 60) return `${diffMin} mins ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours === 1) return '1 hr ago';
+  if (diffHours < 24) return `${diffHours} hrs ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'yesterday';
+  return `${diffDays} days ago`;
+}
+
 export const ChatView: React.FC<ChatViewProps> = ({
   chat,
   messages,
@@ -527,23 +564,41 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   textOverflow: 'ellipsis',
                 }}
               >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: 'var(--ack-success)',
-                    display: 'inline-block',
-                    flexShrink: 0,
-                  }}
-                />
-                <span>
-                  {chat.type === 'group' && chat.members
-                    ? `${chat.members.length} members · tap for info`
-                    : isRepo
-                    ? 'main · CI passing'
-                    : chat.statusText || 'online'}
-                </span>
+                {chat.type === 'group' && chat.members ? (
+                  <span>{chat.members.length} members · tap for info</span>
+                ) : isRepo ? (
+                  <span>main · CI passing</span>
+                ) : chat.type === 'ai' ? (
+                  <>
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: 'var(--ack-success)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ color: 'var(--ack-success)' }}>Online · AI Copilot</span>
+                  </>
+                ) : chat.isOnline ? (
+                  <>
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: 'var(--ack-success)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ color: 'var(--ack-success)' }}>Online</span>
+                  </>
+                ) : (
+                  <span>last seen {formatLastSeen(chat.lastSeen, chat.statusTime)}</span>
+                )}
               </div>
             </div>
           </div>

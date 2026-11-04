@@ -545,7 +545,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                   </span>
 
                   {/* Indicator: Accent Unread Badge OR Small Status Dot */}
-                  {chat.unreadCount > 0 ? (
+                  {!isActive && chat.unreadCount > 0 ? (
                     <span
                       style={{
                         background: 'var(--ack-accent)',
