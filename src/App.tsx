@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { webStore, Chat, Message } from './web-db/store';
+import { getCurrentUser, logoutUser, handleOAuthCallback } from './lib/appwrite';
+import { webStore, Chat, Message, setCurrentUser, CURRENT_USER } from './web-db/store';
 import { ChatList } from './components/chat/ChatList';
+
+
 import { ChatView } from './components/chat/ChatView';
 import { CodeReviewPayload } from './components/chat/CodeReviewDrawer';
 import { AddFriendsModal } from './components/AddFriendsModal';
@@ -57,6 +60,59 @@ export const App: React.FC = () => {
       unsubscribe();
     };
   }, []);
+
+  // Hydrate user profile if signed in via Appwrite GitHub OAuth (or handle OAuth token exchange)
+  useEffect(() => {
+    handleOAuthCallback().then((u) => {
+      if (u && u.username) {
+        setCurrentUser({
+          id: u.id,
+          githubId: u.githubId,
+          name: u.name,
+          username: u.username,
+          avatar: u.avatar,
+          isLoggedIn: true,
+          searchable: u.searchable ?? true,
+        });
+        setChats([...webStore.getChats()]);
+        setStoreRevision((r) => r + 1);
+      }
+    });
+  }, []);
+
+  // Capture ?invite=<inviter> param and preserve across OAuth redirect
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const inviteParam = params.get('invite');
+    if (inviteParam) {
+      localStorage.setItem('ack_pending_invite', inviteParam.trim().replace(/^@/, ''));
+    }
+  }, []);
+
+  // Auto-connect newcomer with inviter upon sign-in
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const pendingInvite = localStorage.getItem('ack_pending_invite');
+    if (pendingInvite && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+      const inviter = pendingInvite.toLowerCase();
+      if (inviter !== CURRENT_USER.username.toLowerCase()) {
+        const newChat = webStore.addFriend({
+          id: `gh_${inviter}`,
+          name: inviter,
+          username: inviter,
+          avatar: `https://github.com/${inviter}.png`,
+          tag: 'Invited You to Ack',
+          mutualCount: 1,
+          isOnline: true,
+        });
+        setActiveChatId(newChat.id);
+        setChats([...webStore.getChats()]);
+      }
+      localStorage.removeItem('ack_pending_invite');
+    }
+  }, [CURRENT_USER.isLoggedIn, CURRENT_USER.username]);
+
 
 
   const activeChat =
@@ -184,11 +240,22 @@ export const App: React.FC = () => {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSignOut={() => {
+        onSignOut={async () => {
           setIsSettingsOpen(false);
+          await logoutUser();
+          setCurrentUser({
+            id: 'dev_user_self',
+            name: 'Dev ACK (You)',
+            username: 'kinge_dev',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            isLoggedIn: false,
+          });
+          setChats([...webStore.getChats()]);
+          setStoreRevision((r) => r + 1);
           setIsSignInOpen(true);
         }}
       />
+
 
       <SignInModal
         isOpen={isSignInOpen}

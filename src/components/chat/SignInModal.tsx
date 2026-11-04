@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loginWithGitHub } from '../../lib/appwrite';
 
 export interface SignInModalProps {
   isOpen: boolean;
@@ -17,11 +18,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   if (!isOpen) return null;
 
   const handleGitHubAuth = () => {
-    onSuccess({
-      name: 'kingenious0',
-      username: 'kingenious0',
-    });
+    loginWithGitHub();
   };
+
 
   const handleEmailAuth = (e: React.FormEvent) => {
     e.preventDefault();

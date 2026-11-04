@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage } from 'appwrite';
+import { Client, Account, Databases, Storage, OAuthProvider, ID, Query } from 'appwrite';
 
 export const APPWRITE_CONFIG = {
   endpoint: 'https://fra.cloud.appwrite.io/v1',
@@ -7,6 +7,7 @@ export const APPWRITE_CONFIG = {
   databaseId: '6aea21f70006336284f0',
   messagesTableId: '6aea9f3e002e2efe9ef2',
   conversationsTableId: 'conversations',
+  profilesTableId: 'profiles',
 } as const;
 
 export const client = new Client();
@@ -30,3 +31,249 @@ export async function pingAppwrite(): Promise<boolean> {
     return false;
   }
 }
+
+// GitHub OAuth2 login using Token to bypass 3rd-party cookie blocking on localhost
+export function loginWithGitHub(): void {
+  const redirect = window.location.origin + window.location.pathname;
+  try {
+    account.createOAuth2Token(OAuthProvider.Github, redirect, redirect);
+  } catch (err) {
+    console.warn('[Appwrite] createOAuth2Token error, falling back to createOAuth2Session:', err);
+    account.createOAuth2Session(OAuthProvider.Github, redirect, redirect);
+  }
+}
+
+export interface AuthenticatedUserProfile {
+  id: string;
+  githubId: string;
+  name: string;
+  username: string;
+  avatar: string;
+  searchable: boolean;
+  updatedAt?: string;
+}
+
+// Fetch exact GitHub login/username, avatar, numeric ID, and display name using Appwrite linked identity
+export async function getGitHubProfile(): Promise<AuthenticatedUserProfile | null> {
+  try {
+    const user = await account.get();
+    if (!user) return null;
+
+    let ghUsername = '';
+    let ghAvatar = '';
+    let ghName = user.name || '';
+    let ghNumericId = user.$id;
+
+    try {
+      const { identities } = await account.listIdentities();
+      console.log('[Appwrite] Linked identities:', identities);
+      const ghIdentity = identities.find((i) => i.provider === 'github');
+
+      if (ghIdentity?.providerAccessToken) {
+        const ghRes = await fetch('https://api.github.com/user', {
+          headers: {
+            Authorization: `Bearer ${ghIdentity.providerAccessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
+        });
+        if (ghRes.ok) {
+          const ghData = await ghRes.json();
+          console.log('[GitHub API] Authenticated GitHub user:', ghData);
+          if (ghData.login) ghUsername = ghData.login;
+          if (ghData.avatar_url) ghAvatar = ghData.avatar_url;
+          if (ghData.name) ghName = ghData.name;
+          if (ghData.id) ghNumericId = String(ghData.id);
+        }
+      }
+    } catch (err) {
+      console.warn('[Appwrite] Error fetching GitHub identity details:', err);
+    }
+
+    if (!ghUsername) {
+      ghUsername = user.email ? user.email.split('@')[0] : 'dev';
+    }
+
+    const profile: AuthenticatedUserProfile = {
+      id: user.$id,
+      githubId: ghNumericId,
+      name: ghName || ghUsername,
+      username: ghUsername,
+      avatar: ghAvatar || `https://github.com/${ghUsername}.png`,
+      searchable: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Auto-upsert profile to directory
+    await upsertUserProfile(profile);
+
+    return profile;
+  } catch {
+    return null;
+  }
+}
+
+// Upsert user profile to Appwrite 'profiles' collection + fallback local directory
+export async function upsertUserProfile(profile: AuthenticatedUserProfile): Promise<void> {
+  // 1. Keep local cache/registry synchronized
+  try {
+    if (typeof window !== 'undefined') {
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+      dir[profile.username.toLowerCase()] = {
+        ...profile,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('ack_user_directory', JSON.stringify(dir));
+    }
+  } catch (e) {
+    console.warn('[Ack Directory] Local cache update error:', e);
+  }
+
+  // 2. Sync to Appwrite profiles table if accessible
+  try {
+    const docId = `gh_${profile.githubId || profile.username.toLowerCase()}`;
+    const data = {
+      githubId: profile.githubId,
+      login: profile.username,
+      name: profile.name,
+      avatarUrl: profile.avatar,
+      searchable: profile.searchable ?? true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await databases.createDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.profilesTableId,
+        docId,
+        data
+      );
+      console.log('[Appwrite Directory] Created profile document:', docId);
+    } catch (err: any) {
+      // If already exists, update document
+      if (err?.code === 409 || err?.message?.includes('already exists')) {
+        await databases.updateDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.profilesTableId,
+          docId,
+          data
+        );
+        console.log('[Appwrite Directory] Updated profile document:', docId);
+      } else {
+        console.warn('[Appwrite Directory] Remote profile collection sync notice (using local directory):', err?.message || err);
+      }
+    }
+  } catch (err) {
+    console.warn('[Appwrite Directory] Upsert profile error:', err);
+  }
+}
+
+// Search Ack registered profiles (min 2 chars, debounced, case-insensitive, max 10)
+export async function searchAckProfiles(
+  rawQuery: string,
+  excludeUsername?: string
+): Promise<AuthenticatedUserProfile[]> {
+  const query = rawQuery.trim().toLowerCase().replace(/^@/, '');
+  if (query.length < 2) return [];
+
+  const matchedMap = new Map<string, AuthenticatedUserProfile>();
+
+  // 1. Query Appwrite profiles table if available
+  try {
+    const res = await databases.listDocuments(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.profilesTableId,
+      [Query.limit(25)]
+    );
+    for (const doc of res.documents as any[]) {
+      const login = (doc.login || '').toLowerCase();
+      const name = (doc.name || '').toLowerCase();
+      const searchable = doc.searchable !== false;
+
+      if (searchable && (login.includes(query) || name.includes(query))) {
+        matchedMap.set(login, {
+          id: doc.$id,
+          githubId: doc.githubId || doc.$id,
+          name: doc.name || doc.login,
+          username: doc.login,
+          avatar: doc.avatarUrl || `https://github.com/${doc.login}.png`,
+          searchable: true,
+        });
+      }
+    }
+  } catch (err) {
+    // Appwrite collection might not be created or offline; fallback to local directory
+    console.log('[Appwrite Directory] Remote search fallback to local registry');
+  }
+
+  // 2. Merge local directory entries (e.g. users who have logged in on this instance)
+  try {
+    if (typeof window !== 'undefined') {
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+      for (const [login, prof] of Object.entries(dir)) {
+        if (prof.searchable !== false) {
+          const l = login.toLowerCase();
+          const n = (prof.name || '').toLowerCase();
+          if (l.includes(query) || n.includes(query)) {
+            if (!matchedMap.has(l)) {
+              matchedMap.set(l, prof);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // Exclude current user from results
+  if (excludeUsername) {
+    matchedMap.delete(excludeUsername.toLowerCase());
+  }
+
+  return Array.from(matchedMap.values()).slice(0, 10);
+}
+
+// Exchange URL token (userId & secret) for session on return
+export async function handleOAuthCallback(): Promise<AuthenticatedUserProfile | null> {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const userId = params.get('userId');
+  const secret = params.get('secret');
+
+  if (userId && secret) {
+    try {
+      console.log('[Appwrite] Exchanging OAuth token for session:', { userId });
+      await account.createSession(userId, secret);
+      // Clean query params so URL stays tidy
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch (err) {
+      console.error('[Appwrite] Failed to create session from token:', err);
+    }
+  }
+
+  return getGitHubProfile();
+}
+
+// Get authenticated Appwrite user (if logged in)
+export async function getCurrentUser(): Promise<any | null> {
+  try {
+    const user = await account.get();
+    console.log('[Appwrite] Active authenticated user:', user);
+    return user;
+  } catch (err: any) {
+    console.log('[Appwrite] No active session:', err?.message || err);
+    return null;
+  }
+}
+
+// Log out current session
+export async function logoutUser(): Promise<void> {
+  try {
+    await account.deleteSession('current');
+    console.log('[Appwrite] Logged out successfully');
+  } catch (err) {
+    console.warn('[Appwrite] Logout error:', err);
+  }
+}
+

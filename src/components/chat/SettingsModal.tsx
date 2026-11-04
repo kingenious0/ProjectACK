@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, LogOut, ExternalLink, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, ExternalLink, Check, Pencil } from 'lucide-react';
+import { CURRENT_USER, setCurrentUser } from '../../web-db/store';
+import { upsertUserProfile } from '../../lib/appwrite';
+
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -12,6 +15,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onSignOut,
 }) => {
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState(CURRENT_USER.username || '');
+
   // Notification states
   const [prReviews, setPrReviews] = useState(true);
   const [ciFailures, setCiFailures] = useState(true);
@@ -19,6 +25,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Privacy states
   const [readReceipts, setReadReceipts] = useState(true);
+  const [searchable, setSearchable] = useState(CURRENT_USER.searchable !== false);
   const [vaultTimer, setVaultTimer] = useState<'30s' | '1m' | '5m' | '10m'>('1m');
   const [showTimerSheet, setShowTimerSheet] = useState(false);
 
@@ -135,9 +142,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               fontFamily: 'Inter, sans-serif',
               flexShrink: 0,
               border: '1px solid var(--ack-border, #26262B)',
+              overflow: 'hidden',
             }}
           >
-            KG
+            {CURRENT_USER.avatar ? (
+              <img
+                src={CURRENT_USER.avatar}
+                alt={CURRENT_USER.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              (CURRENT_USER.name || 'KG').slice(0, 2).toUpperCase()
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
             <span
@@ -149,26 +165,95 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 letterSpacing: '-0.01em',
               }}
             >
-              kingenious0
+              {CURRENT_USER.name}
             </span>
-            <a
-              href="https://github.com/kingenious0"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: '13px',
-                color: 'var(--ack-muted, #9A9AA3)',
-                fontFamily: 'JetBrains Mono, monospace',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginTop: '2px',
-              }}
-            >
-              github.com/kingenious0
-              <ExternalLink size={12} strokeWidth={1.75} />
-            </a>
+            {isEditingUsername ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--ack-muted, #9A9AA3)', fontFamily: 'JetBrains Mono, monospace' }}>@</span>
+                <input
+                  type="text"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="e.g. kingenious0"
+                  style={{
+                    background: 'var(--ack-surface-2, #17171B)',
+                    border: '1px solid var(--ack-border, #26262B)',
+                    borderRadius: '6px',
+                    color: 'var(--ack-text, #ECECEF)',
+                    padding: '2px 8px',
+                    fontSize: '13px',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    outline: 'none',
+                    width: '140px',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clean = usernameInput.trim().replace(/^@/, '');
+                    if (clean) {
+                      setCurrentUser({
+                        ...CURRENT_USER,
+                        username: clean,
+                        avatar: `https://github.com/${clean}.png`,
+                      });
+                    }
+                    setIsEditingUsername(false);
+                  }}
+                  style={{
+                    background: 'var(--ack-accent, #8B7CFF)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#0B0B0D',
+                    fontWeight: 700,
+                    fontSize: '11px',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                <a
+                  href={`https://github.com/${CURRENT_USER.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--ack-muted, #9A9AA3)',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>@{CURRENT_USER.username}</span>
+                  <ExternalLink size={12} strokeWidth={2} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsernameInput(CURRENT_USER.username || '');
+                    setIsEditingUsername(true);
+                  }}
+                  title="Edit GitHub handle"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '2px',
+                    cursor: 'pointer',
+                    color: 'var(--ack-muted, #9A9AA3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Pencil size={12} strokeWidth={2} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -286,6 +371,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
               <ToggleSwitch checked={readReceipts} onChange={setReadReceipts} id="toggle-read-receipts" />
+            </div>
+
+            {/* Searchable by username */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderBottom: '1px solid var(--ack-divider, #1C1C21)',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '15px', color: 'var(--ack-text, #ECECEF)', fontWeight: 500 }}>
+                  Searchable by username
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--ack-muted, #9A9AA3)', marginTop: '2px' }}>
+                  Allow other developers to find your profile on Ack
+                </div>
+              </div>
+              <ToggleSwitch
+                checked={searchable}
+                onChange={(val) => {
+                  setSearchable(val);
+                  setCurrentUser({
+                    ...CURRENT_USER,
+                    searchable: val,
+                  });
+                  upsertUserProfile({
+                    id: CURRENT_USER.id,
+                    githubId: CURRENT_USER.githubId || CURRENT_USER.id,
+                    name: CURRENT_USER.name,
+                    username: CURRENT_USER.username,
+                    avatar: CURRENT_USER.avatar,
+                    searchable: val,
+                  });
+                }}
+                id="toggle-searchable"
+              />
             </div>
 
             {/* Default vault timer */}

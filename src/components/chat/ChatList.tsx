@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Bell, Users, MessageSquarePlus } from 'lucide-react';
-import { Chat, webStore } from '../../web-db/store';
+import { Chat, webStore, CURRENT_USER } from '../../web-db/store';
 import { BottomNav, NavTab } from './BottomNav';
 import { EmptyChatList } from './EmptyChatList';
 import { ChatListSkeleton } from './ChatListSkeleton';
@@ -205,10 +205,20 @@ export const ChatList: React.FC<ChatListProps> = ({
                 fontWeight: 600,
                 fontFamily: 'Inter, sans-serif',
                 transition: 'border-color 150ms ease, transform 150ms ease',
+                overflow: 'hidden',
+                padding: 0,
               }}
-              title="Settings (kingenious0)"
+              title={`Settings (@${CURRENT_USER.username})`}
             >
-              KG
+              {CURRENT_USER.avatar ? (
+                <img
+                  src={CURRENT_USER.avatar}
+                  alt={CURRENT_USER.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                (CURRENT_USER.name || 'KG').slice(0, 2).toUpperCase()
+              )}
             </button>
           )}
 

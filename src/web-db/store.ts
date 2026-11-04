@@ -105,6 +105,7 @@ export interface Chat {
   members?: GroupMember[];
   description?: string;
   linkedRepo?: string;
+  isDemo?: boolean;
 }
 
 export interface ReviewPR {
@@ -154,13 +155,61 @@ export interface ShipLog {
   authorAvatar?: string;
 }
 
-export const CURRENT_USER = {
+export const CURRENT_USER: {
+  id: string;
+  githubId?: string;
+  name: string;
+  handle: string;
+  username: string;
+  avatar: string;
+  isLoggedIn: boolean;
+  searchable: boolean;
+} = {
   id: 'usr_me',
+  githubId: '',
   name: 'Dev ACK (You)',
   username: 'kinge_dev',
   handle: '@kinge',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  isLoggedIn: false,
+  searchable: true,
 };
+
+try {
+  if (typeof window !== 'undefined') {
+    const savedUser = localStorage.getItem('ack_current_user');
+    if (savedUser) {
+      Object.assign(CURRENT_USER, JSON.parse(savedUser));
+    }
+  }
+} catch (e) {}
+
+export function setCurrentUser(user: {
+  id: string;
+  githubId?: string;
+  name: string;
+  username: string;
+  avatar?: string;
+  isLoggedIn?: boolean;
+  searchable?: boolean;
+}): void {
+  CURRENT_USER.id = user.id;
+  if (user.githubId) CURRENT_USER.githubId = user.githubId;
+  CURRENT_USER.name = user.name;
+  CURRENT_USER.username = user.username;
+  CURRENT_USER.handle = `@${user.username}`;
+  CURRENT_USER.isLoggedIn = user.isLoggedIn !== undefined ? user.isLoggedIn : true;
+  if (user.searchable !== undefined) CURRENT_USER.searchable = user.searchable;
+  if (user.avatar) {
+    CURRENT_USER.avatar = user.avatar;
+  }
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+    }
+  } catch (e) {}
+}
+
 
 // Initial Chat List (Matches Home@1x.png and Group chat mockups)
 const INITIAL_CHATS: Chat[] = [
@@ -947,9 +996,26 @@ class WebStore {
 
     this.messages[chatId].push(newMsg);
 
-    // Update Chat preview
-    const chat = this.chats.find((c) => c.id === chatId);
-    if (chat) {
+    // Update Chat preview or auto-create DM chat on recipient side
+    let chat = this.chats.find((c) => c.id === chatId);
+    if (!chat && chatId.startsWith('dm_')) {
+      const parts = chatId.replace(/^dm_/, '').split('_');
+      const otherHandle = parts.find((p) => p.toLowerCase() !== (CURRENT_USER.username || '').toLowerCase()) || parts[0] || 'dev';
+      const senderDisplayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
+      chat = {
+        id: chatId,
+        name: senderDisplayName,
+        username: otherHandle.toLowerCase(),
+        type: 'dm',
+        avatar: isMe ? `https://github.com/${otherHandle.toLowerCase()}.png` : (meta?.senderAvatar || `https://github.com/${otherHandle.toLowerCase()}.png`),
+        statusIconType: 'chat',
+        statusText: newMsg.content,
+        statusTime: 'Just now',
+        unreadCount: isMe ? 0 : 1,
+        isOnline: true,
+      };
+      this.chats.unshift(chat);
+    } else if (chat) {
       chat.statusText =
         newMsg.type === 'code'
           ? 'Code snippet shared'
@@ -957,6 +1023,9 @@ class WebStore {
           ? 'Secret vault shared'
           : newMsg.content;
       chat.statusTime = 'Just now';
+      if (!isMe) {
+        chat.unreadCount = (chat.unreadCount || 0) + 1;
+      }
     }
 
     if (shouldNotify) {
@@ -1053,6 +1122,19 @@ class WebStore {
 
   // Getters
   public getChats(): Chat[] {
+    if (CURRENT_USER.isLoggedIn) {
+      // Real authenticated users only see their genuine chats, not mock/demo chats
+      return this.chats.filter(
+        (c) =>
+          !c.isDemo &&
+          c.id !== 'chat_project_ack' &&
+          c.id !== 'chat_sarah_devops' &&
+          c.id !== 'chat_robert_jonas' &&
+          c.id !== 'chat_webhook_ci' &&
+          c.id !== 'chat_hardik' &&
+          c.id !== 'chat_torvalds_repo'
+      );
+    }
     return this.chats;
   }
 
@@ -1165,17 +1247,23 @@ class WebStore {
   }
 
   public addFriend(dev: SuggestedDev): Chat {
+    // Deterministic DM room ID based on both sorted GitHub usernames (WhatsApp-style)
+    const myUser = (CURRENT_USER.username || 'me').toLowerCase();
+    const peerUser = dev.username.toLowerCase();
+    const sortedHandles = [myUser, peerUser].sort();
+    const dmRoomId = `dm_${sortedHandles[0]}_${sortedHandles[1]}`;
+
     // Check if chat already exists
-    let chat = this.chats.find((c) => c.username === dev.username);
+    let chat = this.chats.find((c) => c.id === dmRoomId || c.username === dev.username);
     if (!chat) {
       chat = {
-        id: 'chat_' + dev.id,
+        id: dmRoomId,
         name: dev.name,
         username: dev.username,
         type: 'dm',
-        avatar: dev.avatar,
+        avatar: dev.avatar || `https://github.com/${dev.username}.png`,
         statusIconType: 'chat',
-        statusText: 'New Collab Added',
+        statusText: 'Connected on Ack',
         statusTime: 'Just now',
         unreadCount: 0,
         isOnline: dev.isOnline,
