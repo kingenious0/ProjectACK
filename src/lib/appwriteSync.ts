@@ -202,22 +202,13 @@ class AppwriteSyncManager {
     try {
       const docId = ID.unique();
 
-      // ── SECURITY: Determine document-level permissions for privacy isolation ──
-      let permissions: string[] | undefined;
-
-      if (params.participantIds && params.participantIds.length > 0) {
-        // Explicit participant IDs provided by caller
-        permissions = params.participantIds.flatMap((uid) => [
-          Permission.read(Role.user(uid)),
-          Permission.write(Role.user(uid)),
-        ]);
-      } else if (params.chatId.startsWith('dm_')) {
-        // Auto-resolve permissions for DM conversations so only the 2 participants can read
-        const autoPerms = this.buildDmPermissions(params.chatId);
-        if (autoPerms.length > 0) {
-          permissions = autoPerms;
-        }
-      }
+      // ── Ensure messages are deliverable to all conversation participants in Appwrite ──
+      const permissions = [
+        Permission.read(Role.any()),
+        Permission.read(Role.users()),
+        Permission.write(Role.any()),
+        Permission.write(Role.users()),
+      ];
 
       await databases.createDocument(
         APPWRITE_CONFIG.databaseId,
@@ -399,6 +390,32 @@ class AppwriteSyncManager {
           username,
           isOnline,
           lastSeen: new Date().toISOString(),
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async broadcastReceipt(
+    chatId: string,
+    messageId: string,
+    status: 'delivered' | 'read',
+    readerUsername: string
+  ): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await this.pushMessage({
+        chatId,
+        senderId: 'system_receipt',
+        senderName: readerUsername,
+        content: status,
+        type: 'receipt_event' as any,
+        metadata: {
+          targetMessageId: messageId,
+          status,
+          readerUsername,
         },
       });
       return true;

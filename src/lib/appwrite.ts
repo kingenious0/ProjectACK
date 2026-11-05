@@ -200,7 +200,53 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
   }
 }
 
-// Search Ack registered profiles (min 2 chars, debounced, case-insensitive, max 10)
+// Helper to strictly filter out internal system/bot accounts from appearing as user profiles
+export function isSystemIdentifier(identifier?: string): boolean {
+  if (!identifier) return true;
+  const clean = identifier.toLowerCase().trim().replace(/^@/, '');
+  return (
+    clean.startsWith('system_') ||
+    clean.startsWith('sys_') ||
+    clean.startsWith('__') ||
+    clean.startsWith('inv_') ||
+    clean.startsWith('usr_me') ||
+    clean === 'system' ||
+    clean === 'system_presence' ||
+    clean === 'system_typing' ||
+    clean === 'system_burn' ||
+    clean === 'system_edit' ||
+    clean === 'system_delete' ||
+    clean === 'system_receipt' ||
+    clean === 'dev_peer' ||
+    clean === 'dev_default' ||
+    clean === 'ack_bot' ||
+    clean === 'ack_system'
+  );
+}
+
+// Clean local directory cache of any legacy or corrupted system entries
+function cleanLocalUserDirectory(): Record<string, AuthenticatedUserProfile> {
+  try {
+    if (typeof window === 'undefined') return {};
+    const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+    const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+    let changed = false;
+    for (const k of Object.keys(dir)) {
+      if (isSystemIdentifier(k) || isSystemIdentifier(dir[k]?.username) || isSystemIdentifier(dir[k]?.id)) {
+        delete dir[k];
+        changed = true;
+      }
+    }
+    if (changed) {
+      localStorage.setItem('ack_user_directory', JSON.stringify(dir));
+    }
+    return dir;
+  } catch {
+    return {};
+  }
+}
+
+// Search Ack registered profiles (min 2 chars, debounced, case-insensitive, strictly deduplicated, max 10)
 export async function searchAckProfiles(
   rawQuery: string,
   excludeUsername?: string
@@ -210,7 +256,23 @@ export async function searchAckProfiles(
 
   const matchedMap = new Map<string, AuthenticatedUserProfile>();
 
-  // 1. Check local chats (active DM contacts, existing conversations)
+  // 1. Check local user directory (registered users)
+  const dir = cleanLocalUserDirectory();
+  for (const [login, prof] of Object.entries(dir)) {
+    if (isSystemIdentifier(login) || isSystemIdentifier(prof.username)) continue;
+    if (prof.searchable !== false) {
+      const l = (prof.username || login).toLowerCase();
+      const n = (prof.name || '').toLowerCase();
+      if (l.includes(query) || n.includes(query)) {
+        matchedMap.set(l, {
+          ...prof,
+          username: prof.username || login,
+        });
+      }
+    }
+  }
+
+  // 2. Check local chats (active real user DMs)
   try {
     if (typeof window !== 'undefined') {
       const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
@@ -218,67 +280,19 @@ export async function searchAckProfiles(
         const chats = JSON.parse(savedChats);
         if (Array.isArray(chats)) {
           for (const c of chats) {
-            if (c.username) {
+            if (c.type === 'dm' && c.username && !isSystemIdentifier(c.username)) {
               const u = c.username.toLowerCase();
               const n = (c.name || '').toLowerCase();
               if (u.includes(query) || n.includes(query)) {
-                matchedMap.set(u, {
-                  id: c.id || `gh_${u}`,
-                  githubId: u,
-                  name: c.name || u,
-                  username: c.username,
-                  avatar: c.avatar || `https://github.com/${u}.png`,
-                  searchable: true,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {}
-
-  // 2. Check local messages history (extract senders and DM participants)
-  try {
-    if (typeof window !== 'undefined') {
-      const savedMsgs = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
-      if (savedMsgs) {
-        const msgsRecord: Record<string, any[]> = JSON.parse(savedMsgs);
-        for (const [chatId, msgList] of Object.entries(msgsRecord)) {
-          // If chatId is dm_userA_userB, extract handles
-          if (chatId.startsWith('dm_')) {
-            const parts = chatId.replace(/^dm_/, '').split('_');
-            for (const p of parts) {
-              const u = p.toLowerCase();
-              if (u.includes(query) && !matchedMap.has(u)) {
-                matchedMap.set(u, {
-                  id: `gh_${u}`,
-                  githubId: u,
-                  name: u,
-                  username: u,
-                  avatar: `https://github.com/${u}.png`,
-                  searchable: true,
-                });
-              }
-            }
-          }
-          if (Array.isArray(msgList)) {
-            for (const m of msgList) {
-              if (m.senderName && m.senderId && m.senderId !== 'usr_me') {
-                const sName = m.senderName.toLowerCase();
-                const sId = m.senderId.toLowerCase().replace(/^gh_/, '');
-                if (sName.includes(query) || sId.includes(query)) {
-                  const u = sId || sName;
-                  if (u && !matchedMap.has(u)) {
-                    matchedMap.set(u, {
-                      id: m.senderId,
-                      githubId: u,
-                      name: m.senderName,
-                      username: u,
-                      avatar: m.senderAvatar || `https://github.com/${u}.png`,
-                      searchable: true,
-                    });
-                  }
+                if (!matchedMap.has(u)) {
+                  matchedMap.set(u, {
+                    id: c.id || `gh_${u}`,
+                    githubId: u,
+                    name: c.name || u,
+                    username: c.username,
+                    avatar: c.avatar || `https://github.com/${u}.png`,
+                    searchable: true,
+                  });
                 }
               }
             }
@@ -288,26 +302,7 @@ export async function searchAckProfiles(
     }
   } catch (e) {}
 
-  // 3. Check localStorage directory
-  try {
-    if (typeof window !== 'undefined') {
-      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
-      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
-      for (const [login, prof] of Object.entries(dir)) {
-        if (prof.searchable !== false) {
-          const l = login.toLowerCase();
-          const n = (prof.name || '').toLowerCase();
-          if (l.includes(query) || n.includes(query)) {
-            if (!matchedMap.has(l)) {
-              matchedMap.set(l, prof);
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {}
-
-  // 4. Query Appwrite messages table (safe list without missing-index requirement)
+  // 3. Query Appwrite messages table (__ack_directory__ official user registrations)
   try {
     const res = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
@@ -316,72 +311,55 @@ export async function searchAckProfiles(
     );
 
     for (const doc of res.documents as any[]) {
-      // 4a. Directory sync document
+      // ONLY process registered profiles in directory sync — NEVER scrape raw chat messages!
       if (doc.conversationId === '__ack_directory__' || doc.type === 'profile_sync') {
         try {
           const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-          const login = (meta?.username || doc.senderId || '').toLowerCase();
-          const name = (meta?.name || doc.senderName || '').toLowerCase();
-          if (login.includes(query) || name.includes(query)) {
+          const rawUsername = meta?.username || doc.senderId || '';
+          if (isSystemIdentifier(rawUsername)) continue;
+
+          const login = rawUsername.toLowerCase().trim();
+          const name = (meta?.name || doc.senderName || login).trim();
+
+          if (login.includes(query) || name.toLowerCase().includes(query)) {
+            const existing = matchedMap.get(login);
+            // Deduplicate: merge and prefer complete display name and real avatar
             matchedMap.set(login, {
-              id: `gh_${meta?.githubId || login}`,
-              githubId: meta?.githubId || login,
-              name: meta?.name || doc.senderName || login,
-              username: meta?.username || login,
-              avatar: meta?.avatar || `https://github.com/${login}.png`,
+              id: existing?.id || `gh_${meta?.githubId || login}`,
+              githubId: meta?.githubId || existing?.githubId || login,
+              name: existing?.name && existing.name !== login ? existing.name : (name || login),
+              username: meta?.username || existing?.username || login,
+              avatar: meta?.avatar || existing?.avatar || `https://github.com/${login}.png`,
               searchable: meta?.searchable !== false,
-              inviteCode: meta?.inviteCode || doc.content || '',
+              inviteCode: meta?.inviteCode || existing?.inviteCode || doc.content || '',
             });
           }
         } catch (e) {}
-      }
-
-      // 4b. DM conversation room participant
-      if (doc.conversationId && doc.conversationId.startsWith('dm_')) {
-        const parts = doc.conversationId.replace(/^dm_/, '').split('_');
-        for (const p of parts) {
-          const u = p.toLowerCase();
-          if (u.includes(query) && !matchedMap.has(u)) {
-            matchedMap.set(u, {
-              id: `gh_${u}`,
-              githubId: u,
-              name: u,
-              username: u,
-              avatar: `https://github.com/${u}.png`,
-              searchable: true,
-            });
-          }
-        }
-      }
-
-      // 4c. Sender on Ack
-      if (doc.senderName || doc.senderId) {
-        const sId = (doc.senderId || '').toLowerCase().replace(/^gh_/, '');
-        const sName = (doc.senderName || '').toLowerCase();
-        if (sId.includes(query) || sName.includes(query)) {
-          const u = sId.startsWith('usr_') ? sName : sId;
-          if (u && !matchedMap.has(u)) {
-            matchedMap.set(u, {
-              id: `gh_${u}`,
-              githubId: u,
-              name: doc.senderName || u,
-              username: u,
-              avatar: `https://github.com/${u}.png`,
-              searchable: true,
-            });
-          }
-        }
       }
     }
   } catch (err) {
     console.warn('[Appwrite Directory Search] Cloud scan note:', err);
   }
 
-
-
-  // Exclude current user from results
+  // 4. Exclude current user from results (so they don't see themselves)
   if (excludeUsername) {
     matchedMap.delete(excludeUsername.toLowerCase());
+  }
+  try {
+    const savedMe = localStorage.getItem('ack_current_user');
+    if (savedMe) {
+      const myParsed = JSON.parse(savedMe);
+      if (myParsed?.username) {
+        matchedMap.delete(myParsed.username.toLowerCase());
+      }
+    }
+  } catch {}
+
+  // Clean any remaining system identifiers
+  for (const [key, val] of matchedMap.entries()) {
+    if (isSystemIdentifier(key) || isSystemIdentifier(val.username)) {
+      matchedMap.delete(key);
+    }
   }
 
   return Array.from(matchedMap.values()).slice(0, 10);
@@ -393,51 +371,51 @@ export async function searchUsersOnAck(query: string = ''): Promise<Authenticate
   const results: AuthenticatedUserProfile[] = [];
   const seen = new Set<string>();
 
-  // 1. Check local directory cache
-  try {
-    if (typeof window !== 'undefined') {
-      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
-      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
-      for (const prof of Object.values(dir)) {
-        if (!q || prof.username.toLowerCase().includes(q) || (prof.name && prof.name.toLowerCase().includes(q))) {
-          const uLower = prof.username.toLowerCase();
-          if (!seen.has(uLower)) {
-            seen.add(uLower);
-            results.push(prof);
-          }
-        }
+  // 1. Check clean local directory cache
+  const dir = cleanLocalUserDirectory();
+  for (const prof of Object.values(dir)) {
+    if (isSystemIdentifier(prof.username) || isSystemIdentifier(prof.id)) continue;
+    if (!q || prof.username.toLowerCase().includes(q) || (prof.name && prof.name.toLowerCase().includes(q))) {
+      const uLower = prof.username.toLowerCase();
+      if (!seen.has(uLower)) {
+        seen.add(uLower);
+        results.push(prof);
       }
     }
-  } catch (e) {}
+  }
 
   // 2. Query Appwrite messages table (__ack_directory__)
   try {
     const res = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.messagesTableId,
-      [Query.equal('conversationId', '__ack_directory__'), Query.limit(100)]
+      [Query.limit(100), Query.orderDesc('$createdAt')]
     );
     for (const doc of res.documents as any[]) {
-      try {
-        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-        const username = meta?.username || doc.senderId;
-        const name = meta?.name || doc.senderName || username;
-        if (username && (!q || username.toLowerCase().includes(q) || name.toLowerCase().includes(q))) {
-          const uLower = username.toLowerCase();
-          if (!seen.has(uLower)) {
-            seen.add(uLower);
-            results.push({
-              id: `gh_${username}`,
-              githubId: meta?.githubId || username,
-              name,
-              username,
-              avatar: meta?.avatar || `https://github.com/${username}.png`,
-              searchable: meta?.searchable !== false,
-              inviteCode: meta?.inviteCode || '',
-            });
+      if (doc.conversationId === '__ack_directory__' || doc.type === 'profile_sync') {
+        try {
+          const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
+          const username = (meta?.username || doc.senderId || '').trim();
+          if (isSystemIdentifier(username)) continue;
+
+          const name = meta?.name || doc.senderName || username;
+          if (username && (!q || username.toLowerCase().includes(q) || name.toLowerCase().includes(q))) {
+            const uLower = username.toLowerCase();
+            if (!seen.has(uLower)) {
+              seen.add(uLower);
+              results.push({
+                id: `gh_${username}`,
+                githubId: meta?.githubId || username,
+                name,
+                username,
+                avatar: meta?.avatar || `https://github.com/${username}.png`,
+                searchable: meta?.searchable !== false,
+                inviteCode: meta?.inviteCode || '',
+              });
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
     }
   } catch (err) {}
 

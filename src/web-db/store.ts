@@ -558,6 +558,46 @@ class WebStore {
       return;
     }
 
+    // 6. Handle realtime delivery and read receipts
+    if (row.type === 'receipt_event' || row.message_type === 'receipt_event') {
+      const targetId = meta?.targetMessageId || row.content;
+      const receiptStatus = (meta?.status || (row.content === 'read' ? 'read' : 'delivered')) as 'delivered' | 'read';
+      const reader = (meta?.readerUsername || '').toLowerCase();
+      const myUsername = (CURRENT_USER.username || '').toLowerCase();
+
+      // Only process receipt if another user acknowledged our message
+      if (reader && reader !== myUsername) {
+        const msgs = this.messages[chatId];
+        if (msgs) {
+          if (targetId === 'all_read') {
+            let changed = false;
+            for (const m of msgs) {
+              const isMine = m.senderId === CURRENT_USER.id || m.metadata?.username?.toLowerCase() === myUsername;
+              if (isMine && m.status !== 'read') {
+                m.status = 'read';
+                changed = true;
+              }
+            }
+            if (changed) {
+              this.persist();
+              if (shouldNotify) this.notify();
+            }
+            return;
+          }
+
+          const msg = msgs.find((m) => m.id === targetId || m.metadata?.clientMsgId === targetId);
+          if (msg) {
+            if (receiptStatus === 'read' || (receiptStatus === 'delivered' && msg.status === 'sent')) {
+              msg.status = receiptStatus;
+              this.persist();
+              if (shouldNotify) this.notify();
+            }
+          }
+        }
+      }
+      return;
+    }
+
     const clientMsgId = meta?.clientMsgId;
     const existingMsg = this.messages[chatId].find(
       (m) => m.id === row.id || (clientMsgId && m.id === clientMsgId)
@@ -670,6 +710,14 @@ class WebStore {
           chat.unreadCount = 0;
         }
       }
+    }
+
+    // When receiving a real-time message from peer as recipient, send delivery/read receipt back
+    if (!isMe && shouldNotify && newMsg.id && row.type !== 'receipt_event' && row.message_type !== 'receipt_event') {
+      const receiptStatus = isCurrentlyActive ? 'read' : 'delivered';
+      appwriteSync
+        .broadcastReceipt(chatId, newMsg.id, receiptStatus, CURRENT_USER.username || 'user')
+        .catch(() => {});
     }
 
     if (shouldNotify) {
@@ -1080,6 +1128,8 @@ class WebStore {
       this.persist();
       this.notify();
     }
+    // Broadcast real-time read receipt to the peer so their checkmarks turn double blue
+    appwriteSync.broadcastReceipt(chatId, 'all_read', 'read', CURRENT_USER.username || 'user').catch(() => {});
   }
 
   public addFriend(dev: SuggestedDev): Chat {
@@ -1101,7 +1151,7 @@ class WebStore {
         type: 'dm',
         avatar: dev.avatar || `https://github.com/${dev.username}.png`,
         statusIconType: 'chat',
-        statusText: isFromInvite ? 'Connected via invite' : 'Connected on Ack',
+        statusText: isFromInvite ? 'Connected via invite' : '',
         statusTime: 'Just now',
         unreadCount: 0,
         isOnline: dev.isOnline,
@@ -1110,25 +1160,8 @@ class WebStore {
       };
       this.chats.unshift(chat);
 
-      if (!isFromInvite) {
-        // Add standard welcome message for non-invite connects
-        this.messages[chat.id] = [
-          {
-            id: 'm_welcome_' + Date.now(),
-            chatId: chat.id,
-            senderId: dev.id,
-            senderName: dev.name.toUpperCase(),
-            senderAvatar: dev.avatar,
-            content: `Hey @${CURRENT_USER.username}! Connected on Ack. Ready to collaborate on ${dev.tag}?`,
-            type: 'text',
-            status: 'read',
-            timestamp: 'Just now',
-            metadata: { accentColor: '#00A884' },
-          },
-        ];
-      } else {
-        this.messages[chat.id] = [];
-      }
+      // WhatsApp starts new chats empty without canned welcome messages
+      this.messages[chat.id] = [];
     } else if (isFromInvite) {
       chat.isInviteChat = true;
       chat.invitedBy = dev.username;

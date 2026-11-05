@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Search, Check, Camera, GitFork, X, Users } from 'lucide-react';
 import { SuggestedDev, CURRENT_USER, MOCK_USERNAMES } from '../../web-db/store';
-import { searchUsersOnAck } from '../../lib/appwrite';
+import { searchUsersOnAck, isSystemIdentifier } from '../../lib/appwrite';
 
 export interface CreateGroupModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     const myHandle = (CURRENT_USER.username || '').toLowerCase();
     const isMock = (handle: string) => {
       const h = handle.toLowerCase();
-      return MOCK_USERNAMES.has(h) || h.includes('copilot') || h === myHandle;
+      return MOCK_USERNAMES.has(h) || h.includes('copilot') || h === myHandle || isSystemIdentifier(h);
     };
 
     // 1. Available devs from real chats (filter mock users)
