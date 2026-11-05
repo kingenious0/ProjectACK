@@ -17,8 +17,8 @@ Please review this guide before submitting code or opening issues.
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/kingenious0/ProjectACK.git
-cd ProjectACK
+git clone https://github.com/kingenious0/ACK.git
+cd ACK
 
 # Install dependencies
 npm install
@@ -86,5 +86,5 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 ## 💬 Community & Help
 
-- Report bugs or request features via [GitHub Issues](https://github.com/kingenious0/ProjectACK/issues).
+- Report bugs or request features via [GitHub Issues](https://github.com/kingenious0/ACK/issues).
 - For security-sensitive disclosures, please consult our [Security Policy](SECURITY.md).

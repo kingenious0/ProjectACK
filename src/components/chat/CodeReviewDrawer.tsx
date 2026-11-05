@@ -92,7 +92,7 @@ export const CodeReviewDrawer: React.FC<CodeReviewDrawerProps> = ({
   };
 
   const prNumber = payload.prNumber || 28;
-  const repoName = payload.repoName || 'kingenious0/ProjectACK';
+  const repoName = payload.repoName || 'kingenious0/ACK';
   const prTitle = payload.title || 'Dev control center: mobile-first layout architecture';
   const totalFiles = payload.filesChanged || (payload.diffFiles ? payload.diffFiles.length : 3);
   const additions = payload.additions || 340;

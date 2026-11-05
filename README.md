@@ -22,8 +22,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingenious0/ProjectACK/stargazers"><img src="https://img.shields.io/github/stars/kingenious0/ProjectACK?style=for-the-badge&color=8B7CFF&logo=github&label=Stars" alt="GitHub Stars"></a>
-  <a href="https://github.com/kingenious0/ProjectACK/network/members"><img src="https://img.shields.io/github/forks/kingenious0/ProjectACK?style=for-the-badge&color=A99DFF&logo=github&label=Forks" alt="GitHub Forks"></a>
+  <a href="https://github.com/kingenious0/ACK/stargazers"><img src="https://img.shields.io/github/stars/kingenious0/ACK?style=for-the-badge&color=8B7CFF&logo=github&label=Stars" alt="GitHub Stars"></a>
+  <a href="https://github.com/kingenious0/ACK/network/members"><img src="https://img.shields.io/github/forks/kingenious0/ACK?style=for-the-badge&color=A99DFF&logo=github&label=Forks" alt="GitHub Forks"></a>
   <img src="https://img.shields.io/badge/Theme-Ack_Obsidian_&_Violet-0B0B0D?style=for-the-badge&logoColor=8B7CFF" alt="Ack Theme">
   <img src="https://img.shields.io/badge/Vite-8.x_React_19-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8 React 19">
   <img src="https://img.shields.io/badge/Security-AES--GCM_256_WebCrypto-8B7CFF?style=for-the-badge&logo=shield&logoColor=white" alt="AES-GCM WebCrypto">

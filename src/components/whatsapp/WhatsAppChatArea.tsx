@@ -1317,7 +1317,7 @@ export const WhatsAppChatArea: React.FC<WhatsAppChatAreaProps> = ({
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText('git clone https://github.com/kingenious0/ProjectACK.git');
+                navigator.clipboard.writeText('git clone https://github.com/kingenious0/ACK.git');
                 alert('Copied git clone URL to clipboard!');
               }}
               style={{
