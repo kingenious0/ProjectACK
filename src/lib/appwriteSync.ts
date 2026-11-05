@@ -34,6 +34,79 @@ class AppwriteSyncManager {
     }
   }
 
+  // ── PRIVACY HELPERS ──────────────────────────────────────────────
+
+  /** Read current logged-in user info from localStorage (avoids circular import with store) */
+  private getCurrentUserInfo(): { username: string; appwriteUserId: string } | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const saved = localStorage.getItem('ack_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.username && parsed?.isLoggedIn) {
+          return {
+            username: (parsed.username || '').toLowerCase(),
+            appwriteUserId: parsed.appwriteUserId || parsed.id || '',
+          };
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  /** Check if a conversationId belongs to the current user */
+  private isMyConversation(conversationId: string): boolean {
+    const user = this.getCurrentUserInfo();
+    if (!user || !user.username) return true; // Guest mode: allow through (UI won't show anyway)
+
+    if (conversationId.startsWith('dm_')) {
+      const parts = conversationId.replace(/^dm_/, '').split('_');
+      return parts.some((p) => p.toLowerCase() === user.username);
+    }
+    // Non-DM (groups, directory, presence, reviews) — allow
+    return true;
+  }
+
+  /** Resolve a GitHub username → Appwrite account ID from the local directory cache */
+  private resolveAppwriteUserId(username: string): string | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir = JSON.parse(rawDir);
+      const profile = dir[username.toLowerCase()];
+      if (profile?.appwriteUserId) return profile.appwriteUserId;
+      // Fallback: if id looks like an Appwrite ID (not gh_ or usr_ prefix), use it
+      if (profile?.id && !profile.id.startsWith('gh_') && !profile.id.startsWith('usr_')) {
+        return profile.id;
+      }
+    } catch {}
+    return null;
+  }
+
+  /** Build Appwrite document permissions array for a DM conversation */
+  private buildDmPermissions(chatId: string): string[] {
+    const user = this.getCurrentUserInfo();
+    if (!user?.appwriteUserId) return [];
+
+    const parts = chatId.replace(/^dm_/, '').split('_');
+    const peerUsername = parts.find((p) => p.toLowerCase() !== user.username) || '';
+    const peerId = this.resolveAppwriteUserId(peerUsername);
+
+    const perms: string[] = [
+      Permission.read(Role.user(user.appwriteUserId)),
+      Permission.write(Role.user(user.appwriteUserId)),
+    ];
+
+    if (peerId) {
+      perms.push(
+        Permission.read(Role.user(peerId)),
+        Permission.write(Role.user(peerId))
+      );
+    }
+
+    return perms;
+  }
+
   public subscribeToMessages(onNewMessage: (msg: MessageRow) => void): () => void {
     this.messageListeners.add(onNewMessage);
 
@@ -43,9 +116,16 @@ class AppwriteSyncManager {
         this.unsubscribeFn = client.subscribe(channel, (response) => {
           if (response.events.some((e) => e.endsWith('.create') || e.endsWith('.update'))) {
             const payload = response.payload as any;
+            const conversationId = payload.conversationId;
+
+            // ── SECURITY: Drop realtime events for DMs not belonging to current user ──
+            if (conversationId && !this.isMyConversation(conversationId)) {
+              return;
+            }
+
             const row: MessageRow = {
               id: payload.$id,
-              chat_id: payload.conversationId,
+              chat_id: conversationId,
               sender_id: payload.senderId,
               content: payload.content,
               message_type: (payload.type || 'text') as MessageType,
@@ -87,17 +167,20 @@ class AppwriteSyncManager {
         queries
       );
 
-      return res.documents.map((doc: any) => ({
+      const allRows = res.documents.map((doc: any) => ({
         id: doc.$id,
         chat_id: doc.conversationId,
         sender_id: doc.senderId,
         content: doc.content,
         message_type: (doc.type || 'text') as MessageType,
-        status: 'delivered',
+        status: 'delivered' as const,
         quoted_message_id: null,
         metadata: doc.metadata || null,
         created_at: doc.timestamp || doc.$createdAt || new Date().toISOString(),
       }));
+
+      // ── SECURITY: Only return messages for conversations the current user participates in ──
+      return allRows.filter((row) => this.isMyConversation(row.chat_id || ''));
     } catch (err) {
       console.warn('[Appwrite Sync] Fetch recent messages warning:', err);
       return [];
@@ -118,13 +201,23 @@ class AppwriteSyncManager {
     await this.ensureSession();
     try {
       const docId = ID.unique();
-      const permissions =
-        params.participantIds && params.participantIds.length > 0
-          ? params.participantIds.flatMap((uid) => [
-              Permission.read(Role.user(uid)),
-              Permission.write(Role.user(uid)),
-            ])
-          : undefined;
+
+      // ── SECURITY: Determine document-level permissions for privacy isolation ──
+      let permissions: string[] | undefined;
+
+      if (params.participantIds && params.participantIds.length > 0) {
+        // Explicit participant IDs provided by caller
+        permissions = params.participantIds.flatMap((uid) => [
+          Permission.read(Role.user(uid)),
+          Permission.write(Role.user(uid)),
+        ]);
+      } else if (params.chatId.startsWith('dm_')) {
+        // Auto-resolve permissions for DM conversations so only the 2 participants can read
+        const autoPerms = this.buildDmPermissions(params.chatId);
+        if (autoPerms.length > 0) {
+          permissions = autoPerms;
+        }
+      }
 
       await databases.createDocument(
         APPWRITE_CONFIG.databaseId,

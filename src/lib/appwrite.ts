@@ -47,6 +47,7 @@ export function loginWithGitHub(): void {
 
 export interface AuthenticatedUserProfile {
   id: string;
+  appwriteUserId?: string; // Appwrite account.$id for document-level permissions
   githubId: string;
   name: string;
   username: string;
@@ -123,6 +124,7 @@ export async function getGitHubProfile(): Promise<AuthenticatedUserProfile | nul
 
     const profile: AuthenticatedUserProfile = {
       id: user.$id,
+      appwriteUserId: user.$id,
       githubId: ghNumericId,
       name: ghName || ghUsername,
       username: ghUsername,
@@ -167,6 +169,7 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       content: profile.inviteCode || '',
       metadata: JSON.stringify({
         githubId: profile.githubId,
+        appwriteUserId: profile.appwriteUserId || profile.id,
         username: profile.username,
         name: profile.name,
         avatar: profile.avatar,

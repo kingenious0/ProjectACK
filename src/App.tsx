@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser, logoutUser, handleOAuthCallback, resolveInviteCode, upsertUserProfile } from './lib/appwrite';
+import { appwriteSync } from './lib/appwriteSync';
 import { webStore, Chat, Message, setCurrentUser, CURRENT_USER } from './web-db/store';
 import { ChatList } from './components/chat/ChatList';
 import { InviteLandingView } from './components/chat/InviteLandingView';
@@ -114,6 +115,63 @@ export const App: React.FC = () => {
       }
     });
   }, []);
+
+  // Realtime Presence & Heartbeat: Broadcast online/offline states to peers
+  useEffect(() => {
+    if (!CURRENT_USER.isLoggedIn || !CURRENT_USER.username) return;
+
+    const myHandle = CURRENT_USER.username;
+    // Broadcast initial online status
+    appwriteSync.broadcastPresence(myHandle, true);
+
+    // Heartbeat every 45s to maintain fresh online state across devices
+    const heartbeat = setInterval(() => {
+      if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        appwriteSync.broadcastPresence(CURRENT_USER.username, true);
+      }
+    }, 45000);
+
+    // Visibility change: online when visible, offline when tab is hidden
+    const handleVisibility = () => {
+      if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        const isOnline = document.visibilityState === 'visible';
+        appwriteSync.broadcastPresence(CURRENT_USER.username, isOnline);
+      }
+    };
+
+    // Before unload: broadcast offline immediately
+    const handleBeforeUnload = () => {
+      if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        appwriteSync.broadcastPresence(CURRENT_USER.username, false);
+      }
+    };
+
+    const handleOffline = () => {
+      if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        appwriteSync.broadcastPresence(CURRENT_USER.username, false);
+      }
+    };
+
+    const handleOnline = () => {
+      if (CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+        appwriteSync.broadcastPresence(CURRENT_USER.username, true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      appwriteSync.broadcastPresence(myHandle, false);
+    };
+  }, [CURRENT_USER.isLoggedIn, CURRENT_USER.username]);
 
   // Screen 3: Check for ?invite=<codeOrUsername> and resolve inviter
   useEffect(() => {
@@ -345,6 +403,11 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         onSignOut={async () => {
           setIsSettingsOpen(false);
+          if (CURRENT_USER.username) {
+            try {
+              appwriteSync.broadcastPresence(CURRENT_USER.username, false);
+            } catch {}
+          }
           await logoutUser();
           setCurrentUser({
             id: 'dev_user_self',
@@ -355,7 +418,9 @@ export const App: React.FC = () => {
           });
           try {
             localStorage.removeItem('ack_current_user');
+            localStorage.removeItem('ack_active_chat_id');
           } catch (e) {}
+          setActiveChatId(null);
           setChats([...webStore.getChats()]);
           setStoreRevision((r) => r + 1);
         }}

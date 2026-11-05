@@ -87,7 +87,7 @@ export interface Message {
   senderAvatar: string;
   content: string;
   type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system' | 'image' | 'document';
-  status: 'sent' | 'delivered' | 'read' | 'failed' | 'queued';
+  status: 'sent' | 'delivered' | 'read' | 'failed' | 'queued' | 'pending';
   timestamp: string;
   metadata?: MessageMetadata;
 }
@@ -429,6 +429,17 @@ class WebStore {
     const chatId = row.chat_id || row.conversationId;
     if (!chatId) return;
 
+    // ── SECURITY: Private DM isolation (client-side safety net) ──
+    // Drop any DM message where the current user is NOT a participant.
+    // This is defense-in-depth on top of Appwrite document-level permissions.
+    if (chatId.startsWith('dm_') && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+      const myUsername = CURRENT_USER.username.toLowerCase();
+      const parts = chatId.replace(/^dm_/, '').split('_');
+      if (!parts.some((p) => p.toLowerCase() === myUsername)) {
+        return; // Not our conversation — silently ignore for privacy
+      }
+    }
+
     if (!this.messages[chatId]) {
       this.messages[chatId] = [];
     }
@@ -546,27 +557,38 @@ class WebStore {
       return;
     }
 
+    const msgUsername = (meta?.username || '').toLowerCase();
+    const myUsername = (CURRENT_USER.username || '').toLowerCase();
+    const isMe =
+      (row.sender_id === CURRENT_USER.id && (!meta?.deviceId || meta.deviceId === this.getDeviceId())) ||
+      (Boolean(msgUsername) && Boolean(myUsername) && msgUsername === myUsername) ||
+      (row.sender_id === CURRENT_USER.githubId);
+
     const timeStr = row.created_at
       ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : (row.timestamp || 'Just now');
 
-    const isMe = row.sender_id === CURRENT_USER.id && (!meta?.deviceId || meta.deviceId === this.getDeviceId());
+    const senderDisplayName = isMe
+      ? (CURRENT_USER.name || CURRENT_USER.username || 'ME')
+      : (meta?.senderName || row.senderName || 'Peer Dev');
 
     const newMsg: Message = {
       id: row.id,
       chatId,
-      senderId: row.sender_id || row.senderId || 'dev_peer',
-      senderName: isMe ? 'ME' : (meta?.senderName || row.senderName || 'Peer Dev'),
+      senderId: row.sender_id || row.senderId || (isMe ? CURRENT_USER.id : 'dev_peer'),
+      senderName: senderDisplayName,
       senderAvatar: isMe
         ? CURRENT_USER.avatar
         : (meta?.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'),
       content: row.content,
       type: (row.message_type || row.type || 'text') as any,
-      status: 'delivered',
+      status: isMe ? 'sent' : 'delivered',
       timestamp: timeStr,
       metadata: {
         accentColor: isMe ? '#E91E63' : '#00A884',
         ...meta,
+        username: meta?.username || (isMe ? CURRENT_USER.username : undefined),
+        timestamp: row.created_at || row.timestamp || new Date().toISOString(),
       },
     };
 
@@ -582,11 +604,11 @@ class WebStore {
     let chat = this.chats.find((c) => c.id === chatId);
     if (!chat && chatId.startsWith('dm_')) {
       const parts = chatId.replace(/^dm_/, '').split('_');
-      const otherHandle = parts.find((p) => p.toLowerCase() !== (CURRENT_USER.username || '').toLowerCase()) || parts[0] || 'dev';
-      const senderDisplayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
+      const otherHandle = parts.find((p) => p.toLowerCase() !== myUsername) || parts[0] || 'dev';
+      const displayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
       chat = {
         id: chatId,
-        name: senderDisplayName,
+        name: displayName,
         username: otherHandle.toLowerCase(),
         type: 'dm',
         avatar: isMe ? `https://github.com/${otherHandle.toLowerCase()}.png` : (meta?.senderAvatar || `https://github.com/${otherHandle.toLowerCase()}.png`),
@@ -620,6 +642,13 @@ class WebStore {
           if (msgTimestamp && !isNaN(new Date(msgTimestamp).getTime())) {
             chat.lastSeen = new Date(msgTimestamp).toISOString();
           }
+          if (isCurrentlyActive) {
+            chat.unreadCount = 0;
+          }
+        }
+      } else {
+        if (isCurrentlyActive) {
+          chat.unreadCount = 0;
         }
       }
     }
@@ -711,20 +740,47 @@ class WebStore {
 
   // Getters
   public getChats(): Chat[] {
-    if (CURRENT_USER.isLoggedIn) {
-      // Real authenticated users only see their genuine chats, not mock/demo chats
-      return this.chats.filter(
-        (c) =>
-          !c.isDemo &&
-          c.id !== 'chat_project_ack' &&
-          c.id !== 'chat_sarah_devops' &&
-          c.id !== 'chat_robert_jonas' &&
-          c.id !== 'chat_webhook_ci' &&
-          c.id !== 'chat_hardik' &&
-          c.id !== 'chat_torvalds_repo'
-      );
-    }
-    return this.chats;
+    const myHandle = (CURRENT_USER.username || '').toLowerCase();
+
+    return this.chats
+      .filter((c) => {
+        // Aggressively exclude any demo / mock chat
+        if (isMockChat(c)) return false;
+
+        // Privacy isolation: In a DM, the current logged-in user MUST be one of the participants!
+        if (c.type === 'dm' || c.id.startsWith('dm_')) {
+          if (CURRENT_USER.isLoggedIn && myHandle) {
+            const parts = c.id.replace(/^dm_/, '').split('_');
+            if (parts.length >= 2) {
+              const isParticipant = parts.some((p) => p.toLowerCase() === myHandle);
+              if (!isParticipant) return false;
+            } else if (c.username && c.username.toLowerCase() === myHandle) {
+              // Chat with self / invalid
+              return false;
+            }
+          }
+        }
+        return true;
+      })
+      .map((c) => {
+        // Dynamically compute statusTime from the last message's real timestamp
+        const msgs = this.messages[c.id];
+        if (msgs && msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1];
+          const lastIso =
+            lastMsg.metadata?.timestamp ||
+            (lastMsg as any).created_at ||
+            (lastMsg.timestamp && !lastMsg.timestamp.includes('Just now') ? lastMsg.timestamp : undefined);
+          const computedTime = formatChatTimestamp(lastIso);
+          if (computedTime) {
+            return {
+              ...c,
+              statusTime: computedTime,
+            };
+          }
+        }
+        return c;
+      });
   }
 
   public getMessages(chatId: string): Message[] {
@@ -737,11 +793,11 @@ class WebStore {
     const seenUsernames = new Set<string>();
     const myHandle = (CURRENT_USER.username || '').toLowerCase();
 
-    // 1. All real DM chat contacts
+    // 1. All real DM chat contacts (excluding mock chats)
     for (const chat of this.chats) {
-      if (chat.type === 'dm' && chat.username) {
+      if (chat.type === 'dm' && chat.username && !isMockChat(chat)) {
         const u = chat.username.toLowerCase();
-        if (u !== myHandle && !seenUsernames.has(u)) {
+        if (u !== myHandle && !seenUsernames.has(u) && !MOCK_USERNAMES.has(u)) {
           seenUsernames.add(u);
           list.push({
             id: 'contact_' + u,
@@ -766,7 +822,7 @@ class WebStore {
             const prof = dir[key];
             if (prof && prof.username) {
               const u = prof.username.toLowerCase();
-              if (u !== myHandle && !seenUsernames.has(u)) {
+              if (u !== myHandle && !seenUsernames.has(u) && !MOCK_USERNAMES.has(u)) {
                 seenUsernames.add(u);
                 list.push({
                   id: 'contact_' + u,
@@ -809,19 +865,24 @@ class WebStore {
   public sendMessage(chatId: string, content: string, type: Message['type'] = 'text', metadata?: MessageMetadata) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const senderDisplayName = CURRENT_USER.name || CURRENT_USER.username || 'ME';
 
     const newMsg: Message = {
       id: 'm_' + Date.now(),
       chatId,
       senderId: CURRENT_USER.id,
-      senderName: 'ME',
+      senderName: senderDisplayName,
       senderAvatar: CURRENT_USER.avatar,
       content,
       type,
-      status: 'read',
+      status: 'sent',
       timestamp: timeStr,
       metadata: {
         accentColor: '#E91E63', // Snapchat signature magenta for current user
+        username: CURRENT_USER.username,
+        senderName: CURRENT_USER.name,
+        senderAvatar: CURRENT_USER.avatar,
+        timestamp: now.toISOString(),
         ...metadata,
       },
     };
@@ -854,6 +915,8 @@ class WebStore {
         deviceId: this.getDeviceId(),
         senderName: CURRENT_USER.name,
         senderAvatar: CURRENT_USER.avatar,
+        username: CURRENT_USER.username,
+        timestamp: now.toISOString(),
       },
       timestamp: now.toISOString(),
     });

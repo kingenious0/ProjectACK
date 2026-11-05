@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Search, Check, Camera, GitFork, X, Users } from 'lucide-react';
-import { SuggestedDev, CURRENT_USER } from '../../web-db/store';
+import { SuggestedDev, CURRENT_USER, MOCK_USERNAMES } from '../../web-db/store';
 import { searchUsersOnAck } from '../../lib/appwrite';
 
 export interface CreateGroupModalProps {
@@ -39,17 +39,24 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    let merged = [...availableDevs];
+    const myHandle = (CURRENT_USER.username || '').toLowerCase();
+    const isMock = (handle: string) => {
+      const h = handle.toLowerCase();
+      return MOCK_USERNAMES.has(h) || h.includes('copilot') || h === myHandle;
+    };
+
+    // 1. Available devs from real chats (filter mock users)
+    let merged = availableDevs.filter((m) => !isMock(m.username));
     const seen = new Set(merged.map((m) => m.username.toLowerCase()));
 
-    // Also check local user directory
+    // 2. Also check local user directory (filter mock users)
     try {
       const raw = localStorage.getItem('ack_user_directory');
       if (raw) {
         const dir = JSON.parse(raw);
         for (const k of Object.keys(dir)) {
           const u = (dir[k]?.username || '').toLowerCase();
-          if (u && u !== (CURRENT_USER.username || '').toLowerCase() && !seen.has(u)) {
+          if (u && !isMock(u) && !seen.has(u)) {
             seen.add(u);
             merged.push({
               id: 'contact_' + u,
@@ -67,7 +74,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
     setLiveContacts(merged);
 
-    // Background fetch registered directory from Appwrite
+    // 3. Background fetch registered directory from Appwrite
     searchUsersOnAck('').then((users) => {
       if (users && users.length > 0) {
         setLiveContacts((prev) => {
@@ -75,7 +82,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
           const extra: SuggestedDev[] = [];
           for (const u of users) {
             const handle = u.username.toLowerCase();
-            if (handle !== (CURRENT_USER.username || '').toLowerCase() && !curSeen.has(handle)) {
+            if (handle && !isMock(handle) && !curSeen.has(handle)) {
               curSeen.add(handle);
               extra.push({
                 id: 'contact_' + handle,

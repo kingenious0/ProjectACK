@@ -485,18 +485,25 @@ export const ChatList: React.FC<ChatListProps> = ({
                   >
                     {chat.name}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      color: 'var(--ack-muted)',
-                      fontFamily: 'Inter, sans-serif',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {chat.statusText}
-                  </div>
+                  {(() => {
+                    const isTyping = Boolean(webStore.getTypingUser(chat.id));
+                    return (
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          color: isTyping ? 'var(--ack-success, #22C55E)' : 'var(--ack-muted)',
+                          fontFamily: 'Inter, sans-serif',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          fontWeight: isTyping ? 600 : 400,
+                          fontStyle: isTyping ? 'italic' : 'normal',
+                        }}
+                      >
+                        {isTyping ? 'typing...' : chat.statusText}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Right Meta Column: Time & Status Badge/Dot */}

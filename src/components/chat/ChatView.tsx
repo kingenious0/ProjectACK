@@ -12,6 +12,7 @@ import {
   Send,
   CheckCheck,
   Check,
+  Clock,
   Image as ImageIcon,
   FileText,
   FileCode,
@@ -129,38 +130,83 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const touchMovedRef = useRef<boolean>(false);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const typingDebounceRef = useRef<any>(null);
+  const ignoreBackdropClickUntilRef = useRef<number>(0);
 
   const checkIsMe = (msg?: Message | null): boolean => {
     if (!msg) return false;
-    // 1. Direct ID match
-    if (msg.senderId === CURRENT_USER.id) return true;
-    if (CURRENT_USER.githubId && msg.senderId === CURRENT_USER.githubId) return true;
-    if (msg.senderId === 'usr_me' || msg.senderId === 'dev_user_self') return true;
 
-    // 2. Direct name / username match
-    if (msg.senderName === 'ME') return true;
+    const myUsername = (CURRENT_USER.username || '').toLowerCase().trim();
+    const myName = (CURRENT_USER.name || '').toLowerCase().trim();
+    const myId = CURRENT_USER.id;
+    const myGithubId = CURRENT_USER.githubId;
+    const myAppwriteId = (CURRENT_USER as any).appwriteUserId;
 
-    const msgUser = (msg.metadata?.username || '').toLowerCase();
-    const currentUsername = (CURRENT_USER.username || '').toLowerCase();
-    if (msgUser && currentUsername && msgUser === currentUsername) return true;
+    const msgUser = (msg.metadata?.username || (msg.metadata as any)?.senderUsername || '').toLowerCase().trim();
+    const msgSenderName = (msg.senderName || '').toLowerCase().trim();
+    const senderId = msg.senderId;
 
-    const currentName = (CURRENT_USER.name || '').toLowerCase();
-    const senderName = (msg.senderName || '').toLowerCase();
-    if (currentName && senderName && (currentName === senderName || senderName.includes(currentName) || currentName.includes(senderName))) {
-      return true;
-    }
+    // In a 1-on-1 DM: First check if it definitely belongs to the chat peer
+    if (chat && chat.type === 'dm') {
+      const peerUsername = (chat.username || '').toLowerCase().trim();
+      const peerName = (chat.name || '').toLowerCase().trim();
 
-    // 3. In 1-on-1 DM: any message not sent by the chat peer belongs to the current user!
-    if (chat && chat.type === 'dm' && chat.username) {
-      const peerUser = chat.username.toLowerCase();
-      const isPeer = (msgUser && msgUser === peerUser) ||
-                     (senderName && senderName.includes(peerUser)) ||
-                     (msg.senderId === chat.id);
-      if (!isPeer) {
-        return true;
+      // If metadata username matches peer username, it is definitely from the peer
+      if (peerUsername && msgUser && msgUser === peerUsername) {
+        return false;
+      }
+      // If senderId matches peer ID or peer username
+      if (peerUsername && senderId === peerUsername) {
+        return false;
+      }
+      if (senderId === 'dev_peer' || senderId === (chat as any).peerId || senderId === (chat as any).appwriteUserId) {
+        return false;
+      }
+      // If senderName matches peer's display name or username (and is not 'me')
+      if (msgSenderName && msgSenderName !== 'me') {
+        if (peerUsername && (msgSenderName === peerUsername || msgSenderName === `@${peerUsername}`)) {
+          return false;
+        }
+        if (peerName && msgSenderName === peerName) {
+          return false;
+        }
       }
     }
 
+    // Direct matches for current user
+    // 1. Direct ID match with current user's IDs
+    if (myId && senderId === myId) return true;
+    if (myGithubId && senderId === myGithubId) return true;
+    if (myAppwriteId && senderId === myAppwriteId) return true;
+
+    // 2. Explicit metadata username match
+    if (myUsername && msgUser && msgUser === myUsername) return true;
+
+    // 3. Sender name match with current user's name (must not be generic 'me')
+    if (myName && msgSenderName && msgSenderName !== 'me' && (msgSenderName === myName || myName.includes(msgSenderName) || msgSenderName.includes(myName))) {
+      return true;
+    }
+    if (myUsername && msgSenderName && msgSenderName !== 'me' && (msgSenderName === myUsername || msgSenderName === `@${myUsername}`)) {
+      return true;
+    }
+
+    // 4. Legacy 'ME' or 'usr_me' fallback ONLY if it wasn't attributed to peer above
+    if (senderId === 'usr_me' || senderId === 'dev_user_self') {
+      if (chat && chat.type === 'dm' && chat.username) {
+        const peerUsername = chat.username.toLowerCase().trim();
+        if (msgUser && msgUser === peerUsername) return false;
+      }
+      return true;
+    }
+
+    if (msg.senderName === 'ME') {
+      // If metadata explicitly says another user, it's NOT me
+      if (msgUser && myUsername && msgUser !== myUsername) {
+        return false;
+      }
+      return true;
+    }
+
+    // Default: safe false (incoming message)
     return false;
   };
 
@@ -241,7 +287,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isRecording]);
+  }, [messages, isRecording, chat ? webStore.getTypingUser(chat.id) : null]);
 
   useEffect(() => {
     if (isRecording) {
@@ -1119,6 +1165,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 position: 'relative',
               }}
               onDoubleClick={() => setActiveReactionMenuId(msg.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                ignoreBackdropClickUntilRef.current = Date.now() + 100;
+                setActionMessage(msg);
+                setActionMenuPosition({
+                  x: Math.min(e.clientX, window.innerWidth - 180),
+                  y: Math.min(e.clientY, window.innerHeight - 240),
+                });
+              }}
             >
               {/* Incoming Sender Header */}
               {!isMe && (
@@ -1143,22 +1199,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  ignoreBackdropClickUntilRef.current = Date.now() + 100;
                   setActionMessage(msg);
                   setActionMenuPosition({
                     x: Math.min(e.clientX, window.innerWidth - 180),
-                    y: Math.min(e.clientY, window.innerHeight - 220),
+                    y: Math.min(e.clientY, window.innerHeight - 240),
                   });
                 }}
                 onTouchStart={(e) => {
                   touchMovedRef.current = false;
                   const touch = e.touches[0];
                   touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
                   longPressTimerRef.current = setTimeout(() => {
                     if (!touchMovedRef.current) {
+                      ignoreBackdropClickUntilRef.current = Date.now() + 500;
+                      try {
+                        navigator.vibrate?.(40);
+                      } catch {}
                       setActionMessage(msg);
                       setActionMenuPosition({
                         x: Math.min(touch.clientX, window.innerWidth - 180),
-                        y: Math.min(touch.clientY, window.innerHeight - 220),
+                        y: Math.min(touch.clientY, window.innerHeight - 240),
                       });
                     }
                   }, 400);
@@ -1173,8 +1235,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     }
                   }
                 }}
-                onTouchEnd={() => {
+                onTouchEnd={(e) => {
                   if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                  if (Date.now() < ignoreBackdropClickUntilRef.current) {
+                    try {
+                      e.preventDefault();
+                    } catch {}
+                  }
                 }}
                 onClick={() => {
                   if (isVault && msg.metadata?.isBurned && onOpenBurnedSecret) {
@@ -1222,11 +1289,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    ignoreBackdropClickUntilRef.current = Date.now() + 100;
                     const rect = e.currentTarget.getBoundingClientRect();
                     setActionMessage(msg);
                     setActionMenuPosition({
                       x: Math.min(rect.right - 20, window.innerWidth - 180),
-                      y: Math.min(rect.bottom + 4, window.innerHeight - 220),
+                      y: Math.min(rect.bottom + 4, window.innerHeight - 240),
                     });
                   }}
                   style={{
@@ -1393,16 +1461,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     {msg.metadata?.isEdited && (
                       <span style={{ fontSize: '10.5px', opacity: 0.75, fontStyle: 'italic' }}>(edited)</span>
                     )}
-                    <CheckCheck
-                      size={14}
-                      strokeWidth={2.2}
-                      style={{
-                        color:
-                          localStorage.getItem('ack_read_receipts') !== 'false' && msg.status === 'read'
-                            ? '#53BDEB'
-                            : 'var(--ack-accent)',
-                      }}
-                    />
+                    {msg.status === 'pending' || msg.status === 'queued' ? (
+                      <Clock size={12} style={{ color: '#71717A' }} />
+                    ) : msg.status === 'delivered' ? (
+                      <CheckCheck size={14} strokeWidth={2.2} style={{ color: '#71717A' }} />
+                    ) : msg.status === 'read' ? (
+                      <CheckCheck
+                        size={14}
+                        strokeWidth={2.2}
+                        style={{
+                          color:
+                            localStorage.getItem('ack_read_receipts') !== 'false'
+                              ? '#53BDEB'
+                              : '#71717A',
+                        }}
+                      />
+                    ) : (
+                      /* Default 'sent': Single grey tick */
+                      <Check size={14} strokeWidth={2.2} style={{ color: '#71717A' }} />
+                    )}
                   </div>
                 )}
               </div>
@@ -1465,6 +1542,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           );
         })}
+        {chat && webStore.getTypingUser(chat.id) && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              marginBottom: '8px',
+              animation: 'ackFadeIn 150ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '16px 16px 16px 4px',
+                background: 'var(--ack-surface-2)',
+                border: '1px solid var(--ack-border)',
+                color: 'var(--ack-muted)',
+                fontSize: '13px',
+              }}
+            >
+              <span className="ack-typing-dots">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </span>
+              <span style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--ack-success)' }}>
+                {webStore.getTypingUser(chat.id)} is typing...
+              </span>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -1910,6 +2021,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div
             style={{ position: 'fixed', inset: 0, zIndex: 9000 }}
             onClick={() => {
+              if (Date.now() < ignoreBackdropClickUntilRef.current) return;
               setActionMenuPosition(null);
               setActionMessage(null);
             }}
