@@ -523,7 +523,12 @@ class WebStore {
     }
 
     // 4. Handle realtime typing indicator
-    if (row.type === 'typing_indicator' || row.message_type === 'typing_indicator') {
+    if (
+      row.type === 'typing_indicator' ||
+      row.message_type === 'typing_indicator' ||
+      row.sender_id === 'system_typing' ||
+      row.senderId === 'system_typing'
+    ) {
       const user = meta?.username || row.senderName;
       if (user && user.toLowerCase() !== (CURRENT_USER.username || '').toLowerCase()) {
         const isTyping = meta?.isTyping !== false && row.content !== 'stopped';
@@ -541,7 +546,12 @@ class WebStore {
     }
 
     // 5. Handle realtime presence event
-    if (row.type === 'presence_event' || row.message_type === 'presence_event') {
+    if (
+      row.type === 'presence_event' ||
+      row.message_type === 'presence_event' ||
+      row.sender_id === 'system_presence' ||
+      row.senderId === 'system_presence'
+    ) {
       const username = (meta?.username || row.senderName || '').toLowerCase();
       if (username && username !== (CURRENT_USER.username || '').toLowerCase()) {
         const isOnline = Boolean(meta?.isOnline);
@@ -559,7 +569,14 @@ class WebStore {
     }
 
     // 6. Handle realtime delivery and read receipts
-    if (row.type === 'receipt_event' || row.message_type === 'receipt_event') {
+    if (
+      row.type === 'receipt_event' ||
+      row.message_type === 'receipt_event' ||
+      row.sender_id === 'system_receipt' ||
+      row.senderId === 'system_receipt' ||
+      meta?.targetMessageId === 'all_read' ||
+      (row.content === 'read' && (row.senderName === 'Peer Dev' || row.sender_id?.startsWith('system_')))
+    ) {
       const targetId = meta?.targetMessageId || row.content;
       const receiptStatus = (meta?.status || (row.content === 'read' ? 'read' : 'delivered')) as 'delivered' | 'read';
       const reader = (meta?.readerUsername || '').toLowerCase();
@@ -595,6 +612,23 @@ class WebStore {
           }
         }
       }
+      // CRITICAL: ALWAYS return! System receipts must NEVER become messages or alter chat.statusText
+      return;
+    }
+
+    // Guard: Drop any unhandled system control events or corrupted peer pseudo-messages
+    if (
+      row.sender_id?.startsWith('system_') ||
+      row.senderId?.startsWith('system_') ||
+      row.type === 'receipt_event' ||
+      row.message_type === 'receipt_event' ||
+      row.type === 'typing_indicator' ||
+      row.message_type === 'typing_indicator' ||
+      row.type === 'presence_event' ||
+      row.message_type === 'presence_event' ||
+      (row.content === 'read' && (row.senderName === 'Peer Dev' || !row.sender_id)) ||
+      (row.content === 'delivered' && (row.senderName === 'Peer Dev' || !row.sender_id))
+    ) {
       return;
     }
 
@@ -672,7 +706,7 @@ class WebStore {
         type: 'dm',
         avatar: isMe ? `https://github.com/${otherHandle.toLowerCase()}.png` : (meta?.senderAvatar || `https://github.com/${otherHandle.toLowerCase()}.png`),
         statusIconType: 'chat',
-        statusText: newMsg.content,
+        statusText: (newMsg.content !== 'read' && newMsg.content !== 'delivered') ? newMsg.content : '',
         statusTime: formattedChatTime,
         unreadCount: isMe || isCurrentlyActive || !shouldNotify ? 0 : 1,
         isOnline: shouldNotify ? true : false,
@@ -680,12 +714,14 @@ class WebStore {
       };
       this.chats.unshift(chat);
     } else if (chat) {
-      chat.statusText =
-        newMsg.type === 'code'
-          ? 'Code snippet shared'
-          : newMsg.type === 'env_secret'
-          ? 'Secret vault shared'
-          : newMsg.content;
+      if (newMsg.content !== 'read' && newMsg.content !== 'delivered') {
+        chat.statusText =
+          newMsg.type === 'code'
+            ? 'Code snippet shared'
+            : newMsg.type === 'env_secret'
+            ? 'Secret vault shared'
+            : newMsg.content;
+      }
       chat.statusTime = formattedChatTime;
       if (!isMe) {
         if (shouldNotify) {
@@ -776,6 +812,17 @@ class WebStore {
           for (const k of Object.keys(parsed)) {
             if (MOCK_CHAT_IDS.has(k) || isMockChat({ id: k })) {
               delete parsed[k];
+            } else if (Array.isArray(parsed[k])) {
+              // Purge receipt events, empty Peer Dev bubbles, and corrupted 'read'/'delivered' pseudo-messages
+              parsed[k] = parsed[k].filter(
+                (m: any) =>
+                  !m.senderId?.startsWith('system_') &&
+                  m.senderId !== 'system_receipt' &&
+                  m.senderId !== 'system_typing' &&
+                  m.senderId !== 'system_presence' &&
+                  !(m.senderName === 'Peer Dev' && (m.content === 'read' || m.content === 'delivered' || !m.content?.trim())) &&
+                  !(m.content === 'read' && m.type === 'text' && (m.senderName === 'Peer Dev' || m.senderId === 'dev_peer'))
+              );
             }
           }
           this.messages = parsed;
@@ -784,6 +831,24 @@ class WebStore {
         }
       } else {
         this.messages = {};
+      }
+
+      // Clean corrupted 'read' / 'delivered' preview text from chats
+      for (const c of this.chats) {
+        if (c.statusText === 'read' || c.statusText === 'delivered') {
+          const msgs = this.messages[c.id];
+          const lastValid = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : null;
+          c.statusText = lastValid
+            ? lastValid.type === 'code'
+              ? 'Code snippet shared'
+              : lastValid.type === 'env_secret'
+              ? 'Secret vault shared'
+              : lastValid.content
+            : '';
+          if (lastValid) {
+            c.statusTime = formatChatTimestamp(lastValid.timestamp);
+          }
+        }
       }
 
       this.suggestions = [];
@@ -850,23 +915,34 @@ class WebStore {
         return true;
       })
       .map((c) => {
-        // Dynamically compute statusTime from the last message's real timestamp
+        // Dynamically compute statusTime and previewText from the last message's real content
         const msgs = this.messages[c.id];
+        let previewText = c.statusText;
+        let computedTime = c.statusTime;
         if (msgs && msgs.length > 0) {
           const lastMsg = msgs[msgs.length - 1];
           const lastIso =
             lastMsg.metadata?.timestamp ||
             (lastMsg as any).created_at ||
             (lastMsg.timestamp && !lastMsg.timestamp.includes('Just now') ? lastMsg.timestamp : undefined);
-          const computedTime = formatChatTimestamp(lastIso);
-          if (computedTime) {
-            return {
-              ...c,
-              statusTime: computedTime,
-            };
+          const t = formatChatTimestamp(lastIso);
+          if (t) computedTime = t;
+          if (previewText === 'read' || previewText === 'delivered') {
+            previewText =
+              lastMsg.type === 'code'
+                ? 'Code snippet shared'
+                : lastMsg.type === 'env_secret'
+                ? 'Secret vault shared'
+                : lastMsg.content;
           }
+        } else if (previewText === 'read' || previewText === 'delivered') {
+          previewText = '';
         }
-        return c;
+        return {
+          ...c,
+          statusText: previewText,
+          statusTime: computedTime,
+        };
       })
       .sort((a, b) => {
         // WhatsApp pinned chats always appear at the top
@@ -1123,13 +1199,16 @@ class WebStore {
 
   public markChatAsRead(chatId: string) {
     const chat = this.chats.find((c) => c.id === chatId);
-    if (chat && (chat.unreadCount || 0) > 0) {
+    const hadUnread = (chat?.unreadCount || 0) > 0;
+    if (chat && hadUnread) {
       chat.unreadCount = 0;
       this.persist();
       this.notify();
     }
-    // Broadcast real-time read receipt to the peer so their checkmarks turn double blue
-    appwriteSync.broadcastReceipt(chatId, 'all_read', 'read', CURRENT_USER.username || 'user').catch(() => {});
+    // Only broadcast real-time read receipt to the peer if this is a real DM and actually had unread messages
+    if (hadUnread && chatId.startsWith('dm_') && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+      appwriteSync.broadcastReceipt(chatId, 'all_read', 'read', CURRENT_USER.username).catch(() => {});
+    }
   }
 
   public addFriend(dev: SuggestedDev): Chat {

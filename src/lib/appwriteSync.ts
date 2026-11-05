@@ -123,12 +123,27 @@ class AppwriteSyncManager {
               return;
             }
 
+            let msgType = (payload.type || 'text') as MessageType;
+            if (payload.senderId === 'system_receipt') {
+              msgType = 'receipt_event' as any;
+            } else if (payload.senderId === 'system_typing') {
+              msgType = 'typing_indicator' as any;
+            } else if (payload.senderId === 'system_presence') {
+              msgType = 'presence_event' as any;
+            } else if (payload.senderId === 'system_burn') {
+              msgType = 'burn_event' as any;
+            } else if (payload.senderId === 'system_edit') {
+              msgType = 'edit_event' as any;
+            } else if (payload.senderId === 'system_delete') {
+              msgType = 'delete_event' as any;
+            }
+
             const row: MessageRow = {
               id: payload.$id,
               chat_id: conversationId,
               sender_id: payload.senderId,
               content: payload.content,
-              message_type: (payload.type || 'text') as MessageType,
+              message_type: msgType,
               status: 'delivered',
               quoted_message_id: null,
               metadata: payload.metadata || null,
@@ -167,17 +182,33 @@ class AppwriteSyncManager {
         queries
       );
 
-      const allRows = res.documents.map((doc: any) => ({
-        id: doc.$id,
-        chat_id: doc.conversationId,
-        sender_id: doc.senderId,
-        content: doc.content,
-        message_type: (doc.type || 'text') as MessageType,
-        status: 'delivered' as const,
-        quoted_message_id: null,
-        metadata: doc.metadata || null,
-        created_at: doc.timestamp || doc.$createdAt || new Date().toISOString(),
-      }));
+      const allRows = res.documents.map((doc: any) => {
+        let msgType = (doc.type || 'text') as MessageType;
+        if (doc.senderId === 'system_receipt' || (doc.content === 'read' && doc.senderId?.startsWith('system_'))) {
+          msgType = 'receipt_event' as any;
+        } else if (doc.senderId === 'system_typing') {
+          msgType = 'typing_indicator' as any;
+        } else if (doc.senderId === 'system_presence') {
+          msgType = 'presence_event' as any;
+        } else if (doc.senderId === 'system_burn') {
+          msgType = 'burn_event' as any;
+        } else if (doc.senderId === 'system_edit') {
+          msgType = 'edit_event' as any;
+        } else if (doc.senderId === 'system_delete') {
+          msgType = 'delete_event' as any;
+        }
+        return {
+          id: doc.$id,
+          chat_id: doc.conversationId,
+          sender_id: doc.senderId,
+          content: doc.content,
+          message_type: msgType,
+          status: 'delivered' as const,
+          quoted_message_id: null,
+          metadata: doc.metadata || null,
+          created_at: doc.timestamp || doc.$createdAt || new Date().toISOString(),
+        };
+      });
 
       // ── SECURITY: Only return messages for conversations the current user participates in ──
       return allRows.filter((row) => this.isMyConversation(row.chat_id || ''));

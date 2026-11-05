@@ -25,7 +25,20 @@ import { FEATURES, isCallingEnabled } from './config/features';
 import './theme/ack.css';
 
 export const App: React.FC = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !sessionStorage.getItem('ack_splash_shown');
+    }
+    return true;
+  });
+
+  const handleSplashComplete = React.useCallback(() => {
+    setShowSplash(false);
+    try {
+      sessionStorage.setItem('ack_splash_shown', 'true');
+    } catch {}
+  }, []);
+
   const [chats, setChats] = useState<Chat[]>(webStore.getChats());
   const [activeChatId, setActiveChatId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -296,11 +309,11 @@ export const App: React.FC = () => {
     }
   };
 
-  // Gating for unauthenticated visitors: take them straight to Sign In / Landing Page
-  if (!CURRENT_USER.isLoggedIn) {
-    return (
-      <div className="ack-app-root" id="ack-root">
-        {showInviteLanding ? (
+  // Render root with unified structure so Splash Screen is completely stable
+  return (
+    <div className="ack-app-root" id="ack-root">
+      {!CURRENT_USER.isLoggedIn ? (
+        showInviteLanding ? (
           <InviteLandingView
             inviterUsername={pendingInviteData?.inviterUsername || 'kingenious0'}
             inviteCode={pendingInviteData?.inviteCode}
@@ -321,17 +334,11 @@ export const App: React.FC = () => {
               setStoreRevision((r) => r + 1);
             }}
           />
-        )}
-        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ack-app-root" id="ack-root">
-      <div className="ack-shell">
-        {/* Left / Home Pane: ChatList + BottomNav */}
-        <div className={`ack-sidebar-pane ${isMobileChatOpen ? 'ack-mobile-hidden' : ''}`}>
+        )
+      ) : (
+        <div className="ack-shell">
+          {/* Left / Home Pane: ChatList + BottomNav */}
+          <div className={`ack-sidebar-pane ${isMobileChatOpen ? 'ack-mobile-hidden' : ''}`}>
           <ChatList
             chats={chats}
             activeChatId={activeChatId}
@@ -415,6 +422,7 @@ export const App: React.FC = () => {
           />
         </div>
       </div>
+      )}
 
       {/* Developer Tooling Modals */}
       <AddFriendsModal
@@ -593,8 +601,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Animated Ack Splash Screen on Startup */}
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      {/* Animated Ack Splash Screen on Startup - guaranteed to run at most once per session */}
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
     </div>
   );
 };

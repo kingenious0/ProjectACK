@@ -26,13 +26,30 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register Service Worker for PWA
-      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.log('SW registration note:', err.message);
+      // Service Worker registration (Production PWA only, bypassed on local dev)
+      if ('serviceWorker' in navigator) {
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalDev) {
+          // Immediately unregister any stale service workers in dev mode to prevent cached script conflicts
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const r of registrations) {
+              r.unregister();
+            }
           });
-        });
+          if ('caches' in window) {
+            caches.keys().then((keys) => {
+              for (const k of keys) {
+                caches.delete(k);
+              }
+            });
+          }
+        } else if (window.location.protocol.startsWith('http')) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch((err) => {
+              console.log('SW registration note:', err.message);
+            });
+          });
+        }
       }
     </script>
   </body>

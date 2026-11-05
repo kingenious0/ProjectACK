@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export interface SplashScreenProps {
   onComplete: () => void;
@@ -10,39 +10,56 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   // Phase 3: Acknowledged (wordmark & tagline appear)
   // Phase 4: Exit fade out
   const [stage, setStage] = useState<'sent' | 'delivered' | 'acknowledged' | 'exit'>('sent');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     // Stage 1: 0 - 300ms
     const t1 = setTimeout(() => {
       setStage('delivered');
-    }, 320);
+    }, 300);
 
     // Stage 2: 300 - 650ms
     const t2 = setTimeout(() => {
       setStage('acknowledged');
-    }, 680);
+    }, 650);
 
     // Stage 3: 650 - 1100ms, then exit fade
     const t3 = setTimeout(() => {
       setStage('exit');
-    }, 1150);
+    }, 1050);
 
-    // Hand off to app at 1350ms
+    // Hand off to app at 1250ms
     const t4 = setTimeout(() => {
-      onComplete();
-    }, 1350);
+      if (onCompleteRef.current) {
+        onCompleteRef.current();
+      }
+    }, 1250);
+
+    // Absolute fallback safety: guarantee dismissal within 1.8s
+    const safety = setTimeout(() => {
+      if (onCompleteRef.current) {
+        onCompleteRef.current();
+      }
+    }, 1800);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
+      clearTimeout(safety);
     };
-  }, [onComplete]);
+  }, []); // Run once on mount
 
   return (
     <div
       id="ack-splash-screen"
+      onClick={() => {
+        if (onCompleteRef.current) {
+          onCompleteRef.current();
+        }
+      }}
       style={{
         position: 'fixed',
         inset: 0,
