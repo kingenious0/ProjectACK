@@ -39,6 +39,24 @@
   <a href="https://github.com/topics/zero-trust"><img src="https://img.shields.io/badge/topic-zero--trust-131316?style=flat-square&logo=securityscorecard&logoColor=FFB800" alt="zero-trust"></a>
 </p>
 
+<p align="center">
+  <a href="https://project-ack.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/%F0%9F%9A%80_Try_It_Live-project--ack.vercel.app-8B7CFF?style=for-the-badge&logo=vercel&logoColor=white" alt="Try Ack Live" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://project-ack.vercel.app/"><strong>👉 Open Web App Live (No install required)</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home.png" width="31%" alt="Ack Home Screen" />
+  &nbsp;
+  <img src="docs/screenshots/conversation.png" width="31%" alt="Ack Conversation View" />
+  &nbsp;
+  <img src="docs/screenshots/diff-review.png" width="31%" alt="Ack Code Diff Review" />
+</p>
+
 ---
 
 ## 🎯 What Problem Does Ack Solve?

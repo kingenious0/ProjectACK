@@ -4,37 +4,31 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kingenious0/ProjectACK.git"
+    "url": "https://github.com/kingenious0/ACK.git"
   },
   "description": "Ack: Chat for people who ship. Got it.",
   "keywords": [
     "developer-tools",
-    "react-native",
-    "op-sqlite",
     "chat",
     "messenger",
     "zero-trust",
     "encryption",
     "indiehackers",
-    "supabase",
     "code-review",
-    "sqlite",
+    "github-app",
     "typescript",
     "devtools",
-    "android",
     "realtime",
     "open-source"
   ],
-  "homepage": "https://github.com/kingenious0/ProjectACK#readme",
+  "homepage": "https://github.com/kingenious0/ACK#readme",
   "private": true,
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
     "lint": "eslint .",
-    "start": "react-native start",
     "test": "jest"
   },
   "dependencies": {

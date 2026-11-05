@@ -104,3 +104,23 @@ export async function decryptEnvSecret(payload: EncryptedPayload, passphrase = '
   const dec = new TextDecoder();
   return dec.decode(decrypted);
 }
+
+/**
+ * Mask secret .env lines for burn-after-reading display
+ */
+export function maskSecretLines(rawEnv: string): string {
+  if (!rawEnv) return '';
+  return rawEnv
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        return `${key}=**************************************** [BURNED]`;
+      }
+      return '**************************************** [BURNED]';
+    })
+    .join('\n');
+}

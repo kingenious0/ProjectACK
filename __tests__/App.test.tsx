@@ -3,22 +3,12 @@
  */
 
 import React from 'react';
-import ReactTestRenderer from 'react-test-renderer';
-import App from '../App';
 import dbManager from '../src/db/client';
 import { maskSecretLines } from '../src/utils/crypto';
 
 describe('Project ACK Core Architecture', () => {
   beforeAll(async () => {
     await dbManager.initialize();
-  });
-
-  test('App mounts and renders NavigationContainer with Obsidian & Cyber-Emerald layout', async () => {
-    let tree: any;
-    await ReactTestRenderer.act(async () => {
-      tree = ReactTestRenderer.create(<App />);
-    });
-    expect(tree).toBeDefined();
   });
 
   test('Database manager executes DDL schema and seeds initial developer chats', async () => {

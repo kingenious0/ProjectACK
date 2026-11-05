@@ -178,7 +178,7 @@ export function generateInviteCode(username?: string): string {
   return `inv_${handle}_${rand}`;
 }
 
-const defaultGuestId = typeof window !== 'undefined'
+const defaultGuestId = typeof window !== 'undefined' && typeof sessionStorage !== 'undefined'
   ? (sessionStorage.getItem('ack_device_id') || ('dev_' + Math.random().toString(36).substring(2, 7)))
   : 'dev_guest';
 
@@ -716,7 +716,7 @@ class WebStore {
     this.messages[chatId].push(newMsg);
 
     const isCurrentlyActive =
-      typeof window !== 'undefined' && localStorage.getItem('ack_active_chat_id') === chatId;
+      typeof window !== 'undefined' && typeof localStorage !== 'undefined' && localStorage.getItem('ack_active_chat_id') === chatId;
 
     const msgTimestamp = row.created_at || row.timestamp;
     const formattedChatTime = formatChatTimestamp(msgTimestamp);
