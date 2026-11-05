@@ -401,7 +401,7 @@ export const App: React.FC = () => {
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
-        availableDevs={webStore.getSuggestions()}
+        availableDevs={webStore.getRecentContacts()}
         onCreateGroup={(name, members, repo, avatar) => {
           const newGrp = webStore.createGroup(name, members, repo, avatar);
           const allChats = [...webStore.getChats()];

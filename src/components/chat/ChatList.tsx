@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Bell, Users, MessageSquarePlus } from 'lucide-react';
-import { Chat, webStore, CURRENT_USER } from '../../web-db/store';
+import { Chat, webStore, CURRENT_USER, isMockChat } from '../../web-db/store';
 import { BottomNav, NavTab } from './BottomNav';
 import { EmptyChatList } from './EmptyChatList';
 import { ChatListSkeleton } from './ChatListSkeleton';
@@ -73,6 +73,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 
   // Filter based on active tab and search query
   const filteredChats = chats.filter((chat) => {
+    if (isMockChat(chat)) return false;
     // CI Feed flag check
     if (!FEATURES.ciFeed && (chat.id === 'chat_webhook_ci' || chat.username === 'vercel_builds')) {
       return false;

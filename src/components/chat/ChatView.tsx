@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronLeft,
+  Pencil,
+  CornerUpRight,
+  Copy,
+  Ban,
+  X,
   MoreVertical,
   Paperclip,
   Mic,
@@ -20,7 +25,7 @@ import {
   WifiOff,
   MessageSquare,
 } from 'lucide-react';
-import { Chat, Message, CURRENT_USER, webStore } from '../../web-db/store';
+import { Chat, Message, CURRENT_USER, webStore, isMockChat } from '../../web-db/store';
 import { getInitials } from './ChatList';
 import { CodeMessage } from './CodeMessage';
 import { VaultMessage } from './VaultMessage';
@@ -115,6 +120,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [internalReviewPayload, setInternalReviewPayload] = useState<CodeReviewPayload | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [dismissChips, setDismissChips] = useState(false);
+  const [actionMessage, setActionMessage] = useState<Message | null>(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showForwardSheet, setShowForwardSheet] = useState(false);
+  const longPressTimerRef = useRef<any>(null);
+  const touchMovedRef = useRef<boolean>(false);
+  const typingDebounceRef = useRef<any>(null);
 
   const isInviteChat = Boolean(chat?.isInviteChat || chat?.invitedBy || chat?.statusText?.toLowerCase().includes('invite'));
   const inviterHandle = chat?.invitedBy || chat?.username || 'dev';
@@ -213,9 +226,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }, [isRecording]);
 
   // Handlers
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputText(val);
+
+    if (chat && !editingMessage) {
+      webStore.setTyping(chat.id, true);
+      if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+      typingDebounceRef.current = setTimeout(() => {
+        if (chat) webStore.setTyping(chat.id, false);
+      }, 2500);
+    }
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
+
+    if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+    if (chat) webStore.setTyping(chat.id, false);
+
+    if (editingMessage && chat) {
+      webStore.editMessage(chat.id, editingMessage.id, inputText.trim());
+      setEditingMessage(null);
+      setInputText('');
+      return;
+    }
+
     if (isOffline) {
       if (chat) {
         webStore.sendMessage(chat.id, inputText.trim(), 'text', { isFailed: true });
@@ -564,41 +601,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   textOverflow: 'ellipsis',
                 }}
               >
-                {chat.type === 'group' && chat.members ? (
-                  <span>{chat.members.length} members · tap for info</span>
-                ) : isRepo ? (
-                  <span>main · CI passing</span>
-                ) : chat.type === 'ai' ? (
-                  <>
-                    <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: 'var(--ack-success)',
-                        display: 'inline-block',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ color: 'var(--ack-success)' }}>Online · AI Copilot</span>
-                  </>
-                ) : chat.isOnline ? (
-                  <>
-                    <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: 'var(--ack-success)',
-                        display: 'inline-block',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ color: 'var(--ack-success)' }}>Online</span>
-                  </>
-                ) : (
-                  <span>last seen {formatLastSeen(chat.lastSeen, chat.statusTime)}</span>
-                )}
+                {(() => {
+                  const isPeerTyping = !!(chat && webStore.getTypingUser(chat.id));
+                  if (chat.type === 'group' && chat.members) {
+                    return <span>{chat.members.length} members · tap for info</span>;
+                  }
+                  if (isPeerTyping) {
+                    return (
+                      <span style={{ color: 'var(--ack-success)', fontStyle: 'italic', fontWeight: 600 }}>
+                        typing...
+                      </span>
+                    );
+                  }
+                  if (isRepo) {
+                    return <span>main · CI passing</span>;
+                  }
+                  if (chat.isOnline) {
+                    return (
+                      <>
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: 'var(--ack-success)',
+                            display: 'inline-block',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ color: 'var(--ack-success)' }}>Online</span>
+                      </>
+                    );
+                  }
+                  return <span>last seen {formatLastSeen(chat.lastSeen, chat.statusTime)}</span>;
+                })()}
               </div>
             </div>
           </div>
@@ -1069,6 +1105,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <div
                 className={`ack-message-bubble ${isMe ? 'ack-bubble-own' : 'ack-bubble-incoming'}`}
                 id={`msg-${msg.id}`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActionMessage(msg);
+                  setActionMenuPosition({
+                    x: Math.min(e.clientX, window.innerWidth - 180),
+                    y: Math.min(e.clientY, window.innerHeight - 220),
+                  });
+                }}
+                onTouchStart={(e) => {
+                  touchMovedRef.current = false;
+                  const touch = e.touches[0];
+                  longPressTimerRef.current = setTimeout(() => {
+                    if (!touchMovedRef.current) {
+                      setActionMessage(msg);
+                      setActionMenuPosition({
+                        x: Math.min(touch.clientX, window.innerWidth - 180),
+                        y: Math.min(touch.clientY, window.innerHeight - 220),
+                      });
+                    }
+                  }, 450);
+                }}
+                onTouchMove={() => {
+                  touchMovedRef.current = true;
+                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                }}
+                onTouchEnd={() => {
+                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                }}
                 onClick={() => {
                   if (isVault && msg.metadata?.isBurned && onOpenBurnedSecret) {
                     onOpenBurnedSecret(
@@ -1129,10 +1194,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   />
                 )}
 
-                {/* 3. Text Message with @mentions highlighting */}
+                {/* Forwarded Header */}
+                {msg.metadata?.isForwarded && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#A1A1AA', fontStyle: 'italic', marginBottom: '4px' }}>
+                    <CornerUpRight size={12} />
+                    <span>Forwarded</span>
+                  </div>
+                )}
+
+                {/* 3. Text Message with Deleted / Mentions highlighting */}
                 {msg.type === 'text' && (
                   <div style={{ whiteSpace: 'pre-wrap' }}>
-                    {renderMessageContentWithMentions(msg.content)}
+                    {msg.content === '[DELETED]' || msg.metadata?.isDeletedForEveryone ? (
+                      <span style={{ fontStyle: 'italic', color: '#8E8E93', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Ban size={14} />
+                        {isMe ? 'You deleted this message' : 'This message was deleted'}
+                      </span>
+                    ) : (
+                      renderMessageContentWithMentions(msg.content)
+                    )}
                   </div>
                 )}
 
@@ -1207,7 +1287,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </button>
                 )}
 
-                {/* Own Message Footer: Timestamp + Ack Double-Check Mark */}
+                {/* Own Message Footer: Timestamp + (edited) + Ack Double-Check Mark with Read Receipts */}
                 {isMe && !isImage && (
                   <div
                     style={{
@@ -1222,7 +1302,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     }}
                   >
                     <span>{msg.timestamp}</span>
-                    <CheckCheck size={14} strokeWidth={2.2} style={{ color: 'var(--ack-accent)' }} />
+                    {msg.metadata?.isEdited && (
+                      <span style={{ fontSize: '10.5px', opacity: 0.75, fontStyle: 'italic' }}>(edited)</span>
+                    )}
+                    <CheckCheck
+                      size={14}
+                      strokeWidth={2.2}
+                      style={{
+                        color:
+                          localStorage.getItem('ack_read_receipts') !== 'false' && msg.status === 'read'
+                            ? '#53BDEB'
+                            : 'var(--ack-accent)',
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -1495,6 +1587,47 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
+      {/* Editing Message Banner */}
+      {editingMessage && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 16px',
+            background: '#1A1829',
+            borderTop: '1px solid #3B3366',
+            color: '#ECECEF',
+            fontSize: '13px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+            <Pencil size={15} color="#8B7CFF" />
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 600, color: '#8B7CFF' }}>Edit message: </span>
+              <span style={{ color: '#A1A1AA' }}>{editingMessage.content}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditingMessage(null);
+              setInputText('');
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#A1A1AA',
+              cursor: 'pointer',
+              padding: '4px',
+              display: 'flex',
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* 3. Composer Footer (Matches Conversation@1x.png) */}
       <footer
         style={{
@@ -1605,8 +1738,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 type="text"
                 id="ack-input-message"
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Message"
+                onChange={handleInputChange}
+                placeholder={editingMessage ? "Edit message..." : "Message"}
                 style={{
                   width: '100%',
                   height: '44px',
@@ -1681,6 +1814,350 @@ export const ChatView: React.FC<ChatViewProps> = ({
           onSendReviewComment={onSendReviewComment}
           isMobile={isMobileActive !== false}
         />
+      )}
+
+      {/* WhatsApp-Style Message Action Popup Menu */}
+      {actionMenuPosition && actionMessage && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9000 }}
+            onClick={() => {
+              setActionMenuPosition(null);
+              setActionMessage(null);
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: `${actionMenuPosition.y}px`,
+              left: `${actionMenuPosition.x}px`,
+              zIndex: 9001,
+              backgroundColor: '#1E1E24',
+              border: '1px solid #2F2F38',
+              borderRadius: '12px',
+              padding: '6px',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+              minWidth: '150px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+            }}
+          >
+            {actionMessage.senderId === CURRENT_USER.id &&
+              actionMessage.type === 'text' &&
+              actionMessage.content !== '[DELETED]' &&
+              !actionMessage.metadata?.isDeletedForEveryone && (
+                <button
+                  onClick={() => {
+                    setEditingMessage(actionMessage);
+                    setInputText(actionMessage.content);
+                    setActionMenuPosition(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#F4F4F5',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#2A2A33')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <Pencil size={15} color="#8B7CFF" />
+                  <span>Edit</span>
+                </button>
+              )}
+
+            <button
+              onClick={() => {
+                setShowForwardSheet(true);
+                setActionMenuPosition(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: '#F4F4F5',
+                fontSize: '13px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#2A2A33')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <CornerUpRight size={15} color="#38BDF8" />
+              <span>Forward</span>
+            </button>
+
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(actionMessage.content);
+                setActionMenuPosition(null);
+                setActionMessage(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: '#F4F4F5',
+                fontSize: '13px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#2A2A33')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Copy size={15} color="#A1A1AA" />
+              <span>Copy</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowDeleteConfirm(true);
+                setActionMenuPosition(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: '#EF4444',
+                fontSize: '13px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#2A2A33')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Trash2 size={15} color="#EF4444" />
+              <span>Delete</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && actionMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '320px',
+              background: '#18181C',
+              border: '1px solid #26262B',
+              borderRadius: '16px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#F4F4F5' }}>Delete message?</div>
+            <div style={{ fontSize: '13px', color: '#A1A1AA', lineHeight: 1.4 }}>
+              {actionMessage.senderId === CURRENT_USER.id
+                ? 'You can delete this message for everyone or delete it from this device only.'
+                : 'Delete this message from your device?'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+              {actionMessage.senderId === CURRENT_USER.id &&
+                !actionMessage.metadata?.isDeletedForEveryone &&
+                actionMessage.content !== '[DELETED]' && (
+                  <button
+                    onClick={() => {
+                      if (chat) webStore.deleteMessageForEveryone(chat.id, actionMessage.id);
+                      setShowDeleteConfirm(false);
+                      setActionMessage(null);
+                    }}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: '#DC2626',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete for everyone
+                  </button>
+                )}
+              <button
+                onClick={() => {
+                  if (chat) webStore.deleteMessageForMe(chat.id, actionMessage.id);
+                  setShowDeleteConfirm(false);
+                  setActionMessage(null);
+                }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: '#27272A',
+                  border: 'none',
+                  color: '#F4F4F5',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Delete for me
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#A1A1AA',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forward Message Modal */}
+      {showForwardSheet && actionMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setShowForwardSheet(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '360px',
+              maxHeight: '70vh',
+              background: '#18181C',
+              border: '1px solid #26262B',
+              borderRadius: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 18px',
+                borderBottom: '1px solid #26262B',
+              }}
+            >
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#F4F4F5' }}>Forward message to...</span>
+              <button
+                onClick={() => setShowForwardSheet(false)}
+                style={{ background: 'none', border: 'none', color: '#A1A1AA', cursor: 'pointer', display: 'flex' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '8px' }}>
+              {webStore.getChats().filter((c) => c.id !== chat?.id && !isMockChat(c)).length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#71717A', fontSize: '13px' }}>
+                  No other active chats available
+                </div>
+              ) : (
+                webStore
+                  .getChats()
+                  .filter((c) => c.id !== chat?.id && !isMockChat(c))
+                  .map((targetChat) => (
+                    <button
+                      key={targetChat.id}
+                      onClick={() => {
+                        webStore.forwardMessage(targetChat.id, actionMessage);
+                        setShowForwardSheet(false);
+                        setActionMessage(null);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: '#F4F4F5',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#27272A')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <img
+                        src={targetChat.avatar}
+                        alt={targetChat.name}
+                        style={{ width: '36px', height: '36px', borderRadius: '50%' }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {targetChat.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#71717A' }}>@{targetChat.username}</div>
+                      </div>
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

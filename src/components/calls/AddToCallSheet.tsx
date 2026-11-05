@@ -17,50 +17,7 @@ interface AddToCallSheetProps {
   onAddParticipant?: (contactName: string) => void;
 }
 
-const INITIAL_CALL_CONTACTS: CallContact[] = [
-  {
-    id: 'usr_me',
-    name: 'You (kinge_dev)',
-    username: 'kinge_dev',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    state: 'in_call',
-  },
-  {
-    id: 'usr_sarah',
-    name: 'Sarah Connor',
-    username: 'sarah_infra',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    state: 'in_call',
-  },
-  {
-    id: 'dev_hardik',
-    name: 'Hardik',
-    username: 'hkothari1510',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    state: 'ringing',
-  },
-  {
-    id: 'dev_mohit',
-    name: 'Mohit',
-    username: 'chhipa231044',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    state: 'available',
-  },
-  {
-    id: 'dev_rey',
-    name: 'Rey Patel',
-    username: 'rey_patel3277',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
-    state: 'available',
-  },
-  {
-    id: 'dev_robert',
-    name: 'Robert Jonas',
-    username: 'robertpageflows',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    state: 'available',
-  },
-];
+import { webStore } from '../../web-db/store';
 
 export const AddToCallSheet: React.FC<AddToCallSheetProps> = ({
   isOpen,
@@ -68,7 +25,16 @@ export const AddToCallSheet: React.FC<AddToCallSheetProps> = ({
   currentParticipantCount = 2,
   onAddParticipant,
 }) => {
-  const [contacts, setContacts] = useState<CallContact[]>(INITIAL_CALL_CONTACTS);
+  const [contacts, setContacts] = useState<CallContact[]>(() => {
+    const recent = webStore.getRecentContacts();
+    return recent.map((r) => ({
+      id: r.id,
+      name: r.name,
+      username: r.username,
+      avatar: r.avatar,
+      state: 'available' as const,
+    }));
+  });
   const [copiedLink, setCopiedLink] = useState(false);
 
   if (!isOpen || !FEATURES.addToCall) return null;

@@ -27,7 +27,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [mentions, setMentions] = useState(true);
 
   // Privacy states
-  const [readReceipts, setReadReceipts] = useState(true);
+  const [readReceipts, setReadReceipts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ack_read_receipts') !== 'false';
+    }
+    return true;
+  });
+  const handleToggleReadReceipts = (val: boolean) => {
+    setReadReceipts(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ack_read_receipts', val ? 'true' : 'false');
+    }
+  };
   const [searchable, setSearchable] = useState(CURRENT_USER.searchable !== false);
   const [vaultTimer, setVaultTimer] = useState<'30s' | '1m' | '5m' | '10m'>('1m');
   const [showTimerSheet, setShowTimerSheet] = useState(false);
@@ -522,7 +533,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Senders know when you view a message
                 </div>
               </div>
-              <ToggleSwitch checked={readReceipts} onChange={setReadReceipts} id="toggle-read-receipts" />
+              <ToggleSwitch checked={readReceipts} onChange={handleToggleReadReceipts} id="toggle-read-receipts" />
             </div>
 
             {/* Searchable by username */}

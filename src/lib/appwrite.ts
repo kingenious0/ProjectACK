@@ -412,6 +412,63 @@ export async function searchAckProfiles(
   return Array.from(matchedMap.values()).slice(0, 10);
 }
 
+// Search or list all registered users on Ack
+export async function searchUsersOnAck(query: string = ''): Promise<AuthenticatedUserProfile[]> {
+  const q = query.trim().toLowerCase().replace(/^@/, '');
+  const results: AuthenticatedUserProfile[] = [];
+  const seen = new Set<string>();
+
+  // 1. Check local directory cache
+  try {
+    if (typeof window !== 'undefined') {
+      const rawDir = localStorage.getItem('ack_user_directory') || '{}';
+      const dir: Record<string, AuthenticatedUserProfile> = JSON.parse(rawDir);
+      for (const prof of Object.values(dir)) {
+        if (!q || prof.username.toLowerCase().includes(q) || (prof.name && prof.name.toLowerCase().includes(q))) {
+          const uLower = prof.username.toLowerCase();
+          if (!seen.has(uLower)) {
+            seen.add(uLower);
+            results.push(prof);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Query Appwrite messages table (__ack_directory__)
+  try {
+    const res = await databases.listDocuments(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.messagesTableId,
+      [Query.equal('conversationId', '__ack_directory__'), Query.limit(100)]
+    );
+    for (const doc of res.documents as any[]) {
+      try {
+        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
+        const username = meta?.username || doc.senderId;
+        const name = meta?.name || doc.senderName || username;
+        if (username && (!q || username.toLowerCase().includes(q) || name.toLowerCase().includes(q))) {
+          const uLower = username.toLowerCase();
+          if (!seen.has(uLower)) {
+            seen.add(uLower);
+            results.push({
+              id: `gh_${username}`,
+              githubId: meta?.githubId || username,
+              name,
+              username,
+              avatar: meta?.avatar || `https://github.com/${username}.png`,
+              searchable: meta?.searchable !== false,
+              inviteCode: meta?.inviteCode || '',
+            });
+          }
+        }
+      } catch (e) {}
+    }
+  } catch (err) {}
+
+  return results;
+}
+
 // Resolve an invite code (or fallback username) to an AuthenticatedUserProfile
 export async function resolveInviteCode(rawCodeOrUsername: string): Promise<AuthenticatedUserProfile | null> {
   const token = rawCodeOrUsername.trim().toLowerCase().replace(/^@/, '');

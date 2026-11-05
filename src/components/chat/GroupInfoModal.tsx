@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check } from 'lucide-react';
-import { Chat, GroupMember } from '../../web-db/store';
+import { Chat, GroupMember, MOCK_USERNAMES } from '../../web-db/store';
 import { FEATURES } from '../../config/features';
 
 interface GroupInfoModalProps {
@@ -25,24 +25,19 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
 
   if (!isOpen) return null;
 
-  const members: GroupMember[] = chat.members || [
-    {
-      id: 'usr_sarah',
-      name: 'Sarah Connor',
-      username: 'sarah_infra',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+  const members: GroupMember[] = (chat.members || []).filter(
+    (m) => !MOCK_USERNAMES.has((m.username || '').toLowerCase())
+  );
+  if (members.length === 0) {
+    members.push({
+      id: 'usr_admin',
+      name: `${chat.name || 'Group'} Admin`,
+      username: 'admin',
+      avatar: chat.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       role: 'admin',
       isOnline: true,
-    },
-    {
-      id: 'usr_me',
-      name: 'kinge_dev (You)',
-      username: 'kinge_dev',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      role: 'admin',
-      isOnline: true,
-    },
-  ];
+    });
+  }
 
   return (
     <div

@@ -223,6 +223,89 @@ class AppwriteSyncManager {
       return false;
     }
   }
+
+  public async editMessageInCloud(chatId: string, messageId: string, newContent: string): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await this.pushMessage({
+        chatId,
+        senderId: 'system_edit',
+        senderName: 'Edit Sync',
+        content: newContent,
+        type: 'edit_event' as any,
+        metadata: {
+          targetMessageId: messageId,
+          newContent,
+          isEdited: true,
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async deleteMessageForEveryoneInCloud(chatId: string, messageId: string): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await this.pushMessage({
+        chatId,
+        senderId: 'system_delete',
+        senderName: 'Delete Sync',
+        content: '[DELETED]',
+        type: 'delete_event' as any,
+        metadata: {
+          targetMessageId: messageId,
+          isDeletedForEveryone: true,
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async broadcastTyping(chatId: string, username: string, isTyping: boolean): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await this.pushMessage({
+        chatId,
+        senderId: 'system_typing',
+        senderName: username,
+        content: isTyping ? 'typing' : 'stopped',
+        type: 'typing_indicator' as any,
+        metadata: {
+          username,
+          isTyping,
+          chatId,
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async broadcastPresence(username: string, isOnline: boolean): Promise<boolean> {
+    await this.ensureSession();
+    try {
+      await this.pushMessage({
+        chatId: '__presence__',
+        senderId: 'system_presence',
+        senderName: username,
+        content: isOnline ? 'online' : 'offline',
+        type: 'presence_event' as any,
+        metadata: {
+          username,
+          isOnline,
+          lastSeen: new Date().toISOString(),
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const appwriteSync = new AppwriteSyncManager();

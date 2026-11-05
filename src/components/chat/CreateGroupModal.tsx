@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Search, Check, Camera, GitFork, X } from 'lucide-react';
-import { SuggestedDev, INITIAL_SUGGESTIONS } from '../../web-db/store';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, Search, Check, Camera, GitFork, X, Users } from 'lucide-react';
+import { SuggestedDev, CURRENT_USER } from '../../web-db/store';
+import { searchUsersOnAck } from '../../lib/appwrite';
 
 export interface CreateGroupModalProps {
   isOpen: boolean;
@@ -10,38 +11,92 @@ export interface CreateGroupModalProps {
 }
 
 function getDevInitials(name: string): string {
-  if (name.toLowerCase().includes('kinge') || name.toLowerCase().includes('you')) return 'KG';
-  if (name.toLowerCase() === 'hardik') return 'HK';
-  if (name.toLowerCase() === 'mohit') return 'MC';
-  if (name.toLowerCase().includes('patel') || name.toLowerCase() === 'rey patel') return 'RP';
-  if (name.toLowerCase() === 'aman') return 'AK';
-  if (name.toLowerCase() === 'rohan') return 'RB';
-
   const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
   if (name.length >= 2) return name.slice(0, 2).toUpperCase();
-  return 'DV';
+  return (name[0] || 'D').toUpperCase();
 }
 
 export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   isOpen,
   onClose,
-  availableDevs,
+  availableDevs = [],
   onCreateGroup,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedDevIds, setSelectedDevIds] = useState<string[]>(['dev_hardik', 'dev_rey']);
+  const [selectedDevIds, setSelectedDevIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [groupName, setGroupName] = useState('Sprint 14');
-  const [repoLink, setRepoLink] = useState('kingenious0/ProjectACK');
+  const [groupName, setGroupName] = useState('');
+  const [repoLink, setRepoLink] = useState('');
   const [isRepoPickerOpen, setIsRepoPickerOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [showPhotoInput, setShowPhotoInput] = useState(false);
+  const [liveContacts, setLiveContacts] = useState<SuggestedDev[]>(availableDevs);
+
+  // Sync with availableDevs and fetch registered users from Appwrite
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let merged = [...availableDevs];
+    const seen = new Set(merged.map((m) => m.username.toLowerCase()));
+
+    // Also check local user directory
+    try {
+      const raw = localStorage.getItem('ack_user_directory');
+      if (raw) {
+        const dir = JSON.parse(raw);
+        for (const k of Object.keys(dir)) {
+          const u = (dir[k]?.username || '').toLowerCase();
+          if (u && u !== (CURRENT_USER.username || '').toLowerCase() && !seen.has(u)) {
+            seen.add(u);
+            merged.push({
+              id: 'contact_' + u,
+              name: dir[k].name || dir[k].username,
+              username: dir[k].username,
+              avatar: dir[k].avatar || `https://github.com/${dir[k].username}.png`,
+              tag: 'Active on Ack',
+              mutualCount: 1,
+              isOnline: false,
+            });
+          }
+        }
+      }
+    } catch (e) {}
+
+    setLiveContacts(merged);
+
+    // Background fetch registered directory from Appwrite
+    searchUsersOnAck('').then((users) => {
+      if (users && users.length > 0) {
+        setLiveContacts((prev) => {
+          const curSeen = new Set(prev.map((p) => p.username.toLowerCase()));
+          const extra: SuggestedDev[] = [];
+          for (const u of users) {
+            const handle = u.username.toLowerCase();
+            if (handle !== (CURRENT_USER.username || '').toLowerCase() && !curSeen.has(handle)) {
+              curSeen.add(handle);
+              extra.push({
+                id: 'contact_' + handle,
+                name: u.name || u.username,
+                username: u.username,
+                avatar: u.avatar || `https://github.com/${u.username}.png`,
+                tag: 'Active on Ack',
+                mutualCount: 1,
+                isOnline: false,
+              });
+            }
+          }
+          return extra.length > 0 ? [...prev, ...extra] : prev;
+        });
+      }
+    }).catch(() => {});
+  }, [isOpen, availableDevs]);
 
   if (!isOpen) return null;
 
-  // Ensure contacts are always populated
-  const devList = (availableDevs && availableDevs.length > 0) ? availableDevs : INITIAL_SUGGESTIONS;
+  const devList = liveContacts;
 
   const toggleSelectDev = (id: string) => {
     setSelectedDevIds((prev) =>
@@ -287,6 +342,18 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                 paddingBottom: '16px',
               }}
             >
+              {filteredDevs.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--ack-muted, #9A9AA3)' }}>
+                  <Users size={36} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
+                  <p style={{ margin: '0 0 6px 0', fontSize: '15px', color: '#ECECEF', fontWeight: 600 }}>
+                    {searchQuery ? 'No contacts match your search' : 'No recent contacts yet'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4 }}>
+                    {searchQuery ? 'Try searching by a different name or GitHub handle.' : 'Start a chat or invite colleagues to add them to your group.'}
+                  </p>
+                </div>
+              )}
+
               {filteredDevs.map((dev) => {
                 const isSelected = selectedDevIds.includes(dev.id);
                 const initials = getDevInitials(dev.name);
@@ -320,9 +387,27 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
+                          overflow: 'hidden',
+                          position: 'relative',
                         }}
                       >
-                        {initials}
+                        {dev.avatar ? (
+                          <img
+                            src={dev.avatar}
+                            alt={dev.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              position: 'absolute',
+                              inset: 0,
+                            }}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                        <span>{initials}</span>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
