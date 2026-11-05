@@ -343,6 +343,27 @@ export const App: React.FC = () => {
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenCreateVault={() => setIsVaultModalOpen(true)}
             onOpenCreateCode={() => setIsCodeModalOpen(true)}
+            onDeleteChat={(chatId) => {
+              webStore.deleteChat(chatId);
+              setChats([...webStore.getChats()]);
+              if (activeChatId === chatId) {
+                setActiveChatId(null);
+                setIsMobileChatOpen(false);
+              }
+            }}
+            onClearChat={(chatId) => {
+              webStore.clearChatMessages(chatId);
+              setChats([...webStore.getChats()]);
+            }}
+            onLeaveGroup={(chatId) => {
+              webStore.leaveGroup(chatId);
+              setChats([...webStore.getChats()]);
+              if (activeChatId === chatId) {
+                setActiveChatId(null);
+                setIsMobileChatOpen(false);
+              }
+            }}
+            onOpenGroupInfo={(grpChat) => setGroupInfoChat(grpChat)}
             unreadNotificationsCount={webStore.getNotifications().filter((n) => !n.isRead).length}
           />
         </div>
@@ -371,6 +392,26 @@ export const App: React.FC = () => {
             onOpenReview={setActiveReviewPayload}
             onCloseReview={() => setActiveReviewPayload(null)}
             onSendReviewComment={handleSendMessage}
+            onDeleteChat={(chatId) => {
+              webStore.deleteChat(chatId);
+              setChats([...webStore.getChats()]);
+              if (activeChatId === chatId) {
+                setActiveChatId(null);
+                setIsMobileChatOpen(false);
+              }
+            }}
+            onClearChat={(chatId) => {
+              webStore.clearChatMessages(chatId);
+              setChats([...webStore.getChats()]);
+            }}
+            onLeaveGroup={(chatId) => {
+              webStore.leaveGroup(chatId);
+              setChats([...webStore.getChats()]);
+              if (activeChatId === chatId) {
+                setActiveChatId(null);
+                setIsMobileChatOpen(false);
+              }
+            }}
           />
         </div>
       </div>
@@ -486,6 +527,16 @@ export const App: React.FC = () => {
           onLeaveGroup={(chatId) => {
             webStore.leaveGroup(chatId);
             setGroupInfoChat(null);
+            setChats([...webStore.getChats()]);
+            if (activeChatId === chatId) {
+              setActiveChatId(null);
+              setIsMobileChatOpen(false);
+            }
+          }}
+          onDeleteGroup={(chatId) => {
+            webStore.deleteChat(chatId);
+            setGroupInfoChat(null);
+            setChats([...webStore.getChats()]);
             if (activeChatId === chatId) {
               setActiveChatId(null);
               setIsMobileChatOpen(false);

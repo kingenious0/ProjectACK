@@ -440,6 +440,25 @@ class WebStore {
       }
     }
 
+    // Check if user explicitly deleted this chat
+    const deletedMap = this.getDeletedChatIds();
+    const deletedAt = deletedMap[chatId];
+    if (deletedAt) {
+      const msgTime = new Date(row.created_at || row.timestamp).getTime();
+      if (!isNaN(msgTime) && msgTime <= deletedAt) {
+        return; // Don't resurrect deleted chat with historical messages
+      }
+      // If a brand new incoming message arrives after deletion from another user, un-delete it!
+      if (shouldNotify) {
+        delete deletedMap[chatId];
+        try {
+          localStorage.setItem('ack_deleted_chat_ids', JSON.stringify(deletedMap));
+        } catch {}
+      } else {
+        return;
+      }
+    }
+
     if (!this.messages[chatId]) {
       this.messages[chatId] = [];
     }
@@ -660,16 +679,36 @@ class WebStore {
   }
 
 
+  private getDeletedChatIds(): Record<string, number> {
+    try {
+      if (typeof window === 'undefined') return {};
+      const raw = localStorage.getItem('ack_deleted_chat_ids');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private markChatAsDeleted(chatId: string) {
+    try {
+      if (typeof window === 'undefined') return;
+      const map = this.getDeletedChatIds();
+      map[chatId] = Date.now();
+      localStorage.setItem('ack_deleted_chat_ids', JSON.stringify(map));
+    } catch {}
+  }
+
   private loadState() {
     try {
       const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
       const savedMessages = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
+      const deletedMap = this.getDeletedChatIds();
 
       if (savedChats) {
         try {
           const parsed: Chat[] = JSON.parse(savedChats);
           // Aggressively purge any mock chats (copilot, hardik, rey patel, sarah, prince, etc.)
-          this.chats = parsed.filter((c) => !isMockChat(c));
+          this.chats = parsed.filter((c) => !isMockChat(c) && !deletedMap[c.id]);
           // Filter mock members out of group chats
           for (const c of this.chats) {
             if (c.members && Array.isArray(c.members)) {
@@ -780,6 +819,12 @@ class WebStore {
           }
         }
         return c;
+      })
+      .sort((a, b) => {
+        // WhatsApp pinned chats always appear at the top
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return 0;
       });
   }
 
@@ -1190,7 +1235,43 @@ class WebStore {
   public leaveGroup(chatId: string) {
     this.chats = this.chats.filter((c) => c.id !== chatId);
     delete this.messages[chatId];
+    this.markChatAsDeleted(chatId);
     this.persist();
+  }
+
+  public deleteChat(chatId: string): boolean {
+    this.chats = this.chats.filter((c) => c.id !== chatId);
+    delete this.messages[chatId];
+    this.markChatAsDeleted(chatId);
+    this.persist();
+    return true;
+  }
+
+  public clearChatMessages(chatId: string): boolean {
+    this.messages[chatId] = [];
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (chat) {
+      chat.statusText = 'No messages';
+      chat.unreadCount = 0;
+    }
+    this.persist();
+    return true;
+  }
+
+  public togglePinChat(chatId: string): boolean {
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (!chat) return false;
+    chat.isPinned = !chat.isPinned;
+    this.persist();
+    return true;
+  }
+
+  public toggleMarkAsUnread(chatId: string): boolean {
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (!chat) return false;
+    chat.unreadCount = (chat.unreadCount || 0) > 0 ? 0 : 1;
+    this.persist();
+    return true;
   }
 
   public dismissSuggestion(devId: string) {

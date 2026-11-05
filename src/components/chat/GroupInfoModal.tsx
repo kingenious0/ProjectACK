@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check } from 'lucide-react';
+import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check, Trash2 } from 'lucide-react';
 import { Chat, GroupMember, MOCK_USERNAMES } from '../../web-db/store';
 import { FEATURES } from '../../config/features';
 
@@ -8,6 +8,7 @@ interface GroupInfoModalProps {
   onClose: () => void;
   chat: Chat;
   onLeaveGroup: (chatId: string) => void;
+  onDeleteGroup?: (chatId: string) => void;
   onOpenSearch?: () => void;
   onAddMember?: () => void;
 }
@@ -17,11 +18,13 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   onClose,
   chat,
   onLeaveGroup,
+  onDeleteGroup,
   onOpenSearch,
   onAddMember,
 }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!isOpen) return null;
 
@@ -321,12 +324,68 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
             </div>
           </div>
 
-          {/* Leave Group Action (Danger Color) */}
+          {/* Leave / Delete Group Action (Danger Color) */}
           <div style={{ paddingTop: '8px' }}>
+            {confirmDelete ? (
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  textAlign: 'center',
+                  marginBottom: '10px',
+                }}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#EF4444', marginBottom: '8px' }}>
+                  Delete this group? Messages will be removed from this device.
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      if (onDeleteGroup) {
+                        onDeleteGroup(chat.id);
+                      } else {
+                        onLeaveGroup(chat.id);
+                      }
+                      onClose();
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#EF4444',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete group
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#26262B',
+                      color: '#F4F4F5',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {confirmLeave ? (
               <div
                 style={{
-                  padding: '12px',
+                  padding: '14px',
                   borderRadius: '12px',
                   backgroundColor: 'rgba(248, 113, 113, 0.1)',
                   border: '1px solid rgba(248, 113, 113, 0.25)',
@@ -334,7 +393,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                 }}
               >
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#F87171', marginBottom: '8px' }}>
-                  Are you sure you want to leave this group?
+                  Are you sure you want to exit this group?
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                   <button
@@ -353,7 +412,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    Yes, leave
+                    Exit group
                   </button>
                   <button
                     onClick={() => setConfirmLeave(false)}
@@ -373,28 +432,53 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setConfirmLeave(true)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(248, 113, 113, 0.08)',
-                  border: '1px solid rgba(248, 113, 113, 0.2)',
-                  color: '#F87171',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <LogOut size={16} />
-                <span>Leave group</span>
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  onClick={() => setConfirmLeave(true)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                    border: '1px solid rgba(248, 113, 113, 0.2)',
+                    color: '#F87171',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>Exit group</span>
+                </button>
+
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#EF4444',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <Trash2 size={16} />
+                  <span>Delete group</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

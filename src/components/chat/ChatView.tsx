@@ -25,6 +25,9 @@ import {
   Settings,
   WifiOff,
   MessageSquare,
+  LogOut,
+  RotateCcw,
+  Info,
 } from 'lucide-react';
 import { Chat, Message, CURRENT_USER, webStore, isMockChat } from '../../web-db/store';
 import { getInitials } from '../../utils/avatar';
@@ -51,6 +54,9 @@ export interface ChatViewProps {
   onOpenSettings?: () => void;
   onOpenGroupInfo?: (chat: Chat) => void;
   onOpenBurnedSecret?: (senderName: string, title?: string, copiedAt?: string) => void;
+  onDeleteChat?: (chatId: string) => void;
+  onClearChat?: (chatId: string) => void;
+  onLeaveGroup?: (chatId: string) => void;
   isMobileActive?: boolean;
   activeReviewPayload?: CodeReviewPayload | null;
   onOpenReview?: (payload: CodeReviewPayload) => void;
@@ -112,11 +118,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onCloseReview,
   isMobileActive,
   onSendReviewComment,
+  onDeleteChat,
+  onClearChat,
+  onLeaveGroup,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [confirmChatModal, setConfirmChatModal] = useState<{
+    type: 'delete_chat' | 'delete_group' | 'exit_group' | 'clear_chat';
+  } | null>(null);
   const [activeReactionMenuId, setActiveReactionMenuId] = useState<string | null>(null);
   const [internalReviewPayload, setInternalReviewPayload] = useState<CodeReviewPayload | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -911,10 +923,160 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     textAlign: 'left',
                     borderTop: '1px solid var(--ack-divider)',
                     marginTop: '2px',
+                    cursor: 'pointer',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--ack-surface-2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
                   <Settings size={16} strokeWidth={1.75} />
                   <span>Settings</span>
+                </button>
+              )}
+
+              {/* Group Info (if group chat) */}
+              {chat?.type === 'group' && onOpenGroupInfo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenuDropdown(false);
+                    onOpenGroupInfo(chat);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--ack-text)',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--ack-surface-2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Info size={16} strokeWidth={1.75} />
+                  <span>Group info</span>
+                </button>
+              )}
+
+              {/* Clear Messages */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenuDropdown(false);
+                  setConfirmChatModal({ type: 'clear_chat' });
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--ack-text)',
+                  fontSize: '13px',
+                  borderRadius: '8px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--ack-surface-2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <RotateCcw size={16} strokeWidth={1.75} />
+                <span>Clear messages</span>
+              </button>
+
+              <div style={{ height: '1px', background: 'var(--ack-divider, #26262B)', margin: '4px 0' }} />
+
+              {/* Exit / Delete Group OR Delete Chat */}
+              {chat?.type === 'group' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenuDropdown(false);
+                      setConfirmChatModal({ type: 'exit_group' });
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#F87171',
+                      fontSize: '13px',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(248, 113, 113, 0.12)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <LogOut size={16} strokeWidth={1.75} />
+                    <span>Exit group</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenuDropdown(false);
+                      setConfirmChatModal({ type: 'delete_group' });
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#EF4444',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Trash2 size={16} strokeWidth={1.75} />
+                    <span>Delete group</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenuDropdown(false);
+                    setConfirmChatModal({ type: 'delete_chat' });
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#EF4444',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Trash2 size={16} strokeWidth={1.75} />
+                  <span>Delete chat</span>
                 </button>
               )}
             </div>
@@ -2355,6 +2517,153 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </button>
                   ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* WhatsApp Header Actions Confirmation Dialog */}
+      {confirmChatModal && chat && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            backgroundColor: 'rgba(11, 11, 13, 0.8)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setConfirmChatModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#18181B',
+              border: '1px solid #27272A',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: '0 24px 50px rgba(0, 0, 0, 0.75)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: '0 0 12px 0',
+                fontSize: '17px',
+                fontWeight: 600,
+                color: '#F4F4F5',
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              {confirmChatModal.type === 'delete_chat'
+                ? 'Delete this chat?'
+                : confirmChatModal.type === 'delete_group'
+                ? `Delete "${chat.name}" group?`
+                : confirmChatModal.type === 'exit_group'
+                ? `Exit "${chat.name}" group?`
+                : 'Clear this chat?'}
+            </h3>
+
+            <p
+              style={{
+                margin: '0 0 24px 0',
+                fontSize: '13.5px',
+                color: '#A1A1AA',
+                lineHeight: 1.5,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              {confirmChatModal.type === 'delete_chat'
+                ? 'Messages will be removed from this device.'
+                : confirmChatModal.type === 'delete_group'
+                ? 'Messages will be removed from this device.'
+                : confirmChatModal.type === 'exit_group'
+                ? 'You will no longer be able to send or receive messages in this group.'
+                : 'All messages in this conversation will be permanently deleted from this device.'}
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setConfirmChatModal(null)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '24px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #3F3F46',
+                  color: '#E4E4E7',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background-color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const actionType = confirmChatModal.type;
+                  const targetChatId = chat.id;
+                  setConfirmChatModal(null);
+
+                  if (actionType === 'delete_chat' || actionType === 'delete_group') {
+                    if (onDeleteChat) {
+                      onDeleteChat(targetChatId);
+                    } else {
+                      webStore.deleteChat(targetChatId);
+                    }
+                    onBackToSidebar();
+                  } else if (actionType === 'exit_group') {
+                    if (onLeaveGroup) {
+                      onLeaveGroup(targetChatId);
+                    } else {
+                      webStore.leaveGroup(targetChatId);
+                    }
+                    onBackToSidebar();
+                  } else if (actionType === 'clear_chat') {
+                    if (onClearChat) {
+                      onClearChat(targetChatId);
+                    } else {
+                      webStore.clearChatMessages(targetChatId);
+                    }
+                  }
+                }}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '24px',
+                  backgroundColor: '#EF4444',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
+                  transition: 'background-color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#EF4444')}
+              >
+                {confirmChatModal.type === 'delete_chat'
+                  ? 'Delete chat'
+                  : confirmChatModal.type === 'delete_group'
+                  ? 'Delete group'
+                  : confirmChatModal.type === 'exit_group'
+                  ? 'Exit group'
+                  : 'Clear chat'}
+              </button>
             </div>
           </div>
         </div>

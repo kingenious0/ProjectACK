@@ -1,5 +1,20 @@
-import React, { useState } from 'react';
-import { Search, Plus, Bell, Users, MessageSquarePlus } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  Search,
+  Plus,
+  Bell,
+  Users,
+  MessageSquarePlus,
+  Pin,
+  PinOff,
+  CheckCheck,
+  Mail,
+  Trash2,
+  LogOut,
+  RotateCcw,
+  ChevronDown,
+  Info,
+} from 'lucide-react';
 import { Chat, webStore, CURRENT_USER, isMockChat } from '../../web-db/store';
 import { BottomNav, NavTab } from './BottomNav';
 import { EmptyChatList } from './EmptyChatList';
@@ -18,6 +33,10 @@ export interface ChatListProps {
   onOpenSettings?: () => void;
   onOpenCreateVault?: () => void;
   onOpenCreateCode?: () => void;
+  onDeleteChat?: (chatId: string) => void;
+  onClearChat?: (chatId: string) => void;
+  onLeaveGroup?: (chatId: string) => void;
+  onOpenGroupInfo?: (chat: Chat) => void;
   activeCategory?: string;
   onSelectCategory?: (category: any) => void;
   isMobileHidden?: boolean;
@@ -39,6 +58,10 @@ export const ChatList: React.FC<ChatListProps> = ({
   onOpenSearch,
   onOpenSettings,
   onOpenCreateVault,
+  onDeleteChat,
+  onClearChat,
+  onLeaveGroup,
+  onOpenGroupInfo,
   isMobileHidden = false,
   isLoading = false,
   unreadNotificationsCount = 0,
@@ -46,6 +69,14 @@ export const ChatList: React.FC<ChatListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<NavTab>('chats');
   const [showComposeMenu, setShowComposeMenu] = useState(false);
+  const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
+  const [contextMenuChat, setContextMenuChat] = useState<Chat | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    type: 'delete_chat' | 'delete_group' | 'exit_group' | 'clear_chat';
+    chat: Chat;
+  } | null>(null);
+  const touchTimerRef = useRef<any>(null);
 
   // Filter based on active tab and search query
   const filteredChats = chats.filter((chat) => {
@@ -421,6 +452,30 @@ export const ChatList: React.FC<ChatListProps> = ({
                     onSelectChat(chat.id);
                   }
                 }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setContextMenuChat(chat);
+                  const x = Math.min(e.clientX, window.innerWidth - 210);
+                  const y = Math.min(e.clientY, window.innerHeight - 260);
+                  setContextMenuPos({ x, y });
+                }}
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  touchTimerRef.current = setTimeout(() => {
+                    if (navigator.vibrate) navigator.vibrate(40);
+                    setContextMenuChat(chat);
+                    const x = Math.min(touch.clientX, window.innerWidth - 210);
+                    const y = Math.min(touch.clientY, window.innerHeight - 260);
+                    setContextMenuPos({ x, y });
+                  }, 450);
+                }}
+                onTouchEnd={() => {
+                  if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                }}
+                onTouchMove={() => {
+                  if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -431,11 +486,14 @@ export const ChatList: React.FC<ChatListProps> = ({
                   cursor: 'pointer',
                   transition: 'background 150ms ease',
                   userSelect: 'none',
+                  position: 'relative',
                 }}
                 onMouseEnter={(e) => {
+                  setHoveredChatId(chat.id);
                   if (!isActive) e.currentTarget.style.background = 'var(--ack-surface-2)';
                 }}
                 onMouseLeave={(e) => {
+                  setHoveredChatId(null);
                   if (!isActive) e.currentTarget.style.background = 'transparent';
                 }}
               >
@@ -506,7 +564,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                   })()}
                 </div>
 
-                {/* Right Meta Column: Time & Status Badge/Dot */}
+                {/* Right Meta Column: Time & Status Badge/Dot & Hover Chevron */}
                 <div
                   style={{
                     display: 'flex',
@@ -518,61 +576,101 @@ export const ChatList: React.FC<ChatListProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--ack-muted)',
-                      fontFamily: 'Inter, sans-serif',
-                    }}
-                  >
-                    {chat.statusTime}
-                  </span>
-
-                  {/* Indicator: Accent Unread Badge OR Small Status Dot */}
-                  {!isActive && chat.unreadCount > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span
                       style={{
-                        background: 'var(--ack-accent)',
-                        color: '#0B0B0D',
-                        fontSize: '11px',
-                        fontWeight: 700,
+                        fontSize: '12px',
+                        color: chat.unreadCount > 0 ? 'var(--ack-accent, #6366F1)' : 'var(--ack-muted)',
                         fontFamily: 'Inter, sans-serif',
-                        minWidth: '18px',
-                        height: '18px',
-                        borderRadius: '9999px',
+                        fontWeight: chat.unreadCount > 0 ? 600 : 400,
+                      }}
+                    >
+                      {chat.statusTime}
+                    </span>
+                    {chat.isPinned && (
+                      <Pin size={12} style={{ color: 'var(--ack-muted)', transform: 'rotate(45deg)' }} />
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Indicator: Accent Unread Badge OR Small Status Dot */}
+                    {!isActive && chat.unreadCount > 0 ? (
+                      <span
+                        style={{
+                          background: 'var(--ack-accent)',
+                          color: '#0B0B0D',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          fontFamily: 'Inter, sans-serif',
+                          minWidth: '18px',
+                          height: '18px',
+                          borderRadius: '9999px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 5px',
+                        }}
+                      >
+                        {chat.unreadCount}
+                      </span>
+                    ) : chat.statusDot === 'warning' ? (
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          background: 'var(--ack-warning)',
+                          display: 'inline-block',
+                        }}
+                        title="Unread secret"
+                      />
+                    ) : chat.statusDot === 'success' ? (
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          background: 'var(--ack-success)',
+                          display: 'inline-block',
+                        }}
+                        title="CI pass"
+                      />
+                    ) : null}
+
+                    {/* WhatsApp Hover Dropdown Trigger Button */}
+                    <button
+                      type="button"
+                      title="Chat options"
+                      aria-label="Chat options"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setContextMenuChat(chat);
+                        setContextMenuPos({
+                          x: Math.min(rect.right - 180, window.innerWidth - 210),
+                          y: Math.min(rect.bottom + 4, window.innerHeight - 260),
+                        });
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--ack-muted)',
+                        cursor: 'pointer',
+                        padding: '2px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '0 5px',
+                        borderRadius: '4px',
+                        opacity: hoveredChatId === chat.id || isActive ? 1 : 0,
+                        transition: 'opacity 150ms ease, color 150ms ease',
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ack-text)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ack-muted)')}
                     >
-                      {chat.unreadCount}
-                    </span>
-                  ) : chat.statusDot === 'warning' ? (
-                    <span
-                      style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: '50%',
-                        background: 'var(--ack-warning)',
-                        display: 'inline-block',
-                      }}
-                      title="Unread secret"
-                    />
-                  ) : chat.statusDot === 'success' ? (
-                    <span
-                      style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: '50%',
-                        background: 'var(--ack-success)',
-                        display: 'inline-block',
-                      }}
-                      title="CI pass"
-                    />
-                  ) : (
-                    <div style={{ height: '18px' }} />
-                  )}
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -580,6 +678,422 @@ export const ChatList: React.FC<ChatListProps> = ({
         )}
       </div>
         </>
+      )}
+
+      {/* WhatsApp Context Menu Dropdown */}
+      {contextMenuChat && contextMenuPos && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9998,
+              background: 'transparent',
+            }}
+            onClick={() => {
+              setContextMenuChat(null);
+              setContextMenuPos(null);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenuChat(null);
+              setContextMenuPos(null);
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenuPos.y,
+              left: contextMenuPos.x,
+              zIndex: 9999,
+              minWidth: '190px',
+              backgroundColor: '#1E1E22',
+              border: '1px solid #2E2E34',
+              borderRadius: '12px',
+              padding: '6px',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Pin / Unpin */}
+            <button
+              type="button"
+              onClick={() => {
+                webStore.togglePinChat(contextMenuChat.id);
+                setContextMenuChat(null);
+                setContextMenuPos(null);
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#E4E4E7',
+                fontSize: '13px',
+                borderRadius: '8px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'Inter, sans-serif',
+                transition: 'background-color 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {contextMenuChat.isPinned ? <PinOff size={15} /> : <Pin size={15} />}
+              <span>{contextMenuChat.isPinned ? 'Unpin chat' : 'Pin chat'}</span>
+            </button>
+
+            {/* Mark as unread / read */}
+            <button
+              type="button"
+              onClick={() => {
+                webStore.toggleMarkAsUnread(contextMenuChat.id);
+                setContextMenuChat(null);
+                setContextMenuPos(null);
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#E4E4E7',
+                fontSize: '13px',
+                borderRadius: '8px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'Inter, sans-serif',
+                transition: 'background-color 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {(contextMenuChat.unreadCount || 0) > 0 ? <CheckCheck size={15} /> : <Mail size={15} />}
+              <span>{(contextMenuChat.unreadCount || 0) > 0 ? 'Mark as read' : 'Mark as unread'}</span>
+            </button>
+
+            {/* Group Info (if group) */}
+            {contextMenuChat.type === 'group' && onOpenGroupInfo && (
+              <button
+                type="button"
+                onClick={() => {
+                  const grp = contextMenuChat;
+                  setContextMenuChat(null);
+                  setContextMenuPos(null);
+                  onOpenGroupInfo(grp);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#E4E4E7',
+                  fontSize: '13px',
+                  borderRadius: '8px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontFamily: 'Inter, sans-serif',
+                  transition: 'background-color 120ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Info size={15} />
+                <span>Group info</span>
+              </button>
+            )}
+
+            {/* Clear messages */}
+            <button
+              type="button"
+              onClick={() => {
+                const target = contextMenuChat;
+                setContextMenuChat(null);
+                setContextMenuPos(null);
+                setConfirmModal({ type: 'clear_chat', chat: target });
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#E4E4E7',
+                fontSize: '13px',
+                borderRadius: '8px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'Inter, sans-serif',
+                transition: 'background-color 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <RotateCcw size={15} />
+              <span>Clear messages</span>
+            </button>
+
+            <div style={{ height: '1px', background: '#2E2E34', margin: '4px 0' }} />
+
+            {/* Exit group / Delete chat / Delete group */}
+            {contextMenuChat.type === 'group' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = contextMenuChat;
+                    setContextMenuChat(null);
+                    setContextMenuPos(null);
+                    setConfirmModal({ type: 'exit_group', chat: target });
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#F87171',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontFamily: 'Inter, sans-serif',
+                    transition: 'background-color 120ms ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(248, 113, 113, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <LogOut size={15} />
+                  <span>Exit group</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = contextMenuChat;
+                    setContextMenuChat(null);
+                    setContextMenuPos(null);
+                    setConfirmModal({ type: 'delete_group', chat: target });
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#EF4444',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 600,
+                    transition: 'background-color 120ms ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Trash2 size={15} />
+                  <span>Delete group</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = contextMenuChat;
+                  setContextMenuChat(null);
+                  setContextMenuPos(null);
+                  setConfirmModal({ type: 'delete_chat', chat: target });
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#EF4444',
+                  fontSize: '13px',
+                  borderRadius: '8px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontFamily: 'Inter, sans-serif',
+                  fontWeight: 600,
+                  transition: 'background-color 120ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Trash2 size={15} />
+                <span>Delete chat</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* WhatsApp Deletion Confirmation Modal */}
+      {confirmModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            backgroundColor: 'rgba(11, 11, 13, 0.8)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#18181B',
+              border: '1px solid #27272A',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: '0 24px 50px rgba(0, 0, 0, 0.75)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: '0 0 12px 0',
+                fontSize: '17px',
+                fontWeight: 600,
+                color: '#F4F4F5',
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              {confirmModal.type === 'delete_chat'
+                ? 'Delete this chat?'
+                : confirmModal.type === 'delete_group'
+                ? `Delete "${confirmModal.chat.name}" group?`
+                : confirmModal.type === 'exit_group'
+                ? `Exit "${confirmModal.chat.name}" group?`
+                : 'Clear this chat?'}
+            </h3>
+
+            <p
+              style={{
+                margin: '0 0 24px 0',
+                fontSize: '13.5px',
+                color: '#A1A1AA',
+                lineHeight: 1.5,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              {confirmModal.type === 'delete_chat'
+                ? 'Messages will be removed from this device.'
+                : confirmModal.type === 'delete_group'
+                ? 'Messages will be removed from this device.'
+                : confirmModal.type === 'exit_group'
+                ? 'You will no longer be able to send or receive messages in this group.'
+                : 'All messages in this conversation will be permanently deleted from this device.'}
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '24px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #3F3F46',
+                  color: '#E4E4E7',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background-color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#27272A')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const chatId = confirmModal.chat.id;
+                  const actionType = confirmModal.type;
+                  setConfirmModal(null);
+
+                  if (actionType === 'delete_chat' || actionType === 'delete_group') {
+                    if (onDeleteChat) {
+                      onDeleteChat(chatId);
+                    } else {
+                      webStore.deleteChat(chatId);
+                    }
+                  } else if (actionType === 'exit_group') {
+                    if (onLeaveGroup) {
+                      onLeaveGroup(chatId);
+                    } else {
+                      webStore.leaveGroup(chatId);
+                    }
+                  } else if (actionType === 'clear_chat') {
+                    if (onClearChat) {
+                      onClearChat(chatId);
+                    } else {
+                      webStore.clearChatMessages(chatId);
+                    }
+                  }
+                }}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '24px',
+                  backgroundColor: '#EF4444',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
+                  transition: 'background-color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#EF4444')}
+              >
+                {confirmModal.type === 'delete_chat'
+                  ? 'Delete chat'
+                  : confirmModal.type === 'delete_group'
+                  ? 'Delete group'
+                  : confirmModal.type === 'exit_group'
+                  ? 'Exit group'
+                  : 'Clear chat'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bottom Navigation */}
