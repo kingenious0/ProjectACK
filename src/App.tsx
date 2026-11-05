@@ -84,7 +84,24 @@ export const App: React.FC = () => {
     if (activeChatId && typeof window !== 'undefined') {
       localStorage.setItem('ack_active_chat_id', activeChatId);
       webStore.markChatAsRead(activeChatId);
+      webStore.syncChatHistory(activeChatId).catch(() => {});
     }
+  }, [activeChatId]);
+
+  // Catch up on active chat history when tab becomes visible or focused
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleSyncOnFocus = () => {
+      if (document.visibilityState === 'visible' && activeChatId) {
+        webStore.syncChatHistory(activeChatId).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleSyncOnFocus);
+    window.addEventListener('focus', handleSyncOnFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleSyncOnFocus);
+      window.removeEventListener('focus', handleSyncOnFocus);
+    };
   }, [activeChatId]);
 
   // Reactive subscription
@@ -266,6 +283,7 @@ export const App: React.FC = () => {
       localStorage.setItem('ack_active_chat_id', chatId);
     }
     webStore.markChatAsRead(chatId);
+    webStore.syncChatHistory(chatId).catch(() => {});
     setChats([...webStore.getChats()]);
     setIsMobileChatOpen(true);
   };

@@ -193,9 +193,7 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
 
     const permissions = [
       Permission.read(Role.any()),
-      Permission.read(Role.users()),
       Permission.write(Role.any()),
-      Permission.write(Role.users()),
     ];
 
     // Save to messagesTableId (guaranteed available in database)
@@ -205,7 +203,15 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       ID.unique(),
       docData,
       permissions
-    ).catch(() => {});
+    ).catch(() => {
+      // Fallback without permissions parameter
+      databases.createDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.messagesTableId,
+        ID.unique(),
+        docData
+      ).catch(() => {});
+    });
   } catch (err) {
     console.warn('[Appwrite Directory] Upsert profile notice:', err);
   }

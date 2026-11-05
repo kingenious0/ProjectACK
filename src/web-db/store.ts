@@ -178,6 +178,10 @@ export function generateInviteCode(username?: string): string {
   return `inv_${handle}_${rand}`;
 }
 
+const defaultGuestId = typeof window !== 'undefined'
+  ? (sessionStorage.getItem('ack_device_id') || ('dev_' + Math.random().toString(36).substring(2, 7)))
+  : 'dev_guest';
+
 export const CURRENT_USER: {
   id: string;
   githubId?: string;
@@ -189,15 +193,15 @@ export const CURRENT_USER: {
   searchable: boolean;
   inviteCode: string;
 } = {
-  id: 'usr_me',
+  id: 'usr_' + defaultGuestId,
   githubId: '',
-  name: 'Dev ACK (You)',
-  username: 'kingenious0',
-  handle: '@kingenious0',
+  name: 'Ack Developer',
+  username: 'guest_' + defaultGuestId.slice(-4),
+  handle: '@guest_' + defaultGuestId.slice(-4),
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   isLoggedIn: false,
   searchable: true,
-  inviteCode: generateInviteCode('kingenious0'),
+  inviteCode: generateInviteCode('guest_' + defaultGuestId.slice(-4)),
 };
 
 try {
@@ -205,10 +209,12 @@ try {
     const savedUser = localStorage.getItem('ack_current_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
-      Object.assign(CURRENT_USER, parsed);
-      if (!CURRENT_USER.inviteCode) {
-        CURRENT_USER.inviteCode = generateInviteCode(CURRENT_USER.username);
-        localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+      if (parsed && (parsed.isLoggedIn || parsed.username)) {
+        Object.assign(CURRENT_USER, parsed);
+        if (!CURRENT_USER.inviteCode && CURRENT_USER.username) {
+          CURRENT_USER.inviteCode = generateInviteCode(CURRENT_USER.username);
+          localStorage.setItem('ack_current_user', JSON.stringify(CURRENT_USER));
+        }
       }
     }
   }
@@ -589,7 +595,10 @@ class WebStore {
           if (targetId === 'all_read') {
             let changed = false;
             for (const m of msgs) {
-              const isMine = m.senderId === CURRENT_USER.id || m.metadata?.username?.toLowerCase() === myUsername;
+              const isMine =
+                m.senderId === CURRENT_USER.id ||
+                m.metadata?.username?.toLowerCase() === myUsername ||
+                m.metadata?.deviceId === this.getDeviceId();
               if (isMine && m.status !== 'read') {
                 m.status = 'read';
                 changed = true;
@@ -602,7 +611,17 @@ class WebStore {
             return;
           }
 
-          const msg = msgs.find((m) => m.id === targetId || m.metadata?.clientMsgId === targetId);
+          const clientTarget = meta?.clientMsgId;
+          const docTarget = meta?.appwriteDocId;
+          const msg = msgs.find(
+            (m) =>
+              m.id === targetId ||
+              (clientTarget && m.id === clientTarget) ||
+              m.metadata?.clientMsgId === targetId ||
+              (clientTarget && m.metadata?.clientMsgId === clientTarget) ||
+              (docTarget && m.metadata?.appwriteDocId === docTarget) ||
+              m.metadata?.appwriteDocId === targetId
+          );
           if (msg) {
             if (receiptStatus === 'read' || (receiptStatus === 'delivered' && msg.status === 'sent')) {
               msg.status = receiptStatus;
@@ -633,12 +652,17 @@ class WebStore {
     }
 
     const clientMsgId = meta?.clientMsgId;
-    const existingMsg = this.messages[chatId].find(
+    const existingMsg = this.messages[chatId]?.find(
       (m) => m.id === row.id || (clientMsgId && m.id === clientMsgId)
     );
 
-    // If already exists, check if burn state needs updating
+    // If already exists, attach appwriteDocId and check if burn state needs updating
     if (existingMsg) {
+      if (row.id && !existingMsg.metadata?.appwriteDocId) {
+        if (!existingMsg.metadata) existingMsg.metadata = {};
+        existingMsg.metadata.appwriteDocId = row.id;
+        this.persist();
+      }
       if (meta?.isBurned && !existingMsg.metadata?.isBurned) {
         if (!existingMsg.metadata) existingMsg.metadata = {};
         existingMsg.metadata.isBurned = true;
@@ -680,11 +704,15 @@ class WebStore {
       metadata: {
         accentColor: isMe ? '#E91E63' : '#00A884',
         ...meta,
+        appwriteDocId: row.id,
         username: meta?.username || (isMe ? CURRENT_USER.username : undefined),
         timestamp: row.created_at || row.timestamp || new Date().toISOString(),
       },
     };
 
+    if (!this.messages[chatId]) {
+      this.messages[chatId] = [];
+    }
     this.messages[chatId].push(newMsg);
 
     const isCurrentlyActive =
@@ -694,9 +722,13 @@ class WebStore {
     const formattedChatTime = formatChatTimestamp(msgTimestamp);
 
     // Update Chat preview or auto-create DM chat on recipient side
-    let chat = this.chats.find((c) => c.id === chatId);
+    const { peerUsername } = parseDmParticipants(chatId, myUsername);
+    let chat = this.chats.find(
+      (c) =>
+        c.id === chatId ||
+        (c.username && peerUsername && c.username.toLowerCase() === peerUsername.toLowerCase())
+    );
     if (!chat && chatId.startsWith('dm_')) {
-      const { peerUsername } = parseDmParticipants(chatId, myUsername);
       const otherHandle = peerUsername || 'dev';
       const displayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
       chat = {
@@ -714,6 +746,9 @@ class WebStore {
       };
       this.chats.unshift(chat);
     } else if (chat) {
+      if (chat.id !== chatId) {
+        chat.id = chatId;
+      }
       if (newMsg.content !== 'read' && newMsg.content !== 'delivered') {
         chat.statusText =
           newMsg.type === 'code'
@@ -751,8 +786,18 @@ class WebStore {
     // When receiving a real-time message from peer as recipient, send delivery/read receipt back
     if (!isMe && shouldNotify && newMsg.id && row.type !== 'receipt_event' && row.message_type !== 'receipt_event') {
       const receiptStatus = isCurrentlyActive ? 'read' : 'delivered';
+      const targetClientMsgId = meta?.clientMsgId;
       appwriteSync
-        .broadcastReceipt(chatId, newMsg.id, receiptStatus, CURRENT_USER.username || 'user')
+        .broadcastReceipt(
+          chatId,
+          targetClientMsgId || newMsg.id,
+          receiptStatus,
+          CURRENT_USER.username || 'user',
+          {
+            clientMsgId: targetClientMsgId,
+            appwriteDocId: newMsg.id,
+          }
+        )
         .catch(() => {});
     }
 
@@ -1078,26 +1123,38 @@ class WebStore {
     }
 
     this.persist();
+    this.notify();
 
     // Broadcast to Appwrite Cloud in real time
-    appwriteSync.pushMessage({
-      id: newMsg.id,
-      chatId,
-      senderId: CURRENT_USER.id,
-      senderName: CURRENT_USER.name,
-      content,
-      type: type as any,
-      metadata: {
-        ...metadata,
-        clientMsgId: newMsg.id,
-        deviceId: this.getDeviceId(),
-        senderName: CURRENT_USER.name,
-        senderAvatar: CURRENT_USER.avatar,
-        username: CURRENT_USER.username,
+    appwriteSync
+      .pushMessage({
+        id: newMsg.id,
+        chatId,
+        senderId: CURRENT_USER.id,
+        senderName: CURRENT_USER.name || CURRENT_USER.username,
+        content,
+        type: type as any,
+        metadata: {
+          ...metadata,
+          clientMsgId: newMsg.id,
+          deviceId: this.getDeviceId(),
+          senderName: CURRENT_USER.name || CURRENT_USER.username,
+          senderAvatar: CURRENT_USER.avatar,
+          username: CURRENT_USER.username,
+          timestamp: now.toISOString(),
+        },
         timestamp: now.toISOString(),
-      },
-      timestamp: now.toISOString(),
-    });
+      })
+      .then((res) => {
+        if (res && res.docId) {
+          if (!newMsg.metadata) newMsg.metadata = {};
+          newMsg.metadata.appwriteDocId = res.docId;
+          this.persist();
+        }
+      })
+      .catch((err) => {
+        console.warn('[ACK WebStore] pushMessage error:', err);
+      });
 
     return newMsg;
   }
@@ -1214,9 +1271,22 @@ class WebStore {
       this.persist();
       this.notify();
     }
-    // Only broadcast real-time read receipt to the peer if this is a real DM and actually had unread messages
-    if (hadUnread && chatId.startsWith('dm_') && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
+    // Broadcast real-time read receipt to the peer for DMs
+    if (hadUnread && chatId.startsWith('dm_') && CURRENT_USER.username) {
       appwriteSync.broadcastReceipt(chatId, 'all_read', 'read', CURRENT_USER.username).catch(() => {});
+    }
+  }
+
+  public async syncChatHistory(chatId: string) {
+    if (!chatId) return;
+    try {
+      const msgs = await appwriteSync.fetchRecentMessages(chatId);
+      if (msgs && msgs.length > 0) {
+        msgs.forEach((m) => this.receiveRemoteMessage(m, false));
+        this.notify();
+      }
+    } catch (err) {
+      console.warn('[ACK WebStore] syncChatHistory notice:', err);
     }
   }
 
@@ -1275,6 +1345,15 @@ class WebStore {
         this.messages[chat.id] = [];
       }
     } else {
+      if (chat.id !== dmRoomId) {
+        const oldId = chat.id;
+        chat.id = dmRoomId;
+        if (this.messages[oldId] && this.messages[oldId].length > 0) {
+          if (!this.messages[dmRoomId]) this.messages[dmRoomId] = [];
+          this.messages[dmRoomId].push(...this.messages[oldId]);
+          delete this.messages[oldId];
+        }
+      }
       if (deletedMap[chat.id]) {
         delete deletedMap[chat.id];
         try {

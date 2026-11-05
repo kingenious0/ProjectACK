@@ -113,43 +113,48 @@ class AppwriteSyncManager {
       try {
         const channel = `databases.${APPWRITE_CONFIG.databaseId}.collections.${APPWRITE_CONFIG.messagesTableId}.documents`;
         this.unsubscribeFn = client.subscribe(channel, (response) => {
-          if (response.events.some((e) => e.endsWith('.create') || e.endsWith('.update'))) {
-            const payload = response.payload as any;
-            const conversationId = payload.conversationId;
+          const payload = response.payload as any;
+          if (!payload || !payload.$id) return;
 
-            // ── SECURITY: Drop realtime events for DMs not belonging to current user ──
-            if (conversationId && !this.isMyConversation(conversationId)) {
-              return;
-            }
-
-            let msgType = (payload.type || 'text') as MessageType;
-            if (payload.senderId === 'system_receipt') {
-              msgType = 'receipt_event' as any;
-            } else if (payload.senderId === 'system_typing') {
-              msgType = 'typing_indicator' as any;
-            } else if (payload.senderId === 'system_presence') {
-              msgType = 'presence_event' as any;
-            } else if (payload.senderId === 'system_burn') {
-              msgType = 'burn_event' as any;
-            } else if (payload.senderId === 'system_edit') {
-              msgType = 'edit_event' as any;
-            } else if (payload.senderId === 'system_delete') {
-              msgType = 'delete_event' as any;
-            }
-
-            const row: MessageRow = {
-              id: payload.$id,
-              chat_id: conversationId,
-              sender_id: payload.senderId,
-              content: payload.content,
-              message_type: msgType,
-              status: 'delivered',
-              quoted_message_id: null,
-              metadata: payload.metadata || null,
-              created_at: payload.timestamp || payload.$createdAt || new Date().toISOString(),
-            };
-            this.messageListeners.forEach((fn) => fn(row));
+          // Check if this is a document delete event
+          if (response.events?.some((e: string) => e.includes('.delete'))) {
+            return;
           }
+
+          const conversationId = payload.conversationId;
+
+          // ── SECURITY: Drop realtime events for DMs not belonging to current user ──
+          if (conversationId && !this.isMyConversation(conversationId)) {
+            return;
+          }
+
+          let msgType = (payload.type || 'text') as MessageType;
+          if (payload.senderId === 'system_receipt') {
+            msgType = 'receipt_event' as any;
+          } else if (payload.senderId === 'system_typing') {
+            msgType = 'typing_indicator' as any;
+          } else if (payload.senderId === 'system_presence') {
+            msgType = 'presence_event' as any;
+          } else if (payload.senderId === 'system_burn') {
+            msgType = 'burn_event' as any;
+          } else if (payload.senderId === 'system_edit') {
+            msgType = 'edit_event' as any;
+          } else if (payload.senderId === 'system_delete') {
+            msgType = 'delete_event' as any;
+          }
+
+          const row: MessageRow = {
+            id: payload.$id,
+            chat_id: conversationId,
+            sender_id: payload.senderId,
+            content: payload.content,
+            message_type: msgType,
+            status: 'delivered',
+            quoted_message_id: null,
+            metadata: payload.metadata || null,
+            created_at: payload.timestamp || payload.$createdAt || new Date().toISOString(),
+          };
+          this.messageListeners.forEach((fn) => fn(row));
         });
         this.isSubscribed = true;
         console.log('[Appwrite Sync] Realtime listener attached to messages channel');
@@ -171,7 +176,11 @@ class AppwriteSyncManager {
   public async fetchRecentMessages(chatId?: string): Promise<MessageRow[]> {
     await this.ensureSession();
     try {
-      const queries = [Query.limit(100), Query.orderAsc('$createdAt')];
+      const queries = [
+        Query.orderDesc('$createdAt'),
+        Query.limit(100),
+        Query.notEqual('conversationId', '__presence__'),
+      ];
       if (chatId) {
         queries.push(Query.equal('conversationId', chatId));
       }
@@ -181,7 +190,10 @@ class AppwriteSyncManager {
         queries
       );
 
-      const allRows = res.documents.map((doc: any) => {
+      // Chronologically order results (oldest among the recent 100 first)
+      const docsInOrder = [...res.documents].reverse();
+
+      const allRows = docsInOrder.map((doc: any) => {
         let msgType = (doc.type || 'text') as MessageType;
         if (doc.senderId === 'system_receipt' || (doc.content === 'read' && doc.senderId?.startsWith('system_'))) {
           msgType = 'receipt_event' as any;
@@ -227,38 +239,50 @@ class AppwriteSyncManager {
     metadata?: MessageMetadata;
     timestamp?: string;
     participantIds?: string[];
-  }): Promise<boolean> {
+  }): Promise<{ success: boolean; docId?: string }> {
     await this.ensureSession();
+    const docId = ID.unique();
+    const docPayload = {
+      conversationId: params.chatId,
+      senderId: params.senderId,
+      senderName: params.senderName,
+      type: params.type || 'text',
+      content: params.content,
+      metadata: params.metadata ? JSON.stringify(params.metadata) : '',
+      timestamp: params.timestamp || new Date().toISOString(),
+    };
+
+    // Permissions: Role.any() works for both unauthenticated guests and authenticated users.
+    // We avoid Role.users() which throws 401 on unauthenticated clients.
+    const permissions = [
+      Permission.read(Role.any()),
+      Permission.write(Role.any()),
+    ];
+
     try {
-      const docId = ID.unique();
-
-      // ── Ensure messages are deliverable to all conversation participants in Appwrite ──
-      const permissions = [
-        Permission.read(Role.any()),
-        Permission.read(Role.users()),
-        Permission.write(Role.any()),
-        Permission.write(Role.users()),
-      ];
-
-      await databases.createDocument(
+      const doc = await databases.createDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.messagesTableId,
         docId,
-        {
-          conversationId: params.chatId,
-          senderId: params.senderId,
-          senderName: params.senderName,
-          type: params.type || 'text',
-          content: params.content,
-          metadata: params.metadata ? JSON.stringify(params.metadata) : '',
-          timestamp: params.timestamp || new Date().toISOString(),
-        },
+        docPayload,
         permissions
       );
-      return true;
-    } catch (err) {
-      console.warn('[Appwrite Sync] Push message error:', err);
-      return false;
+      return { success: true, docId: doc.$id };
+    } catch (err: any) {
+      console.warn('[Appwrite Sync] Push message with permissions failed, retrying without perms:', err?.message || err);
+      try {
+        // Fallback: omit permissions parameter and rely on collection defaults
+        const doc = await databases.createDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.messagesTableId,
+          ID.unique(),
+          docPayload
+        );
+        return { success: true, docId: doc.$id };
+      } catch (retryErr) {
+        console.error('[Appwrite Sync] Push message fatal error:', retryErr);
+        return { success: false };
+      }
     }
   }
 
@@ -432,11 +456,12 @@ class AppwriteSyncManager {
     chatId: string,
     messageId: string,
     status: 'delivered' | 'read',
-    readerUsername: string
+    readerUsername: string,
+    extraMeta?: Record<string, any>
   ): Promise<boolean> {
     await this.ensureSession();
     try {
-      await this.pushMessage({
+      const res = await this.pushMessage({
         chatId,
         senderId: 'system_receipt',
         senderName: readerUsername,
@@ -446,9 +471,10 @@ class AppwriteSyncManager {
           targetMessageId: messageId,
           status,
           readerUsername,
+          ...extraMeta,
         },
       });
-      return true;
+      return res.success;
     } catch {
       return false;
     }
