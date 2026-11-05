@@ -488,8 +488,42 @@ export const ChatView: React.FC<ChatViewProps> = ({
           justifyContent: 'center',
           padding: '24px',
           userSelect: 'none',
+          position: 'relative',
         }}
       >
+        {isMobileActive && onBackToSidebar && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(env(safe-area-inset-top, 16px) + 12px)',
+              left: '16px',
+              zIndex: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={onBackToSidebar}
+              id="btn-back-from-empty-chat"
+              aria-label="Back to chats"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#18181C',
+                border: '1px solid #26262B',
+                borderRadius: '12px',
+                padding: '8px 14px',
+                color: '#ECECEF',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <ChevronLeft size={18} strokeWidth={2.4} />
+              <span>Back to chats</span>
+            </button>
+          </div>
+        )}
         <div
           style={{
             width: '64px',

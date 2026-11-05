@@ -255,6 +255,7 @@ export const App: React.FC = () => {
 
   const activeChat =
     chats.find((c) => c.id === activeChatId) ||
+    webStore.getChatById(activeChatId || '') ||
     webStore.getChats().find((c) => c.id === activeChatId) ||
     null;
   const activeMessages: Message[] = activeChatId ? webStore.getMessages(activeChatId) : [];

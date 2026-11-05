@@ -3,6 +3,7 @@
  * Developer Messenger Store
  */
 import appwriteSync from '../lib/appwriteSync';
+import { parseDmParticipants } from '../utils/dm';
 
 
 export interface ReviewComment {
@@ -433,9 +434,8 @@ class WebStore {
     // Drop any DM message where the current user is NOT a participant.
     // This is defense-in-depth on top of Appwrite document-level permissions.
     if (chatId.startsWith('dm_') && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
-      const myUsername = CURRENT_USER.username.toLowerCase();
-      const parts = chatId.replace(/^dm_/, '').split('_');
-      if (!parts.some((p) => p.toLowerCase() === myUsername)) {
+      const { isParticipant } = parseDmParticipants(chatId, CURRENT_USER.username);
+      if (!isParticipant) {
         return; // Not our conversation — silently ignore for privacy
       }
     }
@@ -696,8 +696,8 @@ class WebStore {
     // Update Chat preview or auto-create DM chat on recipient side
     let chat = this.chats.find((c) => c.id === chatId);
     if (!chat && chatId.startsWith('dm_')) {
-      const parts = chatId.replace(/^dm_/, '').split('_');
-      const otherHandle = parts.find((p) => p.toLowerCase() !== myUsername) || parts[0] || 'dev';
+      const { peerUsername } = parseDmParticipants(chatId, myUsername);
+      const otherHandle = peerUsername || 'dev';
       const displayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
       chat = {
         id: chatId,
@@ -891,8 +891,17 @@ class WebStore {
   }
 
   // Getters
+  public getChatById(chatId: string): Chat | null {
+    if (!chatId) return null;
+    return (
+      this.chats.find((c) => c.id === chatId) ||
+      this.chats.find((c) => c.type === 'dm' && c.username && chatId.toLowerCase().includes(c.username.toLowerCase())) ||
+      null
+    );
+  }
+
   public getChats(): Chat[] {
-    const myHandle = (CURRENT_USER.username || '').toLowerCase();
+    const myHandle = (CURRENT_USER.username || '').toLowerCase().trim();
 
     return this.chats
       .filter((c) => {
@@ -902,14 +911,14 @@ class WebStore {
         // Privacy isolation: In a DM, the current logged-in user MUST be one of the participants!
         if (c.type === 'dm' || c.id.startsWith('dm_')) {
           if (CURRENT_USER.isLoggedIn && myHandle) {
-            const parts = c.id.replace(/^dm_/, '').split('_');
-            if (parts.length >= 2) {
-              const isParticipant = parts.some((p) => p.toLowerCase() === myHandle);
-              if (!isParticipant) return false;
-            } else if (c.username && c.username.toLowerCase() === myHandle) {
-              // Chat with self / invalid
+            // Exclude chat with self
+            if (c.username && c.username.toLowerCase() === myHandle) {
               return false;
             }
+            const { isParticipant } = parseDmParticipants(c.id, myHandle);
+            // If peer username is explicitly specified on the chat and is not me, it belongs to this user
+            const isOurChat = isParticipant || (c.username && c.username.toLowerCase() !== myHandle);
+            if (!isOurChat) return false;
           }
         }
         return true;
@@ -1213,19 +1222,41 @@ class WebStore {
 
   public addFriend(dev: SuggestedDev): Chat {
     // Deterministic DM room ID based on both sorted GitHub usernames (WhatsApp-style)
-    const myUser = (CURRENT_USER.username || 'me').toLowerCase();
-    const peerUser = dev.username.toLowerCase();
+    let myUser = (CURRENT_USER.username || '').toLowerCase().trim();
+    if (!myUser || myUser === 'me') {
+      try {
+        const saved = localStorage.getItem('ack_current_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.username) myUser = parsed.username.toLowerCase().trim();
+        }
+      } catch {}
+    }
+    if (!myUser) myUser = 'me';
+
+    const peerUser = dev.username.toLowerCase().trim();
     const sortedHandles = [myUser, peerUser].sort();
     const dmRoomId = `dm_${sortedHandles[0]}_${sortedHandles[1]}`;
 
+    // Remove from deleted map in case this chat was previously deleted
+    const deletedMap = this.getDeletedChatIds();
+    if (deletedMap[dmRoomId]) {
+      delete deletedMap[dmRoomId];
+      try {
+        localStorage.setItem('ack_deleted_chat_ids', JSON.stringify(deletedMap));
+      } catch {}
+    }
+
     // Check if chat already exists
-    let chat = this.chats.find((c) => c.id === dmRoomId || c.username === dev.username);
+    let chat = this.chats.find(
+      (c) => c.id === dmRoomId || (c.username && c.username.toLowerCase() === peerUser)
+    );
     const isFromInvite = dev.tag === 'Invited You to Ack' || dev.tag === 'Invite Connect';
 
     if (!chat) {
       chat = {
         id: dmRoomId,
-        name: dev.name,
+        name: dev.name || dev.username,
         username: dev.username,
         type: 'dm',
         avatar: dev.avatar || `https://github.com/${dev.username}.png`,
@@ -1240,14 +1271,26 @@ class WebStore {
       this.chats.unshift(chat);
 
       // WhatsApp starts new chats empty without canned welcome messages
-      this.messages[chat.id] = [];
-    } else if (isFromInvite) {
-      chat.isInviteChat = true;
-      chat.invitedBy = dev.username;
+      if (!this.messages[chat.id]) {
+        this.messages[chat.id] = [];
+      }
+    } else {
+      if (deletedMap[chat.id]) {
+        delete deletedMap[chat.id];
+        try {
+          localStorage.setItem('ack_deleted_chat_ids', JSON.stringify(deletedMap));
+        } catch {}
+      }
+      if (isFromInvite) {
+        chat.isInviteChat = true;
+        chat.invitedBy = dev.username;
+      }
     }
 
     // Remove from suggestions
-    this.suggestions = this.suggestions.filter((s) => s.id !== dev.id);
+    this.suggestions = this.suggestions.filter(
+      (s) => s.id !== dev.id && s.username.toLowerCase() !== peerUser
+    );
     this.persist();
     return chat;
   }

@@ -1,6 +1,7 @@
 import { ID, Query, Permission, Role } from 'appwrite';
 import { client, databases, account, APPWRITE_CONFIG } from './appwrite';
 import type { MessageRow, MessageType, MessageMetadata } from '../db/types';
+import { parseDmParticipants } from '../utils/dm';
 
 class AppwriteSyncManager {
   private isSubscribed = false;
@@ -60,8 +61,7 @@ class AppwriteSyncManager {
     if (!user || !user.username) return true; // Guest mode: allow through (UI won't show anyway)
 
     if (conversationId.startsWith('dm_')) {
-      const parts = conversationId.replace(/^dm_/, '').split('_');
-      return parts.some((p) => p.toLowerCase() === user.username);
+      return parseDmParticipants(conversationId, user.username).isParticipant;
     }
     // Non-DM (groups, directory, presence, reviews) — allow
     return true;
@@ -88,8 +88,7 @@ class AppwriteSyncManager {
     const user = this.getCurrentUserInfo();
     if (!user?.appwriteUserId) return [];
 
-    const parts = chatId.replace(/^dm_/, '').split('_');
-    const peerUsername = parts.find((p) => p.toLowerCase() !== user.username) || '';
+    const { peerUsername } = parseDmParticipants(chatId, user.username);
     const peerId = this.resolveAppwriteUserId(peerUsername);
 
     const perms: string[] = [

@@ -69,7 +69,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
   const handleStartChatWithProfile = (profile: AuthenticatedUserProfile) => {
     const dev: SuggestedDev = {
       id: profile.githubId ? `gh_${profile.githubId}` : profile.id,
-      name: profile.name,
+      name: profile.name || profile.username,
       username: profile.username,
       avatar: profile.avatar || `https://github.com/${profile.username.toLowerCase()}.png`,
       tag: 'Ack Developer',
@@ -256,6 +256,15 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                   return (
                     <div
                       key={user.id || user.username}
+                      onClick={() => handleStartChatWithProfile(user)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleStartChatWithProfile(user);
+                        }
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -264,6 +273,8 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                         background: '#131316',
                         border: '1px solid #222226',
                         borderRadius: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
@@ -297,7 +308,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                               textOverflow: 'ellipsis',
                             }}
                           >
-                            {user.name}
+                            {user.name || user.username}
                           </span>
                           <span
                             style={{
@@ -328,7 +339,10 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleStartChatWithProfile(user)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartChatWithProfile(user);
+                        }}
                         id={`btn-msg-${user.username}`}
                         style={{
                           padding: '8px 20px',
