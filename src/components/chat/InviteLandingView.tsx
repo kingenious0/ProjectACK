@@ -40,7 +40,7 @@ export const InviteLandingView: React.FC<InviteLandingViewProps> = ({
   const cleanHandle = parseInviterHandle(inviterUsername || inviteCode || 'kingenious0');
   const initials = getInitials(cleanHandle);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // Preserve invite code or handle across OAuth redirect
     const token = inviteCode || cleanHandle;
     try {
@@ -49,7 +49,11 @@ export const InviteLandingView: React.FC<InviteLandingViewProps> = ({
       }
     } catch (e) {}
 
-    loginWithGitHub();
+    try {
+      await loginWithGitHub();
+    } catch (err) {
+      console.error('[InviteLandingView] GitHub login error:', err);
+    }
   };
 
   return (

@@ -13,7 +13,11 @@ class AppwriteSyncManager {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('userId') && params.get('secret')) {
-        // OAuth callback in flight: do not create anonymous session to prevent collision
+        // OAuth callback in flight: do not touch sessions
+        return false;
+      }
+      if (params.get('error')) {
+        // OAuth error in URL: do not touch sessions
         return false;
       }
     }
@@ -22,15 +26,11 @@ class AppwriteSyncManager {
       this.sessionEnsured = true;
       return true;
     } catch {
-      try {
-        await account.createAnonymousSession();
-        this.sessionEnsured = true;
-        console.log('[Appwrite Sync] Anonymous guest session active');
-        return true;
-      } catch (err) {
-        console.warn('[Appwrite Sync] Session init error (offline/CORS):', err);
-        return false;
-      }
+      // No active session. Do NOT create an anonymous session!
+      // Anonymous sessions poison GitHub OAuth by triggering account-linking
+      // which fails with 409 user_already_exists when the user already has an account.
+      // Appwrite collection permissions with Role.any() allow unauthenticated reads/writes.
+      return false;
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { loginWithGitHub } from '../../lib/appwrite';
 
 export interface SignInModalProps {
@@ -14,13 +14,32 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 }) => {
   const [isEmailView, setIsEmailView] = useState(false);
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedNotice = sessionStorage.getItem('ack_auth_notice');
+      if (savedNotice) {
+        setNotice(savedNotice);
+        sessionStorage.removeItem('ack_auth_notice');
+      }
+    }
+  }, []);
 
   if (!isOpen) return null;
 
-  const handleGitHubAuth = () => {
-    loginWithGitHub();
+  const handleGitHubAuth = async () => {
+    try {
+      setIsLoading(true);
+      setNotice(null);
+      await loginWithGitHub();
+    } catch (err: any) {
+      console.error('[SignInModal] GitHub login error:', err);
+      setIsLoading(false);
+      setNotice(err?.message || 'Could not connect with GitHub. Please try again.');
+    }
   };
-
 
   const handleEmailAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,10 +172,30 @@ export const SignInModal: React.FC<SignInModalProps> = ({
           </form>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Session refresh / Error Notice */}
+            {notice && (
+              <div
+                style={{
+                  background: 'rgba(139, 124, 255, 0.12)',
+                  border: '1px solid rgba(139, 124, 255, 0.35)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  color: 'var(--ack-text, #ECECEF)',
+                  fontSize: '13px',
+                  lineHeight: 1.4,
+                  marginBottom: '4px',
+                  textAlign: 'center',
+                }}
+              >
+                {notice}
+              </div>
+            )}
+
             {/* Continue with GitHub */}
             <button
               type="button"
               onClick={handleGitHubAuth}
+              disabled={isLoading}
               id="btn-signin-github"
               style={{
                 width: '100%',
@@ -167,15 +206,34 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                 color: '#0B0B0D',
                 fontSize: '15px',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: isLoading ? 'default' : 'pointer',
+                opacity: isLoading ? 0.75 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: '8px',
                 boxShadow: '0 2px 14px rgba(139, 124, 255, 0.28)',
                 transition: 'opacity 150ms ease, transform 80ms ease',
               }}
             >
-              Continue with GitHub
+              {isLoading ? (
+                <>
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(11,11,13,0.3)',
+                      borderTopColor: '#0B0B0D',
+                      borderRadius: '50%',
+                      display: 'inline-block',
+                      animation: 'ackSpin 600ms linear infinite',
+                    }}
+                  />
+                  <span>Connecting to GitHub...</span>
+                </>
+              ) : (
+                'Continue with GitHub'
+              )}
             </button>
 
             {/* Continue with email */}

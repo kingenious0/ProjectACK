@@ -35,8 +35,19 @@ export async function pingAppwrite(): Promise<boolean> {
 }
 
 // GitHub OAuth2 login using Token to bypass 3rd-party cookie blocking on localhost
-export function loginWithGitHub(): void {
+export async function loginWithGitHub(): Promise<void> {
   const redirect = window.location.origin + window.location.pathname;
+  try {
+    // CRITICAL: Delete any active session (e.g. anonymous guest session) before starting OAuth.
+    // When an active session is present, Appwrite treats createOAuth2Token as an account linking
+    // attempt. If the GitHub user already exists in Appwrite, it throws:
+    // 409 user_already_exists ("A user with the same id, email, or phone already exists in this project.")
+    // Clearing the session first ensures Appwrite performs a clean user authentication.
+    await account.deleteSession('current').catch(() => {});
+  } catch (err) {
+    console.log('[Appwrite] Note on clearing session before OAuth:', err);
+  }
+
   try {
     account.createOAuth2Token(OAuthProvider.Github, redirect, redirect);
   } catch (err) {
@@ -566,12 +577,44 @@ export async function createSecureRoom(
 
 let isExchangingOAuth = false;
 
-// Exchange URL token (userId & secret) for session on return
+// Exchange URL token (userId & secret) for session on return, or handle OAuth error redirects
 export async function handleOAuthCallback(): Promise<AuthenticatedUserProfile | null> {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const userId = params.get('userId');
   const secret = params.get('secret');
+  const errorParam = params.get('error');
+
+  // Handle OAuth failure redirect from Appwrite (e.g. 409 user_already_exists)
+  if (errorParam) {
+    console.warn('[Appwrite OAuth] Received error redirect:', errorParam);
+
+    // Clean URL query and hash so user does not stay on an error URL with raw JSON
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+
+    // Actively delete any conflicting session (such as the anonymous session that caused 409)
+    try {
+      await account.deleteSession('current').catch(() => {});
+      console.log('[Appwrite OAuth] Conflicting session cleared after OAuth error');
+    } catch {}
+
+    let is409 = errorParam.includes('user_already_exists') || errorParam.includes('409');
+    try {
+      const parsed = JSON.parse(errorParam);
+      if (parsed?.code === 409 || parsed?.type === 'user_already_exists') {
+        is409 = true;
+      }
+    } catch {}
+
+    if (is409) {
+      try {
+        sessionStorage.setItem('ack_auth_notice', 'Previous session cleaned up. Please click Continue with GitHub to sign in.');
+      } catch {}
+    }
+
+    return null;
+  }
 
   if (userId && secret) {
     if (isExchangingOAuth) return null;
