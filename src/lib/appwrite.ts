@@ -93,7 +93,32 @@ export async function getGitHubProfile(): Promise<AuthenticatedUserProfile | nul
     }
 
     if (!ghUsername) {
-      ghUsername = user.email ? user.email.split('@')[0] : 'dev';
+      if (user.email) {
+        ghUsername = user.email.split('@')[0];
+      } else {
+        // If this is an anonymous session, preserve existing authenticated user from localStorage if present
+        try {
+          if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ack_current_user');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed?.username && parsed.username !== 'dev' && parsed.isLoggedIn) {
+                return {
+                  id: user.$id || parsed.id,
+                  githubId: parsed.githubId || parsed.id,
+                  name: parsed.name,
+                  username: parsed.username,
+                  avatar: parsed.avatar,
+                  searchable: parsed.searchable ?? true,
+                  inviteCode: parsed.inviteCode,
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+            }
+          }
+        } catch {}
+        return null;
+      }
     }
 
     const profile: AuthenticatedUserProfile = {
@@ -115,7 +140,7 @@ export async function getGitHubProfile(): Promise<AuthenticatedUserProfile | nul
   }
 }
 
-// Upsert user profile to Appwrite 'profiles' collection + fallback local directory
+// Upsert user profile to Appwrite messages table (__ack_directory__) + local directory
 export async function upsertUserProfile(profile: AuthenticatedUserProfile): Promise<void> {
   // 1. Keep local cache/registry synchronized
   try {
@@ -167,35 +192,6 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
       docData,
       permissions
     ).catch(() => {});
-
-    // Also attempt profiles table if collection exists
-    const docId = `gh_${profile.githubId || profile.username.toLowerCase()}`;
-    const profileData = {
-      githubId: profile.githubId,
-      login: profile.username,
-      name: profile.name,
-      avatarUrl: profile.avatar,
-      searchable: profile.searchable ?? true,
-      inviteCode: profile.inviteCode || '',
-      updatedAt: new Date().toISOString(),
-    };
-
-    databases.createDocument(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.profilesTableId,
-      docId,
-      profileData,
-      permissions
-    ).catch((err: any) => {
-      if (err?.code === 409 || err?.message?.includes('already exists')) {
-        databases.updateDocument(
-          APPWRITE_CONFIG.databaseId,
-          APPWRITE_CONFIG.profilesTableId,
-          docId,
-          profileData
-        ).catch(() => {});
-      }
-    });
   } catch (err) {
     console.warn('[Appwrite Directory] Upsert profile notice:', err);
   }
@@ -378,31 +374,7 @@ export async function searchAckProfiles(
     console.warn('[Appwrite Directory Search] Cloud scan note:', err);
   }
 
-  // 5. Query Appwrite profiles table if collection exists
-  try {
-    const res = await databases.listDocuments(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.profilesTableId,
-      [Query.limit(25)]
-    );
-    for (const doc of res.documents as any[]) {
-      const login = (doc.login || '').toLowerCase();
-      const name = (doc.name || '').toLowerCase();
-      const searchable = doc.searchable !== false;
 
-      if (searchable && (login.includes(query) || name.includes(query))) {
-        matchedMap.set(login, {
-          id: doc.$id,
-          githubId: doc.githubId || doc.$id,
-          name: doc.name || doc.login,
-          username: doc.login,
-          avatar: doc.avatarUrl || `https://github.com/${doc.login}.png`,
-          searchable: true,
-          inviteCode: doc.inviteCode || '',
-        });
-      }
-    }
-  } catch (err) {}
 
   // Exclude current user from results
   if (excludeUsername) {
@@ -611,6 +583,8 @@ export async function createSecureRoom(
   }
 }
 
+let isExchangingOAuth = false;
+
 // Exchange URL token (userId & secret) for session on return
 export async function handleOAuthCallback(): Promise<AuthenticatedUserProfile | null> {
   if (typeof window === 'undefined') return null;
@@ -619,14 +593,26 @@ export async function handleOAuthCallback(): Promise<AuthenticatedUserProfile | 
   const secret = params.get('secret');
 
   if (userId && secret) {
+    if (isExchangingOAuth) return null;
+    isExchangingOAuth = true;
+
+    // Immediately clean query params so token cannot be exchanged twice or on Fast Refresh
+    const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+    window.history.replaceState({}, document.title, cleanUrl);
+
     try {
       console.log('[Appwrite] Exchanging OAuth token for session:', { userId });
+      // Delete any pre-existing session (like anonymous guest session) to avoid 401 collision
+      try {
+        await account.deleteSession('current');
+      } catch {}
+
       await account.createSession(userId, secret);
-      // Clean query params so URL stays tidy
-      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, cleanUrl);
+      console.log('[Appwrite] GitHub OAuth session created successfully');
     } catch (err) {
       console.error('[Appwrite] Failed to create session from token:', err);
+    } finally {
+      isExchangingOAuth = false;
     }
   }
 

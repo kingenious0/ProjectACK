@@ -26,7 +26,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { Chat, Message, CURRENT_USER, webStore, isMockChat } from '../../web-db/store';
-import { getInitials } from './ChatList';
+import { getInitials } from '../../utils/avatar';
 import { CodeMessage } from './CodeMessage';
 import { VaultMessage } from './VaultMessage';
 import { ImageMessage } from './ImageMessage';
@@ -127,11 +127,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [showForwardSheet, setShowForwardSheet] = useState(false);
   const longPressTimerRef = useRef<any>(null);
   const touchMovedRef = useRef<boolean>(false);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const typingDebounceRef = useRef<any>(null);
+
+  const checkIsMe = (msg?: Message | null): boolean => {
+    if (!msg) return false;
+    // 1. Direct ID match
+    if (msg.senderId === CURRENT_USER.id) return true;
+    if (CURRENT_USER.githubId && msg.senderId === CURRENT_USER.githubId) return true;
+    if (msg.senderId === 'usr_me' || msg.senderId === 'dev_user_self') return true;
+
+    // 2. Direct name / username match
+    if (msg.senderName === 'ME') return true;
+
+    const msgUser = (msg.metadata?.username || '').toLowerCase();
+    const currentUsername = (CURRENT_USER.username || '').toLowerCase();
+    if (msgUser && currentUsername && msgUser === currentUsername) return true;
+
+    const currentName = (CURRENT_USER.name || '').toLowerCase();
+    const senderName = (msg.senderName || '').toLowerCase();
+    if (currentName && senderName && (currentName === senderName || senderName.includes(currentName) || currentName.includes(senderName))) {
+      return true;
+    }
+
+    // 3. In 1-on-1 DM: any message not sent by the chat peer belongs to the current user!
+    if (chat && chat.type === 'dm' && chat.username) {
+      const peerUser = chat.username.toLowerCase();
+      const isPeer = (msgUser && msgUser === peerUser) ||
+                     (senderName && senderName.includes(peerUser)) ||
+                     (msg.senderId === chat.id);
+      if (!isPeer) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const isInviteChat = Boolean(chat?.isInviteChat || chat?.invitedBy || chat?.statusText?.toLowerCase().includes('invite'));
   const inviterHandle = chat?.invitedBy || chat?.username || 'dev';
-  const hasUserReplied = messages.some((m) => m.senderId === CURRENT_USER.id);
+  const hasUserReplied = messages.some((m) => checkIsMe(m));
   const showQuickChips = isInviteChat && !hasUserReplied && !dismissChips;
 
   useEffect(() => {
@@ -923,7 +958,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Message Stream */}
         {messages.map((msg) => {
-          const isMe = msg.senderId === CURRENT_USER.id;
+          const isMe = checkIsMe(msg);
           const isImage = msg.type === 'image';
           const isDoc = msg.type === 'document';
           const isPrCard = msg.type === 'pr_card';
@@ -1117,6 +1152,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 onTouchStart={(e) => {
                   touchMovedRef.current = false;
                   const touch = e.touches[0];
+                  touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                   longPressTimerRef.current = setTimeout(() => {
                     if (!touchMovedRef.current) {
                       setActionMessage(msg);
@@ -1125,11 +1161,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         y: Math.min(touch.clientY, window.innerHeight - 220),
                       });
                     }
-                  }, 450);
+                  }, 400);
                 }}
-                onTouchMove={() => {
-                  touchMovedRef.current = true;
-                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                onTouchMove={(e) => {
+                  if (touchStartPosRef.current && e.touches[0]) {
+                    const dx = e.touches[0].clientX - touchStartPosRef.current.x;
+                    const dy = e.touches[0].clientY - touchStartPosRef.current.y;
+                    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+                      touchMovedRef.current = true;
+                      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                    }
+                  }
                 }}
                 onTouchEnd={() => {
                   if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
@@ -1172,6 +1214,52 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   cursor: isVault && msg.metadata?.isBurned ? 'pointer' : 'default',
                 }}
               >
+                {/* Message menu trigger (Hover on desktop, subtle button on mobile) */}
+                <button
+                  type="button"
+                  className="ack-bubble-menu-trigger"
+                  aria-label="Message options"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setActionMessage(msg);
+                    setActionMenuPosition({
+                      x: Math.min(rect.right - 20, window.innerWidth - 180),
+                      y: Math.min(rect.bottom + 4, window.innerHeight - 220),
+                    });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: isMe ? 'auto' : '4px',
+                    left: isMe ? '4px' : 'auto',
+                    background: 'rgba(24, 24, 28, 0.85)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '50%',
+                    width: '22px',
+                    height: '22px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#A1A1AA',
+                    cursor: 'pointer',
+                    padding: 0,
+                    zIndex: 10,
+                    opacity: 0,
+                    transition: 'opacity 150ms ease, background 150ms ease, color 150ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#FFF';
+                    e.currentTarget.style.background = '#2A2A33';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#A1A1AA';
+                    e.currentTarget.style.background = 'rgba(24, 24, 28, 0.85)';
+                  }}
+                >
+                  <MoreVertical size={13} strokeWidth={2} />
+                </button>
                 {/* 1. Image */}
                 {isImage && (
                   <ImageMessage
@@ -1843,7 +1931,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               gap: '2px',
             }}
           >
-            {actionMessage.senderId === CURRENT_USER.id &&
+            {checkIsMe(actionMessage) &&
               actionMessage.type === 'text' &&
               actionMessage.content !== '[DELETED]' &&
               !actionMessage.metadata?.isDeletedForEveryone && (
@@ -1986,12 +2074,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
           >
             <div style={{ fontSize: '16px', fontWeight: 600, color: '#F4F4F5' }}>Delete message?</div>
             <div style={{ fontSize: '13px', color: '#A1A1AA', lineHeight: 1.4 }}>
-              {actionMessage.senderId === CURRENT_USER.id
+              {checkIsMe(actionMessage)
                 ? 'You can delete this message for everyone or delete it from this device only.'
                 : 'Delete this message from your device?'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-              {actionMessage.senderId === CURRENT_USER.id &&
+              {checkIsMe(actionMessage) &&
                 !actionMessage.metadata?.isDeletedForEveryone &&
                 actionMessage.content !== '[DELETED]' && (
                   <button

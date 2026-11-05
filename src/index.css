@@ -33,3 +33,14 @@ html, body {
   position: relative;
   background-color: var(--ack-bg);
 }
+
+.ack-message-bubble:hover .ack-bubble-menu-trigger {
+  opacity: 1 !important;
+}
+
+@media (hover: none) {
+  .ack-bubble-menu-trigger {
+    opacity: 0.65 !important;
+  }
+}
+

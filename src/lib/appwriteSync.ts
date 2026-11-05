@@ -10,6 +10,13 @@ class AppwriteSyncManager {
 
   public async ensureSession(): Promise<boolean> {
     if (this.sessionEnsured) return true;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('userId') && params.get('secret')) {
+        // OAuth callback in flight: do not create anonymous session to prevent collision
+        return false;
+      }
+    }
     try {
       await account.get();
       this.sessionEnsured = true;
