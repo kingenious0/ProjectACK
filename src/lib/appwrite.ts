@@ -217,16 +217,21 @@ export async function upsertUserProfile(profile: AuthenticatedUserProfile): Prom
   }
 }
 
-// Helper to strictly filter out internal system/bot accounts from appearing as user profiles
+// Helper to strictly filter out internal system/bot accounts and raw IDs from appearing as user profiles
 export function isSystemIdentifier(identifier?: string): boolean {
   if (!identifier) return true;
   const clean = identifier.toLowerCase().trim().replace(/^@/, '');
+  // Appwrite user/document IDs are 20-character hex/alphanumeric strings (e.g. 6aeabd80b55fa52dedab)
+  if (/^[0-9a-f]{20}$/i.test(clean) || /^[0-9a-z]{20}$/i.test(clean)) return true;
   return (
+    clean === 'me' ||
+    clean === 'dev' ||
     clean.startsWith('system_') ||
     clean.startsWith('sys_') ||
     clean.startsWith('__') ||
     clean.startsWith('inv_') ||
-    clean.startsWith('usr_me') ||
+    clean.startsWith('usr_') ||
+    clean.startsWith('gh_') ||
     clean === 'system' ||
     clean === 'system_presence' ||
     clean === 'system_typing' ||
@@ -332,8 +337,8 @@ export async function searchAckProfiles(
       if (doc.conversationId === '__ack_directory__' || doc.type === 'profile_sync') {
         try {
           const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-          const rawUsername = meta?.username || doc.senderId || '';
-          if (isSystemIdentifier(rawUsername)) continue;
+          const rawUsername = meta?.username || (!isSystemIdentifier(doc.senderId) ? doc.senderId : '');
+          if (!rawUsername || isSystemIdentifier(rawUsername)) continue;
 
           const login = rawUsername.toLowerCase().trim();
           const name = (meta?.name || doc.senderName || login).trim();
@@ -506,10 +511,10 @@ export async function resolveInviteCode(rawCodeOrUsername: string): Promise<Auth
     }
   } catch (err) {}
 
-  // 3. Fallback: Parse structured invite code: inv_<username>_<random>
+  // 3. Fallback: Parse structured invite code: inv_<username>_<random> or inv_<username>
   if (token.startsWith('inv_')) {
     const parts = token.split('_');
-    if (parts.length >= 3 && parts[1]) {
+    if (parts.length >= 2 && parts[1] && !isSystemIdentifier(parts[1])) {
       const uname = parts[1];
       return {
         id: `gh_${uname}`,
@@ -534,7 +539,7 @@ export async function resolveInviteCode(rawCodeOrUsername: string): Promise<Auth
   }
 
   // 4. Raw username fallback
-  if (token.length >= 2) {
+  if (token.length >= 2 && !isSystemIdentifier(token)) {
     return {
       id: `gh_${token}`,
       githubId: token,

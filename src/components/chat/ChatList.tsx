@@ -37,6 +37,7 @@ export interface ChatListProps {
   onClearChat?: (chatId: string) => void;
   onLeaveGroup?: (chatId: string) => void;
   onOpenGroupInfo?: (chat: Chat) => void;
+  onOpenConnectRepo?: () => void;
   activeCategory?: string;
   onSelectCategory?: (category: any) => void;
   isMobileHidden?: boolean;
@@ -62,6 +63,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   onClearChat,
   onLeaveGroup,
   onOpenGroupInfo,
+  onOpenConnectRepo,
   isMobileHidden = false,
   isLoading = false,
   unreadNotificationsCount = 0,
@@ -332,6 +334,33 @@ export const ChatList: React.FC<ChatListProps> = ({
                 >
                   <Users size={16} color="#8B7CFF" />
                   <span>New group</span>
+                </button>
+              )}
+
+              {onOpenConnectRepo && (
+                <button
+                  id="btn-connect-repo"
+                  onClick={() => {
+                    setShowComposeMenu(false);
+                    onOpenConnectRepo();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#F4F4F5',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>📁</span>
+                  <span>Connect repo</span>
                 </button>
               )}
             </div>

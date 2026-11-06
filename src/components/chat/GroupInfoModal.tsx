@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check, Trash2 } from 'lucide-react';
+import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check, Trash2, GitPullRequest, ExternalLink } from 'lucide-react';
 import { Chat, GroupMember, MOCK_USERNAMES } from '../../web-db/store';
 import { FEATURES } from '../../config/features';
 
@@ -11,6 +11,7 @@ interface GroupInfoModalProps {
   onDeleteGroup?: (chatId: string) => void;
   onOpenSearch?: () => void;
   onAddMember?: () => void;
+  onOpenReview?: (payload: any) => void;
 }
 
 export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
@@ -21,6 +22,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   onDeleteGroup,
   onOpenSearch,
   onAddMember,
+  onOpenReview,
 }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -221,27 +223,117 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           </div>
 
           {/* Linked Repo */}
-          {(chat.linkedRepo || chat.repoTag) && (
-            <div
-              style={{
-                marginBottom: '24px',
-                padding: '14px',
-                borderRadius: '12px',
-                backgroundColor: '#18181C',
-                border: '1px solid #26262B',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <GitFork size={16} color="#8B7CFF" />
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Linked Repository
-                </span>
+          {(chat.linkedRepo || chat.repoTag) && (() => {
+            const repoClean = (chat.linkedRepo || chat.repoTag || '').replace(/#.*$/, '').replace(/^https?:\/\/github\.com\//, '').trim();
+            const repoUrl = `https://github.com/${repoClean}`;
+            return (
+              <div
+                style={{
+                  marginBottom: '24px',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  backgroundColor: '#18181C',
+                  border: '1px solid #26262B',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <GitFork size={16} color="#8B7CFF" />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Linked Repository
+                    </span>
+                  </div>
+                  <a
+                    href={repoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="link-group-github-external"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: 'var(--ack-accent, #8B7CFF)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <span>Open GitHub</span>
+                    <ExternalLink size={12} strokeWidth={2} />
+                  </a>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontWeight: 600,
+                    color: '#F4F4F5',
+                    marginBottom: '12px',
+                  }}
+                >
+                  {repoClean}
+                </div>
+
+                {onOpenReview && (
+                  <button
+                    type="button"
+                    id="btn-modal-review-repo"
+                    onClick={() => {
+                      onClose();
+                      onOpenReview({
+                        title: `PR #42: Sync ${repoClean} changes`,
+                        prNumber: 42,
+                        prBranch: 'main',
+                        repoName: repoClean,
+                        diffFiles: [
+                          {
+                            filename: 'src/config.ts',
+                            oldPath: 'src/config.ts',
+                            newPath: 'src/config.ts',
+                            status: 'modified',
+                            additions: 12,
+                            deletions: 3,
+                            chunks: [
+                              {
+                                header: '@@ -1,8 +1,17 @@',
+                                lines: [
+                                  ' import { defineConfig } from "vite";',
+                                  '-const API_URL = "http://localhost:3000";',
+                                  '+const API_URL = process.env.VITE_API_URL || "https://project-ack.vercel.app";',
+                                  `+export const LINKED_REPO = "${repoClean}";`,
+                                  ' export default defineConfig({});'
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      });
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(139, 124, 255, 0.15)',
+                      border: '1px solid rgba(139, 124, 255, 0.35)',
+                      color: '#ECECEF',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <GitPullRequest size={15} color="#8B7CFF" />
+                    <span>Inspect PRs & Code Diffs</span>
+                  </button>
+                )}
               </div>
-              <div style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 600, color: '#F4F4F5' }}>
-                {chat.linkedRepo || chat.repoTag}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Member List */}
           <div style={{ marginBottom: '24px' }}>

@@ -89,45 +89,47 @@ class DatabaseManager {
 
     await this.seedInitialDataIfEmpty();
 
-    // Start Appwrite Realtime Sync
-    try {
-      appwriteSync.subscribeToMessages((incomingMsg) => {
-        if (!this.memoryStore.messages.has(incomingMsg.id)) {
-          this.memoryStore.messages.set(incomingMsg.id, incomingMsg);
-          const chat = this.memoryStore.chats.get(incomingMsg.chat_id);
-          if (chat) {
-            chat.updated_at = incomingMsg.created_at;
-            this.memoryStore.chats.set(incomingMsg.chat_id, chat);
-          }
-          if (this.isNative && this.nativeDb) {
-            this.execute(
-              `INSERT OR REPLACE INTO messages (id, chat_id, sender_id, content, message_type, status, metadata, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                incomingMsg.id,
-                incomingMsg.chat_id,
-                incomingMsg.sender_id,
-                incomingMsg.content,
-                incomingMsg.message_type,
-                incomingMsg.status,
-                incomingMsg.metadata,
-                incomingMsg.created_at,
-              ]
-            );
-          }
-        }
-      });
-
-      // Hydrate with cloud history
-      appwriteSync.fetchRecentMessages().then((cloudMsgs) => {
-        cloudMsgs.forEach((msg) => {
-          if (!this.memoryStore.messages.has(msg.id)) {
-            this.memoryStore.messages.set(msg.id, msg);
+    // Start Appwrite Realtime Sync (skip in test runner to prevent unhandled network callbacks after teardown)
+    if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+      try {
+        appwriteSync.subscribeToMessages((incomingMsg) => {
+          if (!this.memoryStore.messages.has(incomingMsg.id)) {
+            this.memoryStore.messages.set(incomingMsg.id, incomingMsg);
+            const chat = this.memoryStore.chats.get(incomingMsg.chat_id);
+            if (chat) {
+              chat.updated_at = incomingMsg.created_at;
+              this.memoryStore.chats.set(incomingMsg.chat_id, chat);
+            }
+            if (this.isNative && this.nativeDb) {
+              this.execute(
+                `INSERT OR REPLACE INTO messages (id, chat_id, sender_id, content, message_type, status, metadata, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  incomingMsg.id,
+                  incomingMsg.chat_id,
+                  incomingMsg.sender_id,
+                  incomingMsg.content,
+                  incomingMsg.message_type,
+                  incomingMsg.status,
+                  incomingMsg.metadata,
+                  incomingMsg.created_at,
+                ]
+              );
+            }
           }
         });
-      });
-    } catch (e) {
-      console.warn('[ACK DB] Appwrite sync setup notice:', e);
+
+        // Hydrate with cloud history
+        appwriteSync.fetchRecentMessages().then((cloudMsgs) => {
+          cloudMsgs.forEach((msg) => {
+            if (!this.memoryStore.messages.has(msg.id)) {
+              this.memoryStore.messages.set(msg.id, msg);
+            }
+          });
+        });
+      } catch (e) {
+        console.warn('[ACK DB] Appwrite sync setup notice:', e);
+      }
     }
 
     this.isInitialized = true;
@@ -296,21 +298,23 @@ class DatabaseManager {
 
     const sender = await this.getUserById(params.senderId);
 
-    // Push to Appwrite Cloud in background
-    appwriteSync.pushMessage({
-      id,
-      chatId: params.chatId,
-      senderId: params.senderId,
-      senderName: sender?.display_name || 'Alex (You)',
-      content: params.content,
-      type: type,
-      metadata: params.metadata,
-      timestamp: now,
-    });
+    // Push to Appwrite Cloud in background (skip in test runner to prevent async operations after teardown)
+    if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+      appwriteSync.pushMessage({
+        id,
+        chatId: params.chatId,
+        senderId: params.senderId,
+        senderName: sender?.display_name || 'Alex (You)',
+        content: params.content,
+        type: type,
+        metadata: params.metadata,
+        timestamp: now,
+      });
 
-    // Simulate real-time ACK sequence from blueprint:
-    // 1. Pending (Clock) -> 2. Sent (1 Gray Tick) after 400ms -> 3. Delivered (2 Gray Ticks) after 900ms -> 4. Read (2 Cyber-Emerald Ticks) after 2000ms
-    this.simulateRelayAckWorkflow(id);
+      // Simulate real-time ACK sequence from blueprint:
+      // 1. Pending (Clock) -> 2. Sent (1 Gray Tick) after 400ms -> 3. Delivered (2 Gray Ticks) after 900ms -> 4. Read (2 Cyber-Emerald Ticks) after 2000ms
+      this.simulateRelayAckWorkflow(id);
+    }
 
 
     return {

@@ -28,8 +28,11 @@ import {
   LogOut,
   RotateCcw,
   Info,
+  GitFork,
+  GitPullRequest,
+  ExternalLink,
 } from 'lucide-react';
-import { Chat, Message, CURRENT_USER, webStore, isMockChat } from '../../web-db/store';
+import { Chat, Message, CURRENT_USER, webStore, isMockChat, MessageType, MessageMetadata } from '../../web-db/store';
 import { getInitials } from '../../utils/avatar';
 import { CodeMessage } from './CodeMessage';
 import { VaultMessage } from './VaultMessage';
@@ -45,7 +48,7 @@ import { FEATURES } from '../../config/features';
 export interface ChatViewProps {
   chat: Chat | null;
   messages: Message[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, type?: MessageType, metadata?: MessageMetadata) => void;
   onSendCode: () => void;
   onSendVault: () => void;
   onBackToSidebar: () => void;
@@ -730,8 +733,44 @@ export const ChatView: React.FC<ChatViewProps> = ({
               >
                 {(() => {
                   const isPeerTyping = !!(chat && webStore.getTypingUser(chat.id));
-                  if (chat.type === 'group' && chat.members) {
-                    return <span>{chat.members.length} members · tap for info</span>;
+                  if (chat.type === 'group') {
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span>{chat.members ? `${chat.members.length} members` : 'Group'} · tap for info</span>
+                        {(chat.linkedRepo || chat.repoTag) && (
+                          <a
+                            href={
+                              (chat.linkedRepo || chat.repoTag || '').startsWith('http')
+                                ? (chat.linkedRepo || chat.repoTag || '')
+                                : `https://github.com/${(chat.linkedRepo || chat.repoTag || '').replace(/#.*$/, '')}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            id="btn-group-repo-link"
+                            title="Open repository on GitHub"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              color: 'var(--ack-accent-text, #A99DFF)',
+                              textDecoration: 'none',
+                              fontSize: '11px',
+                              fontFamily: 'JetBrains Mono, monospace',
+                              fontWeight: 600,
+                              background: 'rgba(139, 124, 255, 0.12)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(139, 124, 255, 0.25)',
+                            }}
+                          >
+                            <GitFork size={11} />
+                            <span>{(chat.linkedRepo || chat.repoTag || '').replace(/^https?:\/\/github\.com\//i, '')}</span>
+                            <ExternalLink size={10} style={{ opacity: 0.7 }} />
+                          </a>
+                        )}
+                      </div>
+                    );
                   }
                   if (isPeerTyping) {
                     return (
@@ -769,6 +808,64 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Right: Call Button + Overflow Menu */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', position: 'relative' }}>
+          {chat.linkedRepo && (
+            <button
+              type="button"
+              id="btn-header-review-repo"
+              onClick={() => {
+                handleTriggerReview({
+                  title: `PR #42: Sync ${chat.linkedRepo} changes`,
+                  prNumber: 42,
+                  prBranch: 'main',
+                  repoName: chat.linkedRepo,
+                  diffFiles: [
+                    {
+                      filename: 'src/config.ts',
+                      oldPath: 'src/config.ts',
+                      newPath: 'src/config.ts',
+                      status: 'modified',
+                      additions: 12,
+                      deletions: 3,
+                      chunks: [
+                        {
+                          header: '@@ -1,8 +1,17 @@',
+                          lines: [
+                            ' import { defineConfig } from "vite";',
+                            '-const API_URL = "http://localhost:3000";',
+                            '+const API_URL = process.env.VITE_API_URL || "https://project-ack.vercel.app";',
+                            `+export const LINKED_REPO = "${chat.linkedRepo}";`,
+                            ' export default defineConfig({});'
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                });
+              }}
+              aria-label="Review repository pull requests"
+              style={{
+                background: 'rgba(169, 157, 255, 0.12)',
+                border: '1px solid rgba(169, 157, 255, 0.3)',
+                color: 'var(--ack-accent, #A99DFF)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '34px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                marginRight: '6px',
+                transition: 'all 0.15s ease',
+              }}
+              title={`Review PR diffs for ${chat.linkedRepo}`}
+            >
+              <GitPullRequest size={15} strokeWidth={2} />
+              <span className="ack-mobile-hidden">Review Diffs</span>
+            </button>
+          )}
+
           {FEATURES.calls && (onOpenStartCallSheet || onOpenCall) && (
             <button
               type="button"
@@ -1884,6 +1981,67 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Lock size={18} strokeWidth={1.75} />
             <span>Secret vault</span>
           </button>
+
+          {chat.linkedRepo && (
+            <button
+              type="button"
+              id="btn-share-linked-repo-pr"
+              onClick={() => {
+                setShowAttachMenu(false);
+                onSendMessage(
+                  `Review requested for ${chat.linkedRepo} #42`,
+                  'review_pr',
+                  {
+                    prTitle: `Sync updates for ${chat.linkedRepo}`,
+                    prNumber: 42,
+                    prBranch: 'feature/sync-ack',
+                    filesChanged: 2,
+                    additions: 24,
+                    deletions: 5,
+                    repoName: chat.linkedRepo,
+                    diffFiles: [
+                      {
+                        filename: 'src/lib/sync.ts',
+                        oldPath: 'src/lib/sync.ts',
+                        newPath: 'src/lib/sync.ts',
+                        status: 'modified',
+                        additions: 18,
+                        deletions: 2,
+                        chunks: [
+                          {
+                            header: '@@ -10,5 +10,21 @@',
+                            lines: [
+                              ' export function syncRepository() {',
+                              '-  console.log("legacy sync");',
+                              `+  console.log("Connected to ${chat.linkedRepo}");`,
+                              '+  return true;',
+                              ' }'
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                );
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 12px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--ack-accent, #A99DFF)',
+                fontSize: '13px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <GitPullRequest size={18} strokeWidth={1.75} />
+              <span>Share Repo PR / Diff</span>
+            </button>
+          )}
         </div>
       )}
 

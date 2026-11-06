@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser, logoutUser, handleOAuthCallback, resolveInviteCode, upsertUserProfile } from './lib/appwrite';
 import { appwriteSync } from './lib/appwriteSync';
-import { webStore, Chat, Message, setCurrentUser, CURRENT_USER } from './web-db/store';
+import { webStore, Chat, Message, setCurrentUser, CURRENT_USER, MessageType, MessageMetadata } from './web-db/store';
 import { ChatList } from './components/chat/ChatList';
 import { InviteLandingView } from './components/chat/InviteLandingView';
 
@@ -22,6 +22,7 @@ import { GroupInfoModal } from './components/chat/GroupInfoModal';
 import { BurnedSecretModal } from './components/chat/BurnedSecretModal';
 import { SplashScreen } from './components/SplashScreen';
 import { FEATURES, isCallingEnabled } from './config/features';
+import { ConnectRepoFlow, ConnectedRepoChannel } from './components/github/ConnectRepoFlow';
 import './theme/ack.css';
 
 export const App: React.FC = () => {
@@ -76,6 +77,9 @@ export const App: React.FC = () => {
     title?: string;
     copiedAt?: string;
   } | null>(null);
+
+  // GitHub App repo-connection flow
+  const [isConnectRepoOpen, setIsConnectRepoOpen] = useState(false);
 
   const [, setStoreRevision] = useState(0);
 
@@ -288,9 +292,9 @@ export const App: React.FC = () => {
     setIsMobileChatOpen(true);
   };
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, type: MessageType = 'text', metadata?: MessageMetadata) => {
     if (!activeChatId) return;
-    webStore.sendMessage(activeChatId, text, 'text');
+    webStore.sendMessage(activeChatId, text, type, metadata);
   };
 
   const handleSendVault = (title: string, rawSecret: string, ttlSeconds: number) => {
@@ -551,6 +555,10 @@ export const App: React.FC = () => {
           isOpen={!!groupInfoChat}
           onClose={() => setGroupInfoChat(null)}
           chat={groupInfoChat}
+          onOpenReview={(payload) => {
+            setGroupInfoChat(null);
+            setActiveReviewPayload(payload);
+          }}
           onLeaveGroup={(chatId) => {
             webStore.leaveGroup(chatId);
             setGroupInfoChat(null);
@@ -587,6 +595,29 @@ export const App: React.FC = () => {
                 `Hey @${sender}, could you share a fresh secret? The previous one was burned.`
               );
             }
+          }}
+        />
+      )}
+
+      {/* Connect a GitHub Repo – 6-screen wizard */}
+      {isConnectRepoOpen && (
+        <ConnectRepoFlow
+          onClose={() => setIsConnectRepoOpen(false)}
+          onChannelCreated={(cfg: ConnectedRepoChannel) => {
+            // Create a webhook-type chat channel for the repo
+            const repoChat = webStore.createGroup(
+              `#${cfg.channelName}`,
+              [],
+              cfg.repoFullName,
+              `https://github.com/${cfg.repoFullName.split('/')[0]}.png`,
+            );
+            setChats([...webStore.getChats()]);
+            setActiveChatId(repoChat.id);
+            setIsMobileChatOpen(true);
+          }}
+          onReviewDiff={() => {
+            setIsConnectRepoOpen(false);
+            setActiveReviewPayload({ title: 'feat: live CI status in repo channel', diff: '+340 / -48' } as any);
           }}
         />
       )}

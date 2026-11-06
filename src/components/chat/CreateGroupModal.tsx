@@ -131,10 +131,14 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
   const handleCreate = () => {
     if (!groupName.trim()) return;
+    let cleanRepo = repoLink.trim();
+    if (cleanRepo) {
+      cleanRepo = cleanRepo.replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
+    }
     onCreateGroup(
       groupName.trim(),
       selectedDevs,
-      repoLink.trim() || undefined,
+      cleanRepo || undefined,
       avatarUrl.trim() || undefined
     );
     // Reset state & close

@@ -26,7 +26,11 @@ export interface DiffFile {
   filename: string;
   additions: number;
   deletions: number;
-  lines: DiffLine[];
+  lines?: DiffLine[];
+  oldPath?: string;
+  newPath?: string;
+  status?: string;
+  chunks?: any[];
 }
 
 export interface MessageMetadata {
@@ -80,6 +84,17 @@ export interface MessageMetadata {
 }
 
 
+export type MessageType =
+  | 'text'
+  | 'code'
+  | 'env_secret'
+  | 'pr_card'
+  | 'audio_note'
+  | 'system'
+  | 'image'
+  | 'document'
+  | string;
+
 export interface Message {
   id: string;
   chatId: string;
@@ -87,7 +102,7 @@ export interface Message {
   senderName: string;
   senderAvatar: string;
   content: string;
-  type: 'text' | 'code' | 'env_secret' | 'pr_card' | 'audio_note' | 'system' | 'image' | 'document';
+  type: MessageType;
   status: 'sent' | 'delivered' | 'read' | 'failed' | 'queued' | 'pending';
   timestamp: string;
   metadata?: MessageMetadata;
@@ -271,6 +286,13 @@ export function setCurrentUser(user: {
       localStorage.setItem('ack_user_directory', JSON.stringify(dir));
     }
   } catch (e) {}
+
+  try {
+    if (typeof webStore !== 'undefined' && webStore) {
+      webStore.cleanStateForUser(user.username);
+      webStore.refreshCloudMessages();
+    }
+  } catch {}
 }
 
 
@@ -371,6 +393,7 @@ class WebStore {
   private listeners: Set<() => void> = new Set();
   private typingUsers: Record<string, string | null> = {};
   private typingTimeouts: Record<string, any> = {};
+  private lastTypingBroadcastTime: Record<string, number> = {};
 
   public getTypingUser(chatId: string): string | null {
     return this.typingUsers[chatId] || null;
@@ -396,7 +419,7 @@ class WebStore {
   }
 
   private initCloudSync() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test')) return;
 
     try {
       // Listen to real-time incoming messages from Appwrite Cloud
@@ -439,10 +462,30 @@ class WebStore {
     // ── SECURITY: Private DM isolation (client-side safety net) ──
     // Drop any DM message where the current user is NOT a participant.
     // This is defense-in-depth on top of Appwrite document-level permissions.
-    if (chatId.startsWith('dm_') && CURRENT_USER.isLoggedIn && CURRENT_USER.username) {
-      const { isParticipant } = parseDmParticipants(chatId, CURRENT_USER.username);
+    if (chatId.startsWith('dm_')) {
+      const myHandle = (CURRENT_USER.username || '').toLowerCase().trim();
+      if (!CURRENT_USER.isLoggedIn || !myHandle || myHandle.startsWith('guest_') || myHandle === 'dev_guest') {
+        return; // Drop DMs if not logged in
+      }
+      const { isParticipant } = parseDmParticipants(chatId, myHandle);
       if (!isParticipant) {
-        return; // Not our conversation — silently ignore for privacy
+        return; // Not our conversation — drop immediately!
+      }
+    }
+
+    // ── SECURITY: Group conversation isolation ──
+    if (chatId.startsWith('group_')) {
+      const myHandle = (CURRENT_USER.username || '').toLowerCase().trim();
+      const metaMembers = meta?.members;
+      const existingChat = this.chats.find((c) => c.id === chatId);
+      const allMembers = metaMembers || existingChat?.members;
+      if (allMembers && Array.isArray(allMembers) && allMembers.length > 0) {
+        const isMember = allMembers.some((m: any) => (m.username || '').toLowerCase().trim() === myHandle);
+        const msgUsername = (meta?.username || row.senderName || '').toLowerCase().trim();
+        const isMeSender = Boolean(myHandle && msgUsername === myHandle);
+        if (!isMember && !isMeSender && CURRENT_USER.isLoggedIn && myHandle && !myHandle.startsWith('guest_')) {
+          return; // Strictly drop group message if user is not in the group!
+        }
       }
     }
 
@@ -710,6 +753,22 @@ class WebStore {
       },
     };
 
+    // Update Chat preview or auto-create DM, Group, or Repo chat on recipient side
+    const { isParticipant, peerUsername } = parseDmParticipants(chatId, myUsername);
+    if (chatId.startsWith('dm_') && !isParticipant) {
+      return; // Strictly drop foreign DM before saving messages or creating chats
+    }
+
+    if (chatId.startsWith('group_')) {
+      const groupMembers = meta?.members || [];
+      if (Array.isArray(groupMembers) && groupMembers.length > 0 && myUsername && !myUsername.startsWith('guest_') && myUsername !== 'dev_guest') {
+        const isMember = groupMembers.some((m: any) => (m.username || '').toLowerCase().trim() === myUsername);
+        if (!isMember) {
+          return; // Strictly drop group message if user is not in group members
+        }
+      }
+    }
+
     if (!this.messages[chatId]) {
       this.messages[chatId] = [];
     }
@@ -721,33 +780,96 @@ class WebStore {
     const msgTimestamp = row.created_at || row.timestamp;
     const formattedChatTime = formatChatTimestamp(msgTimestamp);
 
-    // Update Chat preview or auto-create DM chat on recipient side
-    const { peerUsername } = parseDmParticipants(chatId, myUsername);
-    let chat = this.chats.find(
-      (c) =>
-        c.id === chatId ||
-        (c.username && peerUsername && c.username.toLowerCase() === peerUsername.toLowerCase())
-    );
-    if (!chat && chatId.startsWith('dm_')) {
-      const otherHandle = peerUsername || 'dev';
-      const displayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
-      chat = {
-        id: chatId,
-        name: displayName,
-        username: otherHandle.toLowerCase(),
-        type: 'dm',
-        avatar: isMe ? `https://github.com/${otherHandle.toLowerCase()}.png` : (meta?.senderAvatar || `https://github.com/${otherHandle.toLowerCase()}.png`),
-        statusIconType: 'chat',
-        statusText: (newMsg.content !== 'read' && newMsg.content !== 'delivered') ? newMsg.content : '',
-        statusTime: formattedChatTime,
-        unreadCount: isMe || isCurrentlyActive || !shouldNotify ? 0 : 1,
-        isOnline: shouldNotify ? true : false,
-        lastSeen: msgTimestamp ? (isNaN(new Date(msgTimestamp).getTime()) ? undefined : new Date(msgTimestamp).toISOString()) : undefined,
-      };
-      this.chats.unshift(chat);
-    } else if (chat) {
+    let chat = this.chats.find((c) => c.id === chatId);
+    if (!chat) {
+      if (chatId.startsWith('dm_')) {
+        const otherHandle = peerUsername || 'dev';
+        const displayName = !isMe ? (meta?.senderName || row.senderName || otherHandle) : otherHandle;
+        chat = {
+          id: chatId,
+          name: displayName,
+          username: otherHandle.toLowerCase(),
+          type: 'dm',
+          avatar: isMe ? `https://github.com/${otherHandle.toLowerCase()}.png` : (meta?.senderAvatar || `https://github.com/${otherHandle.toLowerCase()}.png`),
+          statusIconType: 'chat',
+          statusText: (newMsg.content !== 'read' && newMsg.content !== 'delivered') ? newMsg.content : '',
+          statusTime: formattedChatTime,
+          unreadCount: isMe || isCurrentlyActive || !shouldNotify ? 0 : 1,
+          isOnline: shouldNotify ? true : false,
+          lastSeen: msgTimestamp ? (isNaN(new Date(msgTimestamp).getTime()) ? undefined : new Date(msgTimestamp).toISOString()) : undefined,
+        };
+        this.chats.unshift(chat);
+      } else if (chatId.startsWith('group_')) {
+        const groupName = meta?.groupName || row.groupName || meta?.name || 'Group Chat';
+        const groupAvatar = meta?.groupAvatar || 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80';
+        const membersList = meta?.members || [];
+        if (Array.isArray(membersList) && membersList.length > 0 && myUsername && !myUsername.startsWith('guest_') && myUsername !== 'dev_guest') {
+          const isMember = membersList.some((m: any) => (m.username || '').toLowerCase().trim() === myUsername);
+          if (!isMember) return;
+        }
+        chat = {
+          id: chatId,
+          name: groupName,
+          username: groupName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          type: 'group',
+          avatar: groupAvatar,
+          statusIconType: 'chat',
+          statusText: (newMsg.content !== 'read' && newMsg.content !== 'delivered') ? newMsg.content : '',
+          statusTime: formattedChatTime,
+          unreadCount: isMe || isCurrentlyActive || !shouldNotify ? 0 : 1,
+          isOnline: true,
+          members: membersList,
+          linkedRepo: meta?.linkedRepo,
+          repoTag: meta?.linkedRepo ? `${meta.linkedRepo}#main` : undefined,
+          description: meta?.description || `Discussion for ${groupName}`,
+        };
+        this.chats.unshift(chat);
+      } else if (chatId.startsWith('repo_')) {
+        const repoName = meta?.repoName || chatId.replace('repo_', '').replace(/_/g, '/');
+        chat = {
+          id: chatId,
+          name: repoName,
+          username: repoName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          type: 'repo',
+          avatar: meta?.repoAvatar || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+          statusIconType: 'code',
+          statusText: (newMsg.content !== 'read' && newMsg.content !== 'delivered') ? newMsg.content : '',
+          statusTime: formattedChatTime,
+          unreadCount: isMe || isCurrentlyActive || !shouldNotify ? 0 : 1,
+          isOnline: true,
+          linkedRepo: meta?.linkedRepo || repoName,
+        };
+        this.chats.unshift(chat);
+      }
+    } else {
       if (chat.id !== chatId) {
+        const oldId = chat.id;
         chat.id = chatId;
+        if (this.messages[oldId] && this.messages[oldId].length > 0) {
+          if (!this.messages[chatId]) this.messages[chatId] = [];
+          const existingIds = new Set(this.messages[chatId].map((m) => m.id));
+          for (const m of this.messages[oldId]) {
+            if (!existingIds.has(m.id)) {
+              this.messages[chatId].push(m);
+            }
+          }
+          delete this.messages[oldId];
+        }
+      }
+      if (chat.type === 'group') {
+        if (meta?.groupName && (!chat.name || chat.name === 'Group Chat')) {
+          chat.name = meta.groupName;
+        }
+        if (meta?.members && Array.isArray(meta.members) && meta.members.length > 0 && (!chat.members || chat.members.length === 0)) {
+          chat.members = meta.members;
+        }
+        if (meta?.linkedRepo && !chat.linkedRepo) {
+          chat.linkedRepo = meta.linkedRepo;
+          chat.repoTag = `${meta.linkedRepo}#main`;
+        }
+        if (meta?.groupAvatar && chat.avatar && chat.avatar.includes('unsplash')) {
+          chat.avatar = meta.groupAvatar;
+        }
       }
       if (newMsg.content !== 'read' && newMsg.content !== 'delivered') {
         chat.statusText =
@@ -784,7 +906,8 @@ class WebStore {
     }
 
     // When receiving a real-time message from peer as recipient, send delivery/read receipt back
-    if (!isMe && shouldNotify && newMsg.id && row.type !== 'receipt_event' && row.message_type !== 'receipt_event') {
+    const isRealChat = chatId.startsWith('dm_') || chatId.startsWith('group_') || chatId.startsWith('repo_');
+    if (!isMe && shouldNotify && newMsg.id && isRealChat && row.type !== 'receipt_event' && row.message_type !== 'receipt_event') {
       const receiptStatus = isCurrentlyActive ? 'read' : 'delivered';
       const targetClientMsgId = meta?.clientMsgId;
       appwriteSync
@@ -829,6 +952,10 @@ class WebStore {
 
   private loadState() {
     try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        this.chats = [];
+        return;
+      }
       const savedChats = localStorage.getItem('ack_chats') || localStorage.getItem('whatsdev_snap_chats');
       const savedMessages = localStorage.getItem('ack_messages') || localStorage.getItem('whatsdev_snap_messages');
       const deletedMap = this.getDeletedChatIds();
@@ -913,11 +1040,13 @@ class WebStore {
 
   private persist() {
     try {
-      localStorage.setItem('ack_chats', JSON.stringify(this.chats));
-      localStorage.setItem('ack_messages', JSON.stringify(this.messages));
-      localStorage.setItem('ack_suggestions', JSON.stringify(this.suggestions));
-      localStorage.setItem('ack_reviews', JSON.stringify(this.reviews));
-      localStorage.setItem('ack_notifications', JSON.stringify(this.notifications));
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem('ack_chats', JSON.stringify(this.chats));
+        localStorage.setItem('ack_messages', JSON.stringify(this.messages));
+        localStorage.setItem('ack_suggestions', JSON.stringify(this.suggestions));
+        localStorage.setItem('ack_reviews', JSON.stringify(this.reviews));
+        localStorage.setItem('ack_notifications', JSON.stringify(this.notifications));
+      }
     } catch (e) {
       console.warn('Storage persist failed', e);
     }
@@ -938,11 +1067,7 @@ class WebStore {
   // Getters
   public getChatById(chatId: string): Chat | null {
     if (!chatId) return null;
-    return (
-      this.chats.find((c) => c.id === chatId) ||
-      this.chats.find((c) => c.type === 'dm' && c.username && chatId.toLowerCase().includes(c.username.toLowerCase())) ||
-      null
-    );
+    return this.chats.find((c) => c.id === chatId) || null;
   }
 
   public getChats(): Chat[] {
@@ -955,15 +1080,36 @@ class WebStore {
 
         // Privacy isolation: In a DM, the current logged-in user MUST be one of the participants!
         if (c.type === 'dm' || c.id.startsWith('dm_')) {
-          if (CURRENT_USER.isLoggedIn && myHandle) {
-            // Exclude chat with self
-            if (c.username && c.username.toLowerCase() === myHandle) {
-              return false;
+          if (!CURRENT_USER.isLoggedIn || !myHandle || myHandle.startsWith('guest_') || myHandle === 'dev_guest') {
+            return false;
+          }
+          // Exclude chat with self
+          if (c.username && c.username.toLowerCase() === myHandle) {
+            return false;
+          }
+          const { isParticipant } = parseDmParticipants(c.id, myHandle);
+          if (!isParticipant) return false;
+        }
+
+        // Privacy isolation: In a group, current user must be in members list
+        if (c.type === 'group' || c.id.startsWith('group_')) {
+          if (!CURRENT_USER.isLoggedIn || !myHandle || myHandle.startsWith('guest_') || myHandle === 'dev_guest') {
+            return false;
+          }
+          if (!c.members || !Array.isArray(c.members) || c.members.length === 0) {
+            const msgs = this.messages[c.id] || [];
+            for (const m of msgs) {
+              if (m.metadata?.members && Array.isArray(m.metadata.members) && m.metadata.members.length > 0) {
+                c.members = m.metadata.members;
+                if (!c.linkedRepo && m.metadata.linkedRepo) c.linkedRepo = m.metadata.linkedRepo;
+                if (!c.name && m.metadata.groupName) c.name = m.metadata.groupName;
+                break;
+              }
             }
-            const { isParticipant } = parseDmParticipants(c.id, myHandle);
-            // If peer username is explicitly specified on the chat and is not me, it belongs to this user
-            const isOurChat = isParticipant || (c.username && c.username.toLowerCase() !== myHandle);
-            if (!isOurChat) return false;
+          }
+          if (c.members && Array.isArray(c.members) && c.members.length > 0) {
+            const isMember = c.members.some((m) => (m.username || '').toLowerCase() === myHandle);
+            if (!isMember) return false;
           }
         }
         return true;
@@ -1007,6 +1153,21 @@ class WebStore {
   }
 
   public getMessages(chatId: string): Message[] {
+    const myHandle = (CURRENT_USER.username || '').toLowerCase().trim();
+    if (chatId.startsWith('dm_')) {
+      const { isParticipant } = parseDmParticipants(chatId, myHandle);
+      if (!isParticipant) {
+        return [];
+      }
+    } else if (chatId.startsWith('group_')) {
+      const chat = this.chats.find((c) => c.id === chatId);
+      if (chat && chat.members && Array.isArray(chat.members) && chat.members.length > 0 && myHandle && !myHandle.startsWith('guest_')) {
+        const isMember = chat.members.some((m) => (m.username || '').toLowerCase() === myHandle);
+        if (!isMember) {
+          return [];
+        }
+      }
+    }
     const list = this.messages[chatId] || [];
     return list.filter((m) => !m.metadata?.isDeletedForMe);
   }
@@ -1090,6 +1251,16 @@ class WebStore {
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const senderDisplayName = CURRENT_USER.name || CURRENT_USER.username || 'ME';
 
+    const groupChat = chatId.startsWith('group_') ? this.chats.find((c) => c.id === chatId) : null;
+    const groupContextMeta = groupChat
+      ? {
+          groupName: groupChat.name,
+          groupAvatar: groupChat.avatar,
+          members: groupChat.members,
+          linkedRepo: groupChat.linkedRepo,
+        }
+      : {};
+
     const newMsg: Message = {
       id: 'm_' + Date.now(),
       chatId,
@@ -1106,6 +1277,7 @@ class WebStore {
         senderName: CURRENT_USER.name,
         senderAvatar: CURRENT_USER.avatar,
         timestamp: now.toISOString(),
+        ...groupContextMeta,
         ...metadata,
       },
     };
@@ -1136,6 +1308,7 @@ class WebStore {
         type: type as any,
         metadata: {
           ...metadata,
+          ...groupContextMeta,
           clientMsgId: newMsg.id,
           deviceId: this.getDeviceId(),
           senderName: CURRENT_USER.name || CURRENT_USER.username,
@@ -1226,7 +1399,17 @@ class WebStore {
   }
 
   public setTyping(chatId: string, isTyping: boolean): void {
-    appwriteSync.broadcastTyping(chatId, CURRENT_USER.username, isTyping);
+    const now = Date.now();
+    const lastTime = this.lastTypingBroadcastTime[chatId] || 0;
+    if (isTyping) {
+      if (now - lastTime < 3000) {
+        return; // Throttled
+      }
+      this.lastTypingBroadcastTime[chatId] = now;
+    } else {
+      this.lastTypingBroadcastTime[chatId] = 0;
+    }
+    appwriteSync.broadcastTyping(chatId, CURRENT_USER.username, isTyping).catch(() => {});
   }
 
 
@@ -1304,7 +1487,25 @@ class WebStore {
     }
     if (!myUser) myUser = 'me';
 
-    const peerUser = dev.username.toLowerCase().trim();
+    let peerUser = dev.username.toLowerCase().trim().replace(/^@/, '');
+    try {
+      if (typeof window !== 'undefined') {
+        const rawDir = localStorage.getItem('ack_user_directory');
+        if (rawDir) {
+          const dir = JSON.parse(rawDir);
+          for (const key of Object.keys(dir)) {
+            const entry = dir[key];
+            if (entry && (entry.id === peerUser || entry.githubId === peerUser || entry.username?.toLowerCase() === peerUser)) {
+              if (entry.username) {
+                peerUser = entry.username.toLowerCase().trim();
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
     const sortedHandles = [myUser, peerUser].sort();
     const dmRoomId = `dm_${sortedHandles[0]}_${sortedHandles[1]}`;
 
@@ -1317,10 +1518,8 @@ class WebStore {
       } catch {}
     }
 
-    // Check if chat already exists
-    let chat = this.chats.find(
-      (c) => c.id === dmRoomId || (c.username && c.username.toLowerCase() === peerUser)
-    );
+    // Check if chat already exists by exact room ID
+    let chat = this.chats.find((c) => c.id === dmRoomId);
     const isFromInvite = dev.tag === 'Invited You to Ack' || dev.tag === 'Invite Connect';
 
     if (!chat) {
@@ -1345,15 +1544,6 @@ class WebStore {
         this.messages[chat.id] = [];
       }
     } else {
-      if (chat.id !== dmRoomId) {
-        const oldId = chat.id;
-        chat.id = dmRoomId;
-        if (this.messages[oldId] && this.messages[oldId].length > 0) {
-          if (!this.messages[dmRoomId]) this.messages[dmRoomId] = [];
-          this.messages[dmRoomId].push(...this.messages[oldId]);
-          delete this.messages[oldId];
-        }
-      }
       if (deletedMap[chat.id]) {
         delete deletedMap[chat.id];
         try {
@@ -1446,6 +1636,15 @@ class WebStore {
       description: `Discussion for ${name}`,
     };
 
+    const welcomeContent = `Group created. Welcome ${members.map((m) => '@' + m.username).join(', ')}!`;
+    const groupMeta = {
+      groupName: name,
+      groupAvatar: avatarUrl || 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=150&auto=format&fit=crop&q=80',
+      linkedRepo: repoLink,
+      members: groupMembers,
+      username: CURRENT_USER.username,
+    };
+
     this.chats.unshift(groupChat);
     this.messages[groupId] = [
       {
@@ -1454,15 +1653,28 @@ class WebStore {
         senderId: CURRENT_USER.id,
         senderName: CURRENT_USER.name,
         senderAvatar: CURRENT_USER.avatar,
-        content: `Group created. Welcome ${members.map((m) => '@' + m.username).join(', ')}!`,
+        content: welcomeContent,
         type: 'text',
         status: 'read',
         timestamp: 'Just now',
-        metadata: {},
+        metadata: groupMeta,
       },
     ];
 
     this.persist();
+
+    // Broadcast group creation to Appwrite Realtime so invited peers auto-instantiate the group
+    appwriteSync
+      .pushMessage({
+        chatId: groupId,
+        senderId: CURRENT_USER.id,
+        senderName: CURRENT_USER.name,
+        content: welcomeContent,
+        type: 'text',
+        metadata: groupMeta,
+      })
+      .catch(() => {});
+
     return groupChat;
   }
 
@@ -1559,6 +1771,75 @@ class WebStore {
     appwriteSync.pushCloudReview(pr).catch((err) => {
       console.warn('[ACK WebStore] Cloud review sync notice:', err);
     });
+  }
+
+  public cleanStateForUser(username: string): void {
+    const handle = username.toLowerCase().trim();
+    if (!handle || handle.startsWith('guest_') || handle === 'dev_guest') return;
+
+    // Purge any DM chat where current user is not a participant
+    this.chats = this.chats.filter((c) => {
+      if (c.type === 'dm' || c.id.startsWith('dm_')) {
+        const { isParticipant } = parseDmParticipants(c.id, handle);
+        if (!isParticipant) {
+          delete this.messages[c.id];
+          return false;
+        }
+      }
+      if (c.type === 'group' || c.id.startsWith('group_')) {
+        if (!c.members || !Array.isArray(c.members) || c.members.length === 0) {
+          const msgs = this.messages[c.id] || [];
+          for (const m of msgs) {
+            if (m.metadata?.members && Array.isArray(m.metadata.members) && m.metadata.members.length > 0) {
+              c.members = m.metadata.members;
+              if (!c.linkedRepo && m.metadata.linkedRepo) c.linkedRepo = m.metadata.linkedRepo;
+              if (!c.name && m.metadata.groupName) c.name = m.metadata.groupName;
+              break;
+            }
+          }
+        }
+        if (c.members && Array.isArray(c.members) && c.members.length > 0) {
+          const isMember = c.members.some((m) => (m.username || '').toLowerCase() === handle);
+          if (!isMember) {
+            delete this.messages[c.id];
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    // Also purge orphaned messages arrays that do not belong to this user
+    const validChatIds = new Set(this.chats.map((c) => c.id));
+    for (const cid of Object.keys(this.messages)) {
+      if (cid.startsWith('dm_')) {
+        const { isParticipant } = parseDmParticipants(cid, handle);
+        if (!isParticipant || !validChatIds.has(cid)) {
+          delete this.messages[cid];
+        }
+      } else if (cid.startsWith('group_')) {
+        if (!validChatIds.has(cid)) {
+          delete this.messages[cid];
+        }
+      }
+    }
+
+    this.persist();
+    this.notify();
+  }
+
+  public refreshCloudMessages(): void {
+    if (typeof window === 'undefined' || (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test')) return;
+    appwriteSync
+      .fetchRecentMessages()
+      .then((cloudMsgs) => {
+        cloudMsgs.forEach((msg) => {
+          this.receiveRemoteMessage(msg, false);
+        });
+        this.persist();
+        this.notify();
+      })
+      .catch(() => {});
   }
 }
 
