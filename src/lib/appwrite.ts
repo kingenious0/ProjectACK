@@ -85,6 +85,12 @@ export async function getGitHubProfile(): Promise<AuthenticatedUserProfile | nul
       const ghIdentity = identities.find((i) => i.provider === 'github');
 
       if (ghIdentity?.providerAccessToken) {
+        cachedGitHubToken = ghIdentity.providerAccessToken;
+        try {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('ack_gh_token', cachedGitHubToken);
+          }
+        } catch {}
         const ghRes = await fetch('https://api.github.com/user', {
           headers: {
             Authorization: `Bearer ${ghIdentity.providerAccessToken}`,
@@ -666,9 +672,40 @@ export async function getCurrentUser(): Promise<any | null> {
   }
 }
 
+// Read-only GitHub OAuth access token for live diff and PR requests
+let cachedGitHubToken: string | null = null;
+
+export async function getGitHubAccessToken(): Promise<string | null> {
+  if (cachedGitHubToken) return cachedGitHubToken;
+  try {
+    if (typeof window !== 'undefined') {
+      const savedToken = sessionStorage.getItem('ack_gh_token') || localStorage.getItem('ack_gh_token');
+      if (savedToken) {
+        cachedGitHubToken = savedToken;
+        return savedToken;
+      }
+    }
+    const { identities } = await account.listIdentities();
+    const ghIdentity = identities.find((i) => i.provider === 'github');
+    if (ghIdentity?.providerAccessToken) {
+      cachedGitHubToken = ghIdentity.providerAccessToken;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('ack_gh_token', cachedGitHubToken);
+      }
+      return cachedGitHubToken;
+    }
+  } catch {}
+  return null;
+}
+
 // Log out current session
 export async function logoutUser(): Promise<void> {
   try {
+    cachedGitHubToken = null;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('ack_gh_token');
+      localStorage.removeItem('ack_gh_token');
+    }
     await account.deleteSession('current');
     console.log('[Appwrite] Logged out successfully');
   } catch (err) {

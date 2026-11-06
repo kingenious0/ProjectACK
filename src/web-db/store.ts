@@ -31,6 +31,9 @@ export interface DiffFile {
   newPath?: string;
   status?: string;
   chunks?: any[];
+  hasNoPatch?: boolean;
+  largeOrBinary?: boolean;
+  htmlUrl?: string;
 }
 
 export interface MessageMetadata {

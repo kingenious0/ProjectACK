@@ -617,7 +617,7 @@ export const App: React.FC = () => {
           }}
           onReviewDiff={() => {
             setIsConnectRepoOpen(false);
-            setActiveReviewPayload({ title: 'feat: live CI status in repo channel', diff: '+340 / -48' } as any);
+            setActiveReviewPayload({ title: 'feat: live CI status in repo channel', prNumber: 1, prBranch: 'main', isSampleData: true } as any);
           }}
         />
       )}

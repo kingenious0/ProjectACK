@@ -43,6 +43,8 @@ import { ImagePreviewSheet } from './ImagePreviewSheet';
 import { Reactions } from './Reactions';
 import { AudioWaveBubble } from '../AudioWaveBubble';
 import { CodeReviewDrawer, CodeReviewPayload } from './CodeReviewDrawer';
+import { PullRequestPickerModal } from './PullRequestPickerModal';
+import { parseRepoSlug } from '../../services/githubService';
 import { FEATURES } from '../../config/features';
 
 export interface ChatViewProps {
@@ -134,6 +136,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   } | null>(null);
   const [activeReactionMenuId, setActiveReactionMenuId] = useState<string | null>(null);
   const [internalReviewPayload, setInternalReviewPayload] = useState<CodeReviewPayload | null>(null);
+  const [isPrPickerOpen, setIsPrPickerOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [dismissChips, setDismissChips] = useState(false);
   const [actionMessage, setActionMessage] = useState<Message | null>(null);
@@ -812,36 +815,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <button
               type="button"
               id="btn-header-review-repo"
-              onClick={() => {
-                handleTriggerReview({
-                  title: `PR #42: Sync ${chat.linkedRepo} changes`,
-                  prNumber: 42,
-                  prBranch: 'main',
-                  repoName: chat.linkedRepo,
-                  diffFiles: [
-                    {
-                      filename: 'src/config.ts',
-                      oldPath: 'src/config.ts',
-                      newPath: 'src/config.ts',
-                      status: 'modified',
-                      additions: 12,
-                      deletions: 3,
-                      chunks: [
-                        {
-                          header: '@@ -1,8 +1,17 @@',
-                          lines: [
-                            ' import { defineConfig } from "vite";',
-                            '-const API_URL = "http://localhost:3000";',
-                            '+const API_URL = process.env.VITE_API_URL || "https://project-ack.vercel.app";',
-                            `+export const LINKED_REPO = "${chat.linkedRepo}";`,
-                            ' export default defineConfig({});'
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                });
-              }}
+              onClick={() => setIsPrPickerOpen(true)}
               aria-label="Review repository pull requests"
               style={{
                 background: 'rgba(169, 157, 255, 0.12)',
@@ -1415,15 +1389,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <button
                     type="button"
                     id={`btn-review-diff-${msg.id}`}
-                    onClick={() =>
+                    onClick={() => {
+                      const repoSlug = msg.metadata?.repoName || (chat as any).linkedRepo || chat.repoTag || chat.name || '';
+                      const parsed = parseRepoSlug(repoSlug);
                       handleTriggerReview({
                         title: msg.metadata?.prTitle || msg.content,
-                        prNumber: msg.metadata?.prNumber || 28,
+                        prNumber: msg.metadata?.prNumber ? Number(msg.metadata.prNumber) : 1,
                         prBranch: msg.metadata?.prBranch || 'main',
+                        repoName: repoSlug,
+                        owner: msg.metadata?.owner || parsed?.owner,
+                        repo: msg.metadata?.repo || parsed?.repo,
                         diffFiles: msg.metadata?.diffFiles,
-                        repoName: chat.repoTag || chat.name,
-                      })
-                    }
+                      });
+                    }}
                     style={{
                       width: '100%',
                       height: '44px',
@@ -1988,41 +1966,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               id="btn-share-linked-repo-pr"
               onClick={() => {
                 setShowAttachMenu(false);
-                onSendMessage(
-                  `Review requested for ${chat.linkedRepo} #42`,
-                  'review_pr',
-                  {
-                    prTitle: `Sync updates for ${chat.linkedRepo}`,
-                    prNumber: 42,
-                    prBranch: 'feature/sync-ack',
-                    filesChanged: 2,
-                    additions: 24,
-                    deletions: 5,
-                    repoName: chat.linkedRepo,
-                    diffFiles: [
-                      {
-                        filename: 'src/lib/sync.ts',
-                        oldPath: 'src/lib/sync.ts',
-                        newPath: 'src/lib/sync.ts',
-                        status: 'modified',
-                        additions: 18,
-                        deletions: 2,
-                        chunks: [
-                          {
-                            header: '@@ -10,5 +10,21 @@',
-                            lines: [
-                              ' export function syncRepository() {',
-                              '-  console.log("legacy sync");',
-                              `+  console.log("Connected to ${chat.linkedRepo}");`,
-                              '+  return true;',
-                              ' }'
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                );
+                setIsPrPickerOpen(true);
               }}
               style={{
                 display: 'flex',
@@ -2366,6 +2310,44 @@ export const ChatView: React.FC<ChatViewProps> = ({
           onClose={handleCloseReview}
           onSendReviewComment={onSendReviewComment}
           isMobile={isMobileActive !== false}
+        />
+      )}
+
+      {/* Pull Request Picker Modal for linked repository */}
+      {(chat.linkedRepo || chat.repoTag) && (
+        <PullRequestPickerModal
+          isOpen={isPrPickerOpen}
+          onClose={() => setIsPrPickerOpen(false)}
+          repoInput={chat.linkedRepo || chat.repoTag || ''}
+          onSelectPrReview={(pr, owner, repo) => {
+            setIsPrPickerOpen(false);
+            handleTriggerReview({
+              title: pr.title,
+              prNumber: pr.number,
+              prBranch: pr.branch,
+              repoName: chat.linkedRepo || chat.repoTag || `${owner}/${repo}`,
+              owner,
+              repo,
+            });
+          }}
+          onSharePrCard={(pr, owner, repo) => {
+            setIsPrPickerOpen(false);
+            onSendMessage(
+              pr.title,
+              'pr_card',
+              {
+                prTitle: pr.title,
+                prNumber: pr.number,
+                prBranch: pr.branch,
+                repoName: chat.linkedRepo || chat.repoTag || `${owner}/${repo}`,
+                owner,
+                repo,
+                prAdditions: pr.additions,
+                prDeletions: pr.deletions,
+                filesChanged: pr.changedFiles,
+              }
+            );
+          }}
         />
       )}
 

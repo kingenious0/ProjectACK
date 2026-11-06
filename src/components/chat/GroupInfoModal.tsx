@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, BellOff, Bell, Search, UserPlus, GitFork, Shield, LogOut, Check, Trash2, GitPullRequest, ExternalLink } from 'lucide-react';
 import { Chat, GroupMember, MOCK_USERNAMES } from '../../web-db/store';
+import { parseRepoSlug } from '../../services/githubService';
 import { FEATURES } from '../../config/features';
 
 interface GroupInfoModalProps {
@@ -281,33 +282,14 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                     id="btn-modal-review-repo"
                     onClick={() => {
                       onClose();
+                      const parsed = parseRepoSlug(repoClean);
                       onOpenReview({
-                        title: `PR #42: Sync ${repoClean} changes`,
-                        prNumber: 42,
+                        title: `Pull Request #1: ${repoClean}`,
+                        prNumber: 1,
                         prBranch: 'main',
                         repoName: repoClean,
-                        diffFiles: [
-                          {
-                            filename: 'src/config.ts',
-                            oldPath: 'src/config.ts',
-                            newPath: 'src/config.ts',
-                            status: 'modified',
-                            additions: 12,
-                            deletions: 3,
-                            chunks: [
-                              {
-                                header: '@@ -1,8 +1,17 @@',
-                                lines: [
-                                  ' import { defineConfig } from "vite";',
-                                  '-const API_URL = "http://localhost:3000";',
-                                  '+const API_URL = process.env.VITE_API_URL || "https://project-ack.vercel.app";',
-                                  `+export const LINKED_REPO = "${repoClean}";`,
-                                  ' export default defineConfig({});'
-                                ]
-                              }
-                            ]
-                          }
-                        ]
+                        owner: parsed?.owner,
+                        repo: parsed?.repo,
                       });
                     }}
                     style={{
